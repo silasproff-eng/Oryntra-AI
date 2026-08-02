@@ -1,149 +1,347 @@
 <div align="center">
-  <img src="brand-assets/oryntra-ai-master-logo.png" alt="Oryntra AI" width="520">
 
-  # Oryntra AI
+<img src="brand-assets/oryntra-ai-master-logo.png" width="520">
 
-  **Alpaca-connected market research, technical analysis, and simulated trade planning.**
+# Oryntra AI
 
-  [Website](https://oryntraai.com) · [Methodology](https://oryntraai.com/methodology)
+### Institutional-grade market analysis architecture for intelligent trade research
+
+**Private Research Platform • AI Analysis • Technical Intelligence • Mobile Trading Companion**
+
+[Website](https://oryntraai.com) •
+[Methodology](https://oryntraai.com/methodology)
+
 </div>
 
+---
+
 > [!IMPORTANT]
-> This is a **public source-available repository, not an open-source project**. GitHub users may view and fork the repository through GitHub as permitted by GitHub's Terms of Service. No broader permission to use, modify, deploy, redistribute, commercialize, train models on, or create competing products from this code is granted. See [LICENSE](LICENSE).
+> **Oryntra AI is proprietary software.**
+>
+> This repository is published for transparency, technical review, portfolio demonstration, and collaboration discussions.
+>
+> Viewing through GitHub is permitted under GitHub's Terms of Service. No license is granted to use, modify, deploy, redistribute, commercialize, train AI models on, or create derivative or competing products from any portion of this repository.
+>
+> See **LICENSE** for complete terms.
 
-## Overview
+---
 
-Oryntra AI is a mobile-first market-research application that combines technical indicators, pattern detection, structured setup scoring, educational explanations, watchlists, and simulated paper-trading tools.
+# Executive Summary
 
-This repository contains the Alpaca-ready application architecture:
+Oryntra AI is a research platform designed to bridge institutional technical analysis, artificial intelligence, quantitative scoring, and modern mobile software architecture.
 
-- **`server/`** — Python/FastAPI backend, Alpaca Connect OAuth, analysis engine, legal pages, private research utilities, and maintenance mode.
-- **`ios-app/`** — Flutter mobile application and native iOS integration.
-- **`brand-assets/`** — Oryntra branding used by this repository.
+Rather than acting as a brokerage or charting platform, Oryntra operates as an independent market-intelligence layer that evaluates price structure, trend quality, momentum, volatility, participation, and statistical context before presenting structured trade research to the user.
 
-## Current integration model
+The project was designed around one primary engineering principle:
 
-Oryntra uses **Alpaca Connect OAuth** so users authorize access to their own Alpaca accounts. The Alpaca client secret and connected-account access tokens stay on the server and must never be embedded in the mobile application.
+> **Raw market data should remain separate from proprietary analysis.**
 
-The public mobile application:
+Instead of exposing downloadable historical datasets, Oryntra transforms authorized market information into derived intelligence that can be interpreted by human traders while respecting provider boundaries and maintaining a secure client/server architecture.
 
-- Requests derived Oryntra analysis from the authenticated server API.
-- Does not receive downloadable OHLCV arrays, raw candle history, provider responses, or Alpaca credentials.
-- Displays a separately hosted TradingView widget for public chart visualization.
-- Supports Alpaca connection, connection status, paper/live account labeling, authorization errors, and disconnect flows.
+---
 
-Alpaca application registration and written approval may be required before commercial release, advertising, paid features, or access by other users. This repository does not itself grant Alpaca API or market-data rights.
+# System Architecture
 
-## Core capabilities
-
-- User-authorized Alpaca Connect integration
-- Technical indicators and market-context summaries
-- Candlestick, chart-pattern, structure, and fair-value-gap analysis
-- Setup classification and confidence scoring
-- Structured entry, stop, target, and risk/reward planning
-- Educational AI-assisted explanations
-- Watchlists and multi-ticker workflows
-- Simulated paper-trading tools
-- Private historical testing and model-research utilities
-- Responsive TradingView-hosted chart presentation
-- Reusable maintenance-mode website
-
-## Required server configuration
-
-Copy the example configuration:
-
-```bash
-cd server
-cp .env.example .env
+```
+                 ┌───────────────────────┐
+                 │   Flutter Mobile App  │
+                 └────────────┬──────────┘
+                              │
+                              │ HTTPS
+                              ▼
+                 ┌────────────────────────┐
+                 │    FastAPI Backend     │
+                 │ Authentication Layer   │
+                 │ OAuth Management       │
+                 │ Analysis Engine        │
+                 └────────────┬───────────┘
+                              │
+               ┌──────────────┴──────────────┐
+               ▼                             ▼
+      Alpaca Connect OAuth          Internal Analysis
+      Account Authorization          Indicator Engine
+      User Data Access               Pattern Detection
+                                     AI Explanation
+                                     Risk Modeling
 ```
 
-Set at minimum:
+The client never communicates directly with external market providers.
 
-```env
-PUBLIC_API_BASE_URL=https://api.oryntraai.com
-ALPACA_OAUTH_CLIENT_ID=YOUR_APPROVED_CLIENT_ID
-ALPACA_OAUTH_CLIENT_SECRET=YOUR_APPROVED_CLIENT_SECRET
-ALPACA_OAUTH_REDIRECT_URI=https://api.oryntraai.com/api/alpaca/callback
-ORYNTRA_TOKEN_ENCRYPTION_KEY=YOUR_GENERATED_ENCRYPTION_KEY
-ALPACA_DATA_FEED=iex
-ORYNTRA_PRIVATE_RESEARCH_ROUTES=false
+All authentication, authorization, caching, analysis, and provider integrations occur exclusively within the backend.
+
+---
+
+# Engineering Goals
+
+Oryntra was designed around several architectural objectives.
+
+## Separation of Concerns
+
+The application deliberately separates
+
+- User Interface
+- Authentication
+- Market Data
+- Analysis
+- AI Interpretation
+- Trading Logic
+- Persistence
+- Provider Integrations
+
+into independent layers.
+
+Each subsystem can evolve independently without affecting the others.
+
+---
+
+## Secure OAuth Architecture
+
+User brokerage accounts are connected through OAuth.
+
+Sensitive credentials never leave the backend.
+
+The mobile application never receives
+
+- API secrets
+- OAuth client secrets
+- refresh tokens
+- provider credentials
+- market-provider authentication keys
+
+All privileged operations occur exclusively within authenticated backend services.
+
+---
+
+## Provider Abstraction
+
+The analysis engine is intentionally isolated from any specific data provider.
+
+Instead of depending directly on one brokerage, Oryntra operates through an internal provider abstraction layer allowing future integrations without modifying analytical logic.
+
+Current architecture supports integration with services such as
+
+- Alpaca
+- Polygon
+- Twelve Data
+- Interactive Brokers
+- additional institutional feeds
+
+without redesigning higher-level analysis.
+
+---
+
+# Analysis Engine
+
+The research engine combines multiple independent analytical subsystems.
+
+These include
+
+## Market Structure
+
+- Higher High / Lower Low detection
+- Break of Structure
+- Change of Character
+- Trend continuation
+- Trend exhaustion
+
+---
+
+## Trend Evaluation
+
+Multiple moving-average systems
+
+- SMA
+- EMA
+- trend alignment
+- crossover confirmation
+- slope analysis
+
+---
+
+## Momentum Analysis
+
+- RSI
+- MACD
+- Stochastic Oscillator
+- Momentum acceleration
+- Divergence detection
+
+---
+
+## Volume Intelligence
+
+- Relative Volume
+- VWAP
+- Anchored VWAP
+- Volume participation
+- Institutional accumulation analysis
+
+---
+
+## Volatility
+
+- ATR
+- expansion / contraction
+- stop distance estimation
+- volatility normalization
+
+---
+
+## Pattern Recognition
+
+Current architecture supports recognition of numerous classical technical structures including
+
+- Double Tops
+- Double Bottoms
+- Triple Tops
+- Triple Bottoms
+- Flags
+- Pennants
+- Channels
+- Wedges
+- Cup & Handle
+- Head & Shoulders
+- Fair Value Gaps
+- Engulfing
+- Hammer
+- BOS
+- CHoCH
+
+Each detector operates independently before contributing to the overall analytical confidence score.
+
+---
+
+# Decision Framework
+
+Rather than allowing one indicator to dominate predictions, Oryntra evaluates dozens of independent observations simultaneously.
+
+Each observation contributes weighted evidence toward
+
+- Bullish probability
+- Bearish probability
+- Confidence
+- Risk
+- Trade quality
+
+The engine intentionally avoids deterministic "buy" or "sell" logic.
+
+Instead it attempts to explain
+
+- why
+- how
+- where
+
+a setup exists while leaving execution decisions entirely to the user.
+
+---
+
+# Artificial Intelligence Layer
+
+Artificial intelligence operates as an explanation engine rather than an autonomous trading system.
+
+Its responsibilities include
+
+- translating quantitative analysis into natural language
+- explaining conflicting signals
+- summarizing technical context
+- assisting educational understanding
+- reducing information overload
+
+The AI does not execute trades or guarantee outcomes.
+
+---
+
+# Mobile Architecture
+
+The Flutter application serves as a secure presentation layer.
+
+Responsibilities include
+
+- authentication
+- portfolio visualization
+- AI interaction
+- research display
+- watchlists
+- notifications
+- paper-trading interface
+- TradingView visualization
+
+The application intentionally avoids embedding privileged logic that belongs within backend services.
+
+---
+
+# Security Model
+
+Security principles include
+
+- backend-only OAuth secrets
+- encrypted token storage
+- isolated authentication layer
+- HTTPS-only communication
+- principle of least privilege
+- server-side authorization
+- provider abstraction
+- restricted public APIs
+
+---
+
+# Scalability
+
+The architecture was designed to support future expansion including
+
+- multiple broker integrations
+- cloud deployment
+- distributed caching
+- additional AI models
+- institutional data feeds
+- strategy optimization
+- portfolio analytics
+- quantitative research modules
+
+without redesigning the client application.
+
+---
+
+# Repository Structure
+
+```
+server/
+    Authentication
+    OAuth
+    Analysis Engine
+    AI Services
+    API
+    Market Providers
+    Private Research
+
+ios-app/
+    Flutter UI
+    Native Integrations
+    TradingView
+    Authentication
+    Portfolio Views
+
+brand-assets/
 ```
 
-Generate the token-encryption key locally:
+---
 
-```bash
-python3 tools/generate_token_encryption_key.py
-```
+# Disclaimer
 
-Never commit `.env`, OAuth secrets, access tokens, databases, signing materials, or production logs.
+Oryntra AI is an educational and research platform.
 
-## Run the server locally
+It is not a broker-dealer, investment adviser, fiduciary, or financial planner.
 
-```bash
-cd server
-python3 -m venv venv
-source venv/bin/activate
-python -m pip install --upgrade pip
-pip install -r requirements.txt
-python run.py
-```
+All analytical output represents algorithmic interpretation of available information and should not be construed as investment advice.
 
-Production deployments should use the included system-service or startup configuration appropriate to the host rather than exposing a development server directly.
+Past performance, simulations, and backtests do not guarantee future results.
 
-## Run the Flutter app
+---
 
-```bash
-cd ios-app
-flutter pub get
-flutter run \
-  --dart-define=ORYNTRA_API_URL=https://api.oryntraai.com \
-  --dart-define=ORYNTRA_PREVIEW_MODE=false \
-  --dart-define=ADMOB_TEST_MODE=true
-```
+# License
 
-The mobile application must receive only the public server URL. Do not add the Alpaca client secret or connected-user tokens to Dart, iOS property lists, Android resources, build arguments, or bundled assets.
+Copyright © 2026 Oryntra AI
 
-## OAuth addresses
+All Rights Reserved.
 
-Proposed production values:
-
-```text
-OAuth callback: https://api.oryntraai.com/api/alpaca/callback
-Mobile deep link: oryntra://oauth/alpaca/complete
-```
-
-The callback registered with Alpaca must exactly match the server configuration. The client secret is used only by the backend during the authorization-code exchange.
-
-## Security and repository hygiene
-
-The root `.gitignore` excludes:
-
-- Environment and credential files
-- OAuth tokens and private keys
-- SQLite databases and runtime research state
-- Python virtual environments and caches
-- Flutter, CocoaPods, Xcode, Gradle, and Android build artifacts
-- Signing certificates and provisioning profiles
-- Local editor and operating-system files
-
-Before publishing changes, review `git status` and run a secret scan. Rotating a credential is required if it was ever committed, even if it is later deleted from the current branch.
-
-## Third-party services
-
-Oryntra may integrate with third-party services including Alpaca and TradingView. Their names, APIs, widgets, data, trademarks, and services remain subject to their own terms, permissions, availability, attribution requirements, and commercial approvals. This repository is not affiliated with or endorsed by Alpaca or TradingView unless a separate written agreement states otherwise.
-
-## Financial and technology disclaimer
-
-Oryntra AI is intended for informational, research, demonstration, and educational purposes only. It is not a broker-dealer, investment adviser, fiduciary, financial planner, or tax, legal, or accounting professional. It does not provide personalized investment advice or guarantee any result.
-
-Market data, indicators, patterns, scores, signals, forecasts, explanations, backtests, simulations, and trade plans may be delayed, incomplete, inaccurate, unavailable, or unsuitable for a user or market condition. Simulated results do not represent actual execution and may omit spreads, liquidity limits, latency, fees, slippage, taxes, corporate actions, and other real-world effects. Past performance and backtested performance do not guarantee future results. Users remain solely responsible for their decisions and losses.
-
-## Security reports
-
-Do not publicly disclose exploitable vulnerabilities, credentials, private user information, OAuth tokens, or instructions for bypassing access controls. Use the contact channel published at [oryntraai.com](https://oryntraai.com).
-
-## License
-
-Copyright © 2026 Oryntra AI. All rights reserved.
-
-The repository is governed by the [Oryntra AI Proprietary Source-Available License](LICENSE). It is not licensed as open source.
+This repository is governed by the **Oryntra AI Proprietary Source-Available License**.
