@@ -1,0 +1,1109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#080d14" />
+
+  <script src="/static/js/theme-init.js?v=061-blue"></script>
+
+  <script async
+    src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-7922098561896578"
+    crossorigin="anonymous"></script>
+
+  <title>Oryntra AI — Market Intelligence Dashboard</title>
+
+  <link rel="stylesheet" href="/static/css/main.css?v=050-optimized-worker" />
+  <link rel="stylesheet" href="/static/css/refined.css?v=061-blue" />
+
+  <style>
+    /* Ensure period buttons are visible and styled */
+    .tv-period-btn {
+      display: inline-block !important;
+      visibility: visible !important;
+      opacity: 1 !important;
+    }
+
+    /* Critical avatar sizing: prevents desktop duplicate/giant profile image if CSS loads late/cached */
+    .header-github-avatar {
+      width: 18px !important;
+      height: 18px !important;
+      max-width: 18px !important;
+      max-height: 18px !important;
+      object-fit: cover !important;
+      border-radius: 50% !important;
+      flex: 0 0 18px !important;
+      display: inline-block !important;
+    }
+  </style>
+
+  <link rel="icon" href="/static/img/favicon.ico?v=050" sizes="any" />
+  <link
+    rel="icon"
+    type="image/png"
+    href="/static/img/oryntra-favicon-512.png?v=050"
+  />
+  <link
+    rel="apple-touch-icon"
+    href="/static/img/oryntra-apple-touch-icon.png?v=050"
+  />
+</head>
+<body>
+  <a class="skip-link" href="#mainContent">Skip to main content</a>
+  <header class="app-header">
+    <div class="header-left">
+      <div class="logo" aria-label="Oryntra AI">
+        <img class="logo-image" src="/static/img/oryntra-logo.png?v=050" alt="" />
+        <span class="logo-text">ORYNTRA <span class="logo-accent">AI</span></span>
+      </div>
+
+      <span class="beta-badge beta-version-badge" role="button" tabindex="0" aria-controls="devLabPanel" aria-expanded="false" aria-label="Open developer Pattern Lab">
+        BETA
+        <span class="beta-version-text">V0.5.1</span>
+      </span>
+
+      <div class="market-status" aria-label="Market data status">
+        <span class="status-dot" aria-hidden="true"></span>
+        MARKET DATA LIVE
+      </div>
+    </div>
+
+    <div class="header-version-display" aria-hidden="true">V0.5.1</div>
+
+    <div class="header-right">
+      <div class="auth-header">
+        <span class="auth-state" id="authStateText">SIGNED OUT</span>
+        <button class="auth-mini-btn" id="authOpenBtn" type="button">LOGIN</button>
+      </div>
+
+      <a class="header-github-link" href="https://github.com/silasproff-eng" target="_blank" rel="noopener">
+        <img class="header-github-avatar" src="/static/img/github-pfp.jpg?v=021" alt="" />
+        <span>GITHUB</span>
+      </a>
+
+      <nav class="tab-nav" aria-label="Main navigation" role="tablist">
+        <button class="tab-btn active" id="nav-scanner" type="button" role="tab" aria-selected="true" aria-controls="tab-scanner" tabindex="0" data-tab="scanner">SCANNER</button>
+        <button class="tab-btn" id="nav-watchlist" type="button" role="tab" aria-selected="false" aria-controls="tab-watchlist" tabindex="-1" data-tab="watchlist">WATCHLIST</button>
+        <button class="tab-btn" id="nav-paper" type="button" role="tab" aria-selected="false" aria-controls="tab-paper" tabindex="-1" data-tab="paper">PAPER TRADES</button>
+        <button class="tab-btn" id="nav-backtest" type="button" role="tab" aria-selected="false" aria-controls="tab-backtest" tabindex="-1" data-tab="backtest">BACKTEST</button>
+        <button class="tab-btn" id="nav-settings" type="button" role="tab" aria-selected="false" aria-controls="tab-settings" tabindex="-1" data-tab="settings">SETTINGS</button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="app-main" id="mainContent" tabindex="-1">
+<section class="psa-banner" id="psaBanner" hidden aria-live="polite">
+  <div class="psa-icon" aria-hidden="true">i</div>
+
+  <div class="psa-content">
+    <div class="psa-label">PUBLIC SERVICE ANNOUNCEMENT</div>
+
+    <div class="psa-message" id="psaMessage">
+      Oryntra may experience temporary slowdowns while large backtesting and engine-validation jobs are running. These processes place a heavy load on our current development server, which can affect scan times and overall responsiveness. We’re working on performance improvements and appreciate your patience.
+    </div>
+  </div>
+
+  <button
+    class="psa-close"
+    id="psaCloseBtn"
+    type="button"
+    aria-label="Dismiss announcement"
+  >
+    ✕
+  </button>
+</section>
+    
+    <div class="bio-card" id="bioBanner">
+      <img class="bio-avatar" src="/static/img/github-pfp.jpg?v=021" alt="Silas Cowles profile photo" />
+      <div class="bio-body">
+        <div class="bio-name-row">
+          <a class="bio-name" href="https://github.com/silasproff-eng" target="_blank" rel="noopener">Silas Cowles</a>
+          <span class="bio-sep">·</span>
+          <a class="bio-github" href="https://github.com/silasproff-eng" target="_blank" rel="noopener">
+            <svg class="github-icon-sm" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2C6.477 2 2 6.484 2 12.021c0 4.428 2.865 8.185 6.839 9.512.5.092.682-.217.682-.483 0-.237-.009-.868-.013-1.703-2.782.605-3.369-1.342-3.369-1.342-.454-1.154-1.11-1.462-1.11-1.462-.908-.62.069-.608.069-.608 1.004.07 1.532 1.032 1.532 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0 1 12 6.844a9.59 9.59 0 0 1 2.504.337c1.909-1.296 2.747-1.026 2.747-1.026.546 1.378.202 2.397.1 2.65.64.7 1.028 1.595 1.028 2.688 0 3.848-2.338 4.695-4.566 4.944.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .268.18.579.688.481C19.138 20.203 22 16.447 22 12.021 22 6.484 17.523 2 12 2z"/></svg>
+            github.com/silasproff-eng
+          </a>
+        </div>
+        
+        <p class="bio-text" id="bioText">14-year-old developer interested in finance, automation, & game tools. learning by building projects, E.G. AI stock analysis+prediction utilities & more.</p>
+      </div>
+      <div class="bio-disclaimer">△ Educational only — not financial advice</div>
+    </div>
+
+    
+    <div class="home-search-counter" id="homeSearchCounter" aria-label="Total market analyses">
+      <div class="counter-kicker">ORYNTRA AI ACTIVITY</div>
+      <div class="counter-main">
+        <span class="counter-number stock-search-counter-number" id="stockSearchCounterHome">—</span>
+        <span class="counter-label">MARKET ANALYSES</span>
+      </div>
+      <div class="counter-subtext">Live scans plus completed beta market-analysis runs.</div>
+    </div>
+
+    
+    <section class="beta-account-preview" id="betaAccountPreview">
+      <div>
+        <div class="beta-account-kicker">BETA ACCOUNTS</div>
+        <h2>Paper trades now save to your login.</h2>
+        <p>Ticker analysis stays free in this beta build. Sign in only when you want paper-trade history linked to your account.</p>
+      </div>
+      <button class="auth-mini-btn beta-preview-auth" id="betaPreviewAuthBtn" type="button">LOGIN / SIGN UP</button>
+    </section>
+
+    <section class="ad-zone ad-zone-home" data-ad-slot="home_top" data-ad-format="horizontal" aria-label="Advertisement area">
+      <div class="ad-zone-kicker">ADVERTISEMENT</div>
+      <div class="ad-zone-body">Ad space reserved for free beta support</div>
+    </section>
+
+    
+    <section class="dev-lab-panel dev-hidden" id="devLabPanel" role="region" aria-labelledby="devLabTitle" tabindex="-1">
+      <div class="dev-lab-header">
+        <div>
+          <div class="dev-lab-kicker">HIDDEN RESEARCH WORKSPACE</div>
+          <h2 id="devLabTitle">Pattern Lab Next</h2>
+          <p>Cache-backed causal research with next-session entries, non-overlapping positions, modeled costs, purged walk-forward folds, and bootstrap confidence intervals.</p>
+        </div>
+        <button class="dev-close-btn" id="devLabCloseBtn" type="button">CLOSE</button>
+      </div>
+
+      <h3>1. Universe and evaluation</h3>
+      <div class="dev-lab-grid">
+        <label class="dev-field">
+          <span>Active research analyzer</span>
+          <select id="patternEngineSelect">
+            <option value="official" selected>V7 Official Momentum</option>
+            <option value="v8">V8 Analytics Evidence</option>
+            <option value="vai2">VAI 2.1 Experimental</option>
+          </select>
+        </label>
+        <fieldset class="dev-field dev-engine-compare-field">
+          <legend>Engines to compare</legend>
+          <div class="dev-engine-checks" id="patternLabEngineChecks">
+            <label><input type="checkbox" value="official" checked /> V7</label>
+            <label><input type="checkbox" value="v8" checked /> V8 Analytics</label>
+            <label><input type="checkbox" value="vai2" /> VAI 2.1</label>
+          </div>
+          <small class="dev-field-note">Every engine receives the same ticker/date samples and cost assumptions.</small>
+        </fieldset>
+        <label class="dev-field">
+          <span>Universe mode</span>
+          <select id="patternLabUniverseMode">
+            <option value="unseen150" selected>150 unseen random tickers</option>
+            <option value="all_cached">All cached tickers</option>
+            <option value="manual">Manual ticker list</option>
+            <option value="mixed">Half manual, half unseen</option>
+          </select>
+        </label>
+        <fieldset class="dev-field">
+          <legend>Universe controls</legend>
+          <div class="dev-inline-fields">
+            <label><span>Universe size</span><input id="patternLabUniverseSize" type="number" value="150" min="1" max="15000" /></label>
+            <label><span>Random seed</span><input id="patternLabSeed" type="number" value="73021" min="1" max="2147483647" /></label>
+          </div>
+        </fieldset>
+        <label class="dev-field">
+          <span>Tickers</span>
+          <input id="patternLabTickers" value="" placeholder="Generated unseen universe appears here" autocomplete="off" />
+        </label>
+        <fieldset class="dev-field">
+          <legend>History and data source</legend>
+          <div class="dev-inline-fields">
+            <label><span>History period</span><select id="patternLabPeriod">
+                <option value="2y">2y</option>
+                <option value="5y">5y</option>
+                <option value="all" selected>All available</option>
+            </select></label>
+            <label><span>Data source</span><select id="patternLabDataSource">
+                <option value="cache_only" selected>Cache only</option>
+                <option value="cache_first">Cache, then API</option>
+            </select></label>
+          </div>
+        </fieldset>
+        <label class="dev-field">
+          <span>Time sampling</span>
+          <select id="patternLabSamplingMode">
+            <option value="even" selected>Even non-overlapping observations</option>
+            <option value="random_windows">Seeded random time window</option>
+            <option value="random_dates">Random dates across history</option>
+            <option value="recent">Most recent dates</option>
+          </select>
+        </label>
+        <fieldset class="dev-field">
+          <legend>Time window</legend>
+          <div class="dev-inline-fields">
+            <label><span>Window bars</span><input id="patternLabRandomWindowBars" type="number" value="180" min="40" max="1500" /></label>
+            <label><span>Start date, optional</span><input id="patternLabStartDate" type="date" /></label>
+            <label><span>End date, optional</span><input id="patternLabEndDate" type="date" /></label>
+          </div>
+        </fieldset>
+        <fieldset class="dev-field">
+          <legend>Test cadence</legend>
+          <div class="dev-inline-fields">
+            <label><span>Horizon</span><select id="patternLabHorizon">
+                <option value="5">5 days</option>
+                <option value="10" selected>10 days</option>
+                <option value="20">20 days</option>
+                <option value="40">40 days</option>
+            </select></label>
+            <label><span>Step</span><input id="patternLabStep" type="number" value="5" min="1" max="60" /></label>
+            <label><span>Tests per ticker</span><input id="patternLabMaxTests" type="number" value="40" min="3" max="500" /></label>
+          </div>
+        </fieldset>
+        <fieldset class="dev-field">
+          <legend>Modeled costs in basis points</legend>
+          <div class="dev-inline-fields">
+            <label><span>Transaction cost</span><input id="patternLabTransactionCost" type="number" value="6" min="0" max="100" step="0.5" /></label>
+            <label><span>Slippage</span><input id="patternLabSlippage" type="number" value="4" min="0" max="100" step="0.5" /></label>
+          </div>
+        </fieldset>
+        <fieldset class="dev-field">
+          <legend>Out-of-sample validation</legend>
+          <div class="dev-inline-fields">
+            <label><span>Walk-forward folds</span><input id="patternLabWalkForwardFolds" type="number" value="5" min="2" max="10" /></label>
+            <label><span>Bootstrap samples</span><input id="patternLabBootstrapSamples" type="number" value="500" min="0" max="5000" step="100" /></label>
+          </div>
+          <small class="dev-field-note">Thresholds are chosen on earlier folds, purged by the holding horizon, and evaluated on later dates.</small>
+        </fieldset>
+        <fieldset class="dev-field">
+          <legend>Cache controls</legend>
+          <div class="dev-inline-fields">
+            <label><span>Request delay in seconds</span><input id="patternCacheDelay" type="number" value="13" min="0" max="120" step="0.5" /></label>
+            <label><span>Maximum cache size in GB</span><input id="patternCacheMaxGb" type="number" value="10" min="0.01" max="10" step="0.25" /></label>
+          </div>
+        </fieldset>
+      </div>
+      <div class="dev-lab-actions">
+        <button class="scan-button" id="loadTraining150Btn" type="button">GENERATE 150 UNSEEN TICKERS</button>
+        <button class="scan-button" id="warmPatternCacheBtn" type="button">WARM CACHE</button>
+        <button class="scan-button" id="runPatternLabBtn" type="button">RUN FAIR COMPARISON</button>
+        <button class="dev-close-btn" id="stopPatternLabBtn" type="button">STOP LAB</button>
+        <button class="dev-close-btn" id="resumePatternLabBtn" type="button">RESUME LAST</button>
+        <button class="dev-close-btn" id="patternCacheStatusBtn" type="button">CACHE STATUS</button>
+      </div>
+      <div class="dev-cache-status" id="patternCacheStatus" role="status" aria-live="polite"></div>
+
+      <h3>2. Optional VAI 2.1 training</h3>
+      <p class="dev-lab-hint">VAI 2.1 remains available as an optional experimental comparison.</p>
+      <div class="dev-lab-actions">
+        <button class="scan-button" id="trainVAIBtn" type="button">TRAIN VAI 2.1 FROM CAUSAL ROWS</button>
+        <button class="dev-close-btn" id="vaiModelStatusBtn" type="button">VAI 2.1 STATUS</button>
+      </div>
+      <div class="dev-lab-output" id="vaiTrainingOutput" role="status" aria-live="polite" aria-atomic="false" tabindex="-1">
+        <div class="dev-empty">No VAI 2.1 training job has started.</div>
+      </div>
+      <div class="dev-lab-output" id="patternLabOutput" role="status" aria-live="polite" aria-atomic="false" tabindex="-1">
+        <div class="dev-empty">No Pattern Lab Next comparison has run.</div>
+      </div>
+    </section>
+
+
+
+    
+    <section class="tab-panel" id="tab-settings" role="tabpanel" aria-labelledby="nav-settings" aria-hidden="true" tabindex="0">
+      <div class="settings-page">
+        <div class="settings-hero card">
+          <div>
+            <div class="settings-kicker">ORYNTRA AI SETTINGS</div>
+            <h2>App settings</h2>
+            <p>Temporary publish release. Public scanner is locked to V7 Official so old experimental engine settings cannot leak into the website.</p>
+          </div>
+          <div class="settings-current-engine" id="settingsCurrentEngine">ENGINE: V7 OFFICIAL</div>
+        </div>
+
+        <div class="settings-grid">
+          <section class="settings-category card">
+            <div class="settings-category-title">Basic App</div>
+            <label class="settings-field">
+              <span>Engine used for stock analysis</span>
+              <select id="settingsEngineSelect">
+                <option value="official" selected>V7 Official Momentum — Temporary Publish Engine</option>
+              </select>
+            </label>
+            <p class="settings-note">Oryntra AI V0.5.1 release is locked to V7 Official for public scans. VAI2.1 remains hidden/dev-only until validated.</p>
+          </section>
+
+          <section class="settings-category card muted-settings-category">
+            <div class="settings-category-title">Account</div>
+            <p class="settings-note">More account controls will be added later.</p>
+          </section>
+
+          <section class="settings-category card settings-appearance">
+            <div class="settings-category-title">Appearance</div>
+            <p class="settings-note">Choose how Oryntra looks here. System follows your device and updates automatically.</p>
+            <div class="theme-picker" role="radiogroup" aria-label="Color theme">
+              <button class="theme-choice" type="button" role="radio" aria-checked="true" data-theme-value="system">
+                <span class="theme-preview theme-preview-system" aria-hidden="true"></span>
+                <span class="theme-choice-copy">
+                  <span class="theme-choice-name">System</span>
+                  <span class="theme-choice-note">Match this device</span>
+                </span>
+              </button>
+              <button class="theme-choice" type="button" role="radio" aria-checked="false" data-theme-value="light">
+                <span class="theme-preview theme-preview-light" aria-hidden="true"></span>
+                <span class="theme-choice-copy">
+                  <span class="theme-choice-name">Light</span>
+                  <span class="theme-choice-note">Cool grey and layered</span>
+                </span>
+              </button>
+              <button class="theme-choice" type="button" role="radio" aria-checked="false" data-theme-value="dark">
+                <span class="theme-preview theme-preview-dark" aria-hidden="true"></span>
+                <span class="theme-choice-copy">
+                  <span class="theme-choice-name">Dark</span>
+                  <span class="theme-choice-note">Quiet and focused</span>
+                </span>
+              </button>
+            </div>
+          </section>
+
+          <section class="settings-category card muted-settings-category">
+            <div class="settings-category-title">Developer / Training</div>
+            <p class="settings-note">Use the hidden developer menu for Pattern Lab and VAI training controls.</p>
+          </section>
+        </div>
+      </div>
+    </section>
+
+    
+    <section class="tab-panel active" id="tab-scanner" role="tabpanel" aria-labelledby="nav-scanner" aria-hidden="false" tabindex="0">
+
+      
+      <div class="search-bar">
+        <div class="search-input-wrap">
+          <label class="search-label" for="tickerInput">TICKER</label>
+          <input
+            type="text"
+            id="tickerInput"
+            name="oryntra_ticker_symbol"
+            class="ticker-input"
+            placeholder="AAPL, TSLA, NVDA..."
+            maxlength="10"
+            autocomplete="off"
+            autocorrect="off"
+            autocapitalize="characters"
+            inputmode="text"
+            data-lpignore="true"
+            data-1p-ignore="true"
+            data-form-type="other"
+            spellcheck="false"
+          />
+          <span class="search-shortcut">↵</span>
+        </div>
+        <button class="scan-btn" id="scanBtn" type="button">
+          <span class="btn-icon" aria-hidden="true">⬡</span>
+          ANALYZE
+        </button>
+        <button class="watchlist-add-btn" id="addToWatchlistBtn" type="button" style="display:none" title="Add to Watchlist">
+          ＋ WATCH
+        </button>
+      </div>
+
+      <p class="search-legal-note">By searching a stock, you agree to the <a href="/legal/terms" target="_blank" rel="noopener">Terms of Service</a> and <a href="/legal/privacy" target="_blank" rel="noopener">Privacy Policy</a>. Oryntra AI Beta is educational software only and not financial advice.</p>
+
+      <section class="ad-zone ad-zone-scanner" data-ad-slot="scanner_top" data-ad-format="horizontal" aria-label="Advertisement area">
+        <div class="ad-zone-kicker">ADVERTISEMENT</div>
+        <div class="ad-zone-body">Top scanner banner</div>
+      </section>
+
+      
+      <div class="quick-picks" id="quickPicks">
+        <span class="quick-picks-label">POPULAR:</span>
+        <button class="quick-pick-chip" type="button" data-ticker="AAPL">AAPL</button>
+        <button class="quick-pick-chip" type="button" data-ticker="NVDA">NVDA</button>
+        <button class="quick-pick-chip" type="button" data-ticker="TSLA">TSLA</button>
+        <button class="quick-pick-chip" type="button" data-ticker="MSFT">MSFT</button>
+        <button class="quick-pick-chip" type="button" data-ticker="AMZN">AMZN</button>
+        <button class="quick-pick-chip" type="button" data-ticker="META">META</button>
+        <button class="quick-pick-chip" type="button" data-ticker="SPY">SPY</button>
+        <button class="quick-pick-chip" type="button" data-ticker="AMD">AMD</button>
+      </div>
+
+      
+      <div class="welcome-state" id="welcomeState">
+        <div class="welcome-icon">⬡</div>
+        <h2 class="welcome-title">Analyze any US stock in seconds</h2>
+        <p class="welcome-sub">Type a ticker above or tap a popular one to get a full technical breakdown — trend, momentum, a buy/sell/hold signal, and a complete trade plan with entry, stop, and target.</p>
+        <div class="welcome-features">
+          <div class="welcome-feature">
+            <span class="wf-icon">📊</span>
+            <span class="wf-title">20+ Indicators</span>
+            <span class="wf-desc">RSI, MACD, ADX, Ichimoku, OBV, VWAP & more</span>
+          </div>
+          <div class="welcome-feature">
+            <span class="wf-icon">🎯</span>
+            <span class="wf-title">Smart Signals</span>
+            <span class="wf-desc">5-level buy/sell rating with a quality score</span>
+          </div>
+          <div class="welcome-feature">
+            <span class="wf-icon">🔍</span>
+            <span class="wf-title">Pattern Detection</span>
+            <span class="wf-desc">Candlesticks, chart patterns & fair-value gaps</span>
+          </div>
+          <div class="welcome-feature">
+            <span class="wf-icon">📐</span>
+            <span class="wf-title">Trade Plans</span>
+            <span class="wf-desc">Entry zone, stop loss, target & position size</span>
+          </div>
+        </div>
+      </div>
+
+      
+      <div class="loading-screen" id="loadingScreen" style="display:none" role="status" aria-live="polite">
+        <div class="loading-inner">
+          <div class="loading-ring"></div>
+          <div class="loading-steps" id="loadingSteps">
+            <div class="l-step active">Fetching market data...</div>
+            <div class="l-step">Calculating indicators...</div>
+            <div class="l-step">Detecting setup...</div>
+            <div class="l-step">Scoring trade...</div>
+          </div>
+        </div>
+      </div>
+
+      
+      <div class="error-banner" id="errorBanner" style="display:none" role="alert" aria-live="assertive">
+        <span class="error-icon">!</span>
+        <span id="errorText"></span>
+        <button class="error-close" type="button" aria-label="Dismiss error" onclick="document.getElementById('errorBanner').style.display='none'">✕</button>
+      </div>
+
+      
+      <div class="results-grid" id="resultsGrid" style="display:none">
+
+        
+        <div class="card card-header-info">
+          <div class="ticker-headline">
+            <span class="result-ticker" id="rTicker">—</span>
+            <span class="result-company" id="rCompany"></span>
+          </div>
+          <div class="price-display">
+            <span class="price-big" id="rPrice">—</span>
+            <span class="price-change" id="rChange">—</span>
+          </div>
+          <div class="price-meta-row">
+            <div class="meta-chip">
+              <span class="meta-label">52W HIGH</span>
+              <span class="meta-val" id="r52wHigh">—</span>
+            </div>
+            <div class="meta-chip">
+              <span class="meta-label">52W LOW</span>
+              <span class="meta-val" id="r52wLow">—</span>
+            </div>
+            <div class="meta-chip">
+              <span class="meta-label">ATR%</span>
+              <span class="meta-val" id="rAtrPct">—</span>
+            </div>
+          </div>
+          <div class="data-source-badge" id="rDataSource">—</div>
+        </div>
+
+        <div class="card card-setup">
+          
+          <div class="signal-banner" id="signalBanner">
+            <div class="signal-icon" id="signalIcon">—</div>
+            <div class="signal-label" id="signalLabel">—</div>
+          </div>
+          <div class="setup-badge" id="setupBadge">—</div>
+          <div class="setup-direction" id="setupDirection">—</div>
+          <div class="quality-section">
+            <div class="quality-label">QUALITY SCORE</div>
+            <div class="quality-score-row">
+              <span class="quality-number" id="qualityScore">—</span>
+              <span class="quality-grade" id="qualityGrade">—</span>
+            </div>
+            <div class="quality-bar-wrap">
+              <div class="quality-bar" id="qualityBar"></div>
+            </div>
+            <div class="conviction-label" id="convictionLabel">—</div>
+          </div>
+          <div class="confluence-section" id="confluenceSection">
+            <div class="confluence-label">SIGNAL CONFLUENCE</div>
+            <div class="confluence-row">
+              <span class="confluence-count" id="confluenceCount">—</span>
+              <span class="confluence-dir" id="confluenceDir">—</span>
+            </div>
+            <div class="confluence-dots" id="confluenceDots"></div>
+            <div class="confluence-hint">How many independent indicators agree on direction</div>
+          </div>
+        </div>
+
+        
+        <div class="card card-activity-counter" id="resultsSearchCounter" aria-label="Total market analyses">
+          <div class="card-title">ORYNTRA AI ACTIVITY</div>
+          <div class="activity-counter-main">
+            <span class="activity-counter-number stock-search-counter-number" id="stockSearchCounterCard">—</span>
+            <span class="activity-counter-label">MARKET ANALYSES</span>
+          </div>
+          <div class="activity-counter-subtext">Updates after scans and completed beta analysis runs.</div>
+        </div>
+
+        <section class="ad-zone ad-zone-results-side" data-ad-slot="results_side" data-ad-format="rectangle" aria-label="Advertisement area">
+          <div class="ad-zone-kicker">ADVERTISEMENT</div>
+          <div class="ad-zone-body">Desktop result ad</div>
+        </section>
+
+        
+        <div class="card card-chart">
+          <div class="card-title">
+            <span>TRADINGVIEW CHART</span>
+            <div class="tv-controls">
+              <div class="chart-period-group" role="group" aria-label="Chart period">
+                <button class="tv-period-btn" type="button" aria-pressed="false" data-period="5m" title="5 Minutes">5M</button>
+                <button class="tv-period-btn" type="button" aria-pressed="false" data-period="1mo" title="1 Month">1M</button>
+                <button class="tv-period-btn active" type="button" aria-pressed="true" data-period="6mo" title="6 Months">6M</button>
+                <button class="tv-period-btn" type="button" aria-pressed="false" data-period="1y" title="1 Year">1Y</button>
+                <button class="tv-period-btn" type="button" aria-pressed="false" data-period="5y" title="5 Years">5Y</button>
+                <button class="tv-period-btn" type="button" aria-pressed="false" data-period="all" title="All Time">ALL</button>
+              </div>
+              <div class="chart-interval-group" role="group" aria-label="Chart interval">
+                <button class="tv-interval-btn active" type="button" aria-pressed="true" data-interval="D">1D</button>
+                <button class="tv-interval-btn" type="button" aria-pressed="false" data-interval="W">1W</button>
+                <button class="tv-interval-btn" type="button" aria-pressed="false" data-interval="60">1H</button>
+                <button class="tv-interval-btn" type="button" aria-pressed="false" data-interval="15">15M</button>
+              </div>
+            </div>
+          </div>
+          <div class="pattern-focus hidden" id="patternFocus">
+            <div class="pattern-focus-main">
+              <span class="pattern-focus-label">PATTERN FOCUS</span>
+              <span class="pattern-focus-text" id="patternFocusText">Click a detected pattern to locate it.</span>
+            </div>
+            <a class="pattern-focus-link" id="patternFocusLink" target="_blank" rel="noreferrer">OPEN CHART ↗</a>
+          </div>
+          <div id="tvChartContainer" class="tv-chart-container">
+            <div id="tradingview_widget"></div>
+          </div>
+        </div>
+
+        
+        <div class="card card-mas">
+          <div class="card-title">MOVING AVERAGES</div>
+          <div class="ma-grid">
+            <div class="ma-row" id="maRow9"></div>
+            <div class="ma-row" id="maRow21"></div>
+            <div class="ma-row" id="maRow20"></div>
+            <div class="ma-row" id="maRow50"></div>
+            <div class="ma-row" id="maRow200"></div>
+          </div>
+        </div>
+
+        
+        <div class="card card-oscillators">
+          <div class="card-title">OSCILLATORS</div>
+          <div class="osc-grid">
+            <div class="osc-item">
+              <div class="osc-label">RSI (14)</div>
+              <div class="osc-value-wrap">
+                <div class="osc-gauge-wrap">
+                  <div class="osc-gauge" id="rsiGauge"></div>
+                  <div class="osc-gauge-zones">
+                    <span>0</span><span>30</span><span>70</span><span>100</span>
+                  </div>
+                </div>
+                <span class="osc-value" id="rsiValue">—</span>
+                <span class="osc-signal" id="rsiSignal">—</span>
+              </div>
+            </div>
+            <div class="osc-item">
+              <div class="osc-label">MACD</div>
+              <div class="osc-value-wrap">
+                <span class="osc-value" id="macdHist">—</span>
+                <span class="osc-signal" id="macdSignal">—</span>
+              </div>
+            </div>
+            <div class="osc-item">
+              <div class="osc-label">STOCH %K</div>
+              <div class="osc-value-wrap">
+                <div class="osc-gauge-wrap">
+                  <div class="osc-gauge" id="stochGauge"></div>
+                  <div class="osc-gauge-zones">
+                    <span>0</span><span>20</span><span>80</span><span>100</span>
+                  </div>
+                </div>
+                <span class="osc-value" id="stochValue">—</span>
+                <span class="osc-signal" id="stochSignal">—</span>
+              </div>
+            </div>
+            <div class="osc-item">
+              <div class="osc-label">BB%</div>
+              <div class="osc-value-wrap">
+                <div class="osc-gauge-wrap">
+                  <div class="osc-gauge" id="bbGauge"></div>
+                  <div class="osc-gauge-zones">
+                    <span>0</span><span>20</span><span>80</span><span>100</span>
+                  </div>
+                </div>
+                <span class="osc-value" id="bbPct">—</span>
+                <span class="osc-signal" id="bbSignal">—</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        
+        <div class="card card-adv-indicators">
+          <div class="card-title">ADVANCED INDICATORS</div>
+          <div class="adv-ind-grid">
+
+            <div class="adv-item">
+              <div class="adv-label">ADX (14)</div>
+              <div class="adv-value-wrap">
+                <div class="osc-gauge-wrap">
+                  <div class="osc-gauge" id="adxGauge"></div>
+                  <div class="osc-gauge-zones"><span>0</span><span>15</span><span>25</span><span>50+</span></div>
+                </div>
+                <span class="adv-value" id="adxValue">—</span>
+                <span class="osc-signal" id="adxSignal">—</span>
+              </div>
+            </div>
+
+            <div class="adv-item">
+              <div class="adv-label">DI+ / DI−</div>
+              <div class="adv-value-wrap">
+                <span class="adv-value" id="diValue">—</span>
+                <span class="osc-signal" id="diSignal">—</span>
+              </div>
+            </div>
+
+            <div class="adv-item">
+              <div class="adv-label">Williams %R</div>
+              <div class="adv-value-wrap">
+                <div class="osc-gauge-wrap">
+                  <div class="osc-gauge" id="wrGauge"></div>
+                  <div class="osc-gauge-zones"><span>−100</span><span>−80</span><span>−20</span><span>0</span></div>
+                </div>
+                <span class="adv-value" id="wrValue">—</span>
+                <span class="osc-signal" id="wrSignal">—</span>
+              </div>
+            </div>
+
+            <div class="adv-item">
+              <div class="adv-label">OBV</div>
+              <div class="adv-value-wrap">
+                <span class="adv-value" id="obvTrend">—</span>
+                <span class="osc-signal" id="obvSignal">—</span>
+              </div>
+            </div>
+
+            <div class="adv-item">
+              <div class="adv-label">VWAP (20d)</div>
+              <div class="adv-value-wrap">
+                <span class="adv-value" id="vwapValue">—</span>
+                <span class="osc-signal" id="vwapSignal">—</span>
+              </div>
+            </div>
+
+            <div class="adv-item">
+              <div class="adv-label">Ichimoku</div>
+              <div class="adv-value-wrap">
+                <span class="adv-value" id="ichiValue">—</span>
+                <span class="osc-signal" id="ichiSignal">—</span>
+              </div>
+            </div>
+
+            <div class="adv-item">
+              <div class="adv-label">EMA 9/21</div>
+              <div class="adv-value-wrap">
+                <span class="adv-value" id="emaCrossValue">—</span>
+                <span class="osc-signal" id="emaCrossSignal">—</span>
+              </div>
+            </div>
+
+            <div class="adv-item">
+              <div class="adv-label">Vol/Price Div</div>
+              <div class="adv-value-wrap">
+                <span class="adv-value" id="volDivValue">—</span>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        
+        <div class="card card-volume">
+          <div class="card-title">VOLUME ANALYSIS</div>
+          <div class="vol-display">
+            <div class="vol-ratio-big" id="volRatio">—</div>
+            <div class="vol-signal-tag" id="volSignal">—</div>
+          </div>
+          <div class="vol-details">
+            <div class="vol-row">
+              <span>Current</span>
+              <span id="volCurrent">—</span>
+            </div>
+            <div class="vol-row">
+              <span>20D Avg</span>
+              <span id="volAvg">—</span>
+            </div>
+            <div class="vol-row">
+              <span>Trend</span>
+              <span id="volTrend">—</span>
+            </div>
+          </div>
+        </div>
+
+        
+        <div class="card card-trade-plan">
+          <div class="card-title">TRADE PLAN</div>
+          <div class="trade-plan-side" id="tradePlanSide">Run a scan to build a risk plan.</div>
+          <div class="trade-zones">
+            <div class="trade-zone zone-target">
+              <div class="zone-label">TARGET</div>
+              <div class="zone-price" id="planTarget">—</div>
+              <div class="zone-pct" id="planTargetPct">—</div>
+            </div>
+            <div class="trade-zone zone-entry">
+              <div class="zone-label">ENTRY ZONE</div>
+              <div class="zone-price" id="planEntry">—</div>
+              <div class="zone-range" id="planEntryRange">—</div>
+            </div>
+            <div class="trade-zone zone-stop">
+              <div class="zone-label">STOP LOSS</div>
+              <div class="zone-price" id="planStop">—</div>
+              <div class="zone-pct" id="planStopPct">—</div>
+            </div>
+          </div>
+          <div class="rr-display">
+            <span class="rr-label">RISK / REWARD</span>
+            <span class="rr-value" id="planRR">—</span>
+          </div>
+          <div class="pos-size-row" id="posSizeRow" style="display:none">
+            <span class="pos-label">SIZE SUGGESTION</span>
+            <span class="pos-value" id="posSizeVal">—</span>
+            <span class="pos-note" id="posSizeNote"></span>
+          </div>
+          <button class="paper-trade-btn" id="paperTradeBtn" type="button" style="display:none">
+            ▶ PAPER TRADE THIS
+          </button>
+        </div>
+
+        <section class="ad-zone ad-zone-results-inline" data-ad-slot="results_inline" data-ad-format="horizontal" aria-label="Advertisement area">
+          <div class="ad-zone-kicker">ADVERTISEMENT</div>
+          <div class="ad-zone-body">Inline result banner</div>
+        </section>
+
+        
+        <div class="card card-predictions">
+          <div class="card-title">PRICE PREDICTIONS</div>
+          <div class="pred-disclaimer">Rule-based estimates — not financial advice</div>
+          <div class="pred-grid">
+            <div class="pred-item">
+              <div class="pred-horizon">5 DAY</div>
+              <div class="pred-pct" id="pred5d">—</div>
+              <div class="pred-signal" id="predSig5d">—</div>
+              <div class="pred-conf" id="predConf5d">—</div>
+            </div>
+            <div class="pred-item">
+              <div class="pred-horizon">10 DAY</div>
+              <div class="pred-pct" id="pred10d">—</div>
+              <div class="pred-signal" id="predSig10d">—</div>
+              <div class="pred-conf" id="predConf10d">—</div>
+            </div>
+            <div class="pred-item">
+              <div class="pred-horizon">20 DAY</div>
+              <div class="pred-pct" id="pred20d">—</div>
+              <div class="pred-signal" id="predSig20d">—</div>
+              <div class="pred-conf" id="predConf20d">—</div>
+            </div>
+          </div>
+        </div>
+
+        
+        <div class="card card-momentum">
+          <div class="card-title">MOMENTUM &amp; TREND</div>
+          <div class="trend-display">
+            <span class="trend-badge" id="trendBadge">—</span>
+            <span class="trend-strength" id="trendStrength">—</span>
+          </div>
+          <div class="momentum-bars" id="momentumBars"></div>
+          <div class="levels-grid">
+            <div class="levels-label">SUPPORT / RESISTANCE</div>
+            <div class="level-row resist2"><span>R2</span><span id="levelR2">—</span></div>
+            <div class="level-row resist1"><span>R1</span><span id="levelR1">—</span></div>
+            <div class="level-row pivot"><span>PIVOT</span><span id="levelPivot">—</span></div>
+            <div class="level-row support1"><span>S1</span><span id="levelS1">—</span></div>
+            <div class="level-row support2"><span>S2</span><span id="levelS2">—</span></div>
+          </div>
+        </div>
+
+
+        
+        <div class="card card-patterns">
+          <div class="card-title">
+            <span>DETECTED PATTERNS</span>
+            <span class="pattern-count" id="patternCount">—</span>
+          </div>
+          <div class="pattern-summary-row" id="patternSummaryRow"></div>
+          <div class="pattern-list" id="patternList">
+            <div class="pattern-empty">Run a scan to detect candle, FVG, structure, and chart patterns.</div>
+          </div>
+        </div>
+
+        
+        <div class="card card-rules">
+          <div class="card-title">SETUP LOGIC — RULES FIRED</div>
+          <div class="rules-list" id="rulesList"></div>
+          <div class="all-scores-title">ALL SETUP SCORES</div>
+          <div class="all-scores-grid" id="allScoresGrid"></div>
+        </div>
+
+        
+        <div class="card card-ai">
+          <div class="card-title">
+            <span>AI ANALYSIS</span>
+            <button class="refresh-ai-btn" id="refreshAiBtn" type="button">⟳ REGENERATE</button>
+          </div>
+          <div class="ai-content" id="aiContent">
+            <div class="ai-loading" id="aiLoading" style="display:none">
+              <div class="ai-dots"><span></span><span></span><span></span></div>
+              <span>Generating analysis...</span>
+            </div>
+            <div class="ai-text" id="aiText" role="status" aria-live="polite">Run a scan to get AI analysis.</div>
+          </div>
+        </div>
+
+        
+        <div class="card card-bio-footer" id="bioFooter" style="display:none">
+          <div class="bio-footer-inner">
+            <span class="bio-footer-name">
+              <svg class="github-icon-sm" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2C6.477 2 2 6.484 2 12.021c0 4.428 2.865 8.185 6.839 9.512.5.092.682-.217.682-.483 0-.237-.009-.868-.013-1.703-2.782.605-3.369-1.342-3.369-1.342-.454-1.154-1.11-1.462-1.11-1.462-.908-.62.069-.608.069-.608 1.004.07 1.532 1.032 1.532 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0 1 12 6.844a9.59 9.59 0 0 1 2.504.337c1.909-1.296 2.747-1.026 2.747-1.026.546 1.378.202 2.397.1 2.65.64.7 1.028 1.595 1.028 2.688 0 3.848-2.338 4.695-4.566 4.944.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .268.18.579.688.481C19.138 20.203 22 16.447 22 12.021 22 6.484 17.523 2 12 2z"/></svg>
+              Built by <a href="https://github.com/silasproff-eng" target="_blank" rel="noopener">Silas Cowles</a>
+            </span>
+            <span class="bio-footer-bio" id="bioFooterText">14-year-old developer interested in finance, automation, & game tools. learning by building projects, E.G. AI stock analysis+prediction utilities & more.</span>
+            <span class="bio-footer-disclaimer">△ Educational only — not financial advice</span>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    
+    <section class="tab-panel" id="tab-watchlist" role="tabpanel" aria-labelledby="nav-watchlist" aria-hidden="true" tabindex="0">
+      <div class="watchlist-header">
+        <h2 class="panel-title">WATCHLIST</h2>
+        <div class="watchlist-add-row">
+          <label class="sr-only" for="wlInput">Ticker to add to watchlist</label>
+          <input type="text" id="wlInput" class="ticker-input" placeholder="Add ticker..." maxlength="10" autocomplete="off" />
+          <button class="scan-btn" id="wlAddBtn" type="button">ADD</button>
+          <button class="scan-btn scan-all-btn" id="wlScanAllBtn" type="button">⬡ SCAN ALL</button>
+        </div>
+      </div>
+      <section class="ad-zone ad-zone-panel" data-ad-slot="watchlist_inline" data-ad-format="horizontal" aria-label="Advertisement area">
+        <div class="ad-zone-kicker">ADVERTISEMENT</div>
+        <div class="ad-zone-body">Watchlist banner</div>
+      </section>
+      <div id="watchlistContainer" class="watchlist-grid" role="status" aria-live="polite"></div>
+      <div class="scanner-results" id="scannerResults" style="display:none">
+        <h3 class="scanner-results-title">SCAN RESULTS — RANKED BY QUALITY</h3>
+        <div id="scannerResultsGrid" class="scanner-results-grid"></div>
+      </div>
+    </section>
+
+    
+    <section class="tab-panel" id="tab-paper" role="tabpanel" aria-labelledby="nav-paper" aria-hidden="true" tabindex="0">
+      <div class="paper-header">
+        <h2 class="panel-title">PAPER TRADES</h2>
+        <div class="paper-stats-row" id="paperStats"></div>
+      </div>
+      <div class="paper-trades-grid" id="paperTradesGrid"></div>
+      <section class="ad-zone ad-zone-panel" data-ad-slot="paper_bottom" data-ad-format="horizontal" aria-label="Advertisement area">
+        <div class="ad-zone-kicker">ADVERTISEMENT</div>
+        <div class="ad-zone-body">Paper-trading footer banner</div>
+      </section>
+    </section>
+
+    
+    <section class="tab-panel" id="tab-backtest" role="tabpanel" aria-labelledby="nav-backtest" aria-hidden="true" tabindex="0">
+      <div class="backtest-header">
+        <h2 class="panel-title">BACKTESTER</h2>
+        <p class="panel-subtitle">Walk-forward simulation on historical data. Signals generated by the same rule engine used for live scans.</p>
+      </div>
+
+      <div class="backtest-controls card">
+        <div class="bt-control-row">
+          <div class="bt-field">
+            <label for="btTicker">TICKER</label>
+            <input type="text" id="btTicker" class="modal-input" placeholder="AAPL" maxlength="10" style="text-transform:uppercase;" />
+          </div>
+          <div class="bt-field">
+            <label for="btPeriod">PERIOD</label>
+            <select id="btPeriod" class="modal-input">
+              <option value="6mo">6 Months</option>
+              <option value="1y" selected>1 Year</option>
+              <option value="2y">2 Years</option>
+            </select>
+          </div>
+          <div class="bt-field">
+            <label for="btMinScore">MIN QUALITY SCORE</label>
+            <input type="number" id="btMinScore" class="modal-input" value="55" min="0" max="100" />
+          </div>
+          <div class="bt-field">
+            <label for="btSetup">SETUP FILTER</label>
+            <select id="btSetup" class="modal-input">
+              <option value="">All Setups</option>
+              <option value="BREAKOUT">Breakout Only</option>
+              <option value="PULLBACK">Pullback Only</option>
+              <option value="TREND_CONTINUATION">Trend Continuation</option>
+              <option value="REVERSAL_ATTEMPT">Reversal Attempt</option>
+            </select>
+          </div>
+          <button class="scan-btn" id="btRunBtn" type="button" style="align-self:flex-end;">
+            <span class="btn-icon" aria-hidden="true">⬡</span> RUN BACKTEST
+          </button>
+        </div>
+      </div>
+
+      <div id="btLoading" style="display:none;" class="loading-screen" role="status" aria-live="polite">
+        <div class="loading-inner">
+          <div class="loading-ring"></div>
+          <div style="font-size:12px;color:var(--text-dim);letter-spacing:0.1em;">Running walk-forward simulation...</div>
+        </div>
+      </div>
+
+      <div id="btResults" style="display:none;">
+        
+        <div class="bt-stats-grid" id="btStatsGrid"></div>
+
+        
+        <div class="card" style="margin-top:12px;">
+          <div class="card-title">PERFORMANCE BY SETUP TYPE</div>
+          <div id="btSetupBreakdown" class="bt-breakdown-grid"></div>
+        </div>
+
+        
+        <div class="card" style="margin-top:12px;">
+          <div class="card-title">EXIT REASON DISTRIBUTION</div>
+          <div id="btExitReasons" class="bt-exit-grid"></div>
+        </div>
+
+        
+        <div class="card" style="margin-top:12px;">
+          <div class="card-title">
+            <span>FULL TRADE LOG</span>
+            <span id="btTradeCount" style="font-size:11px;color:var(--text-secondary);"></span>
+          </div>
+          <div class="bt-trade-log" id="btTradeLog"></div>
+        </div>
+      </div>
+    </section>
+
+    <footer class="legal-footer" aria-label="Oryntra AI Beta legal links">
+      <a href="/legal/terms" target="_blank" rel="noopener">Terms of Service</a>
+      <span class="legal-inline-sep">•</span>
+      <a href="/legal/privacy" target="_blank" rel="noopener">Privacy Policy</a>
+      <span class="legal-inline-sep">•</span>
+      <a href="/legal/methodology" target="_blank" rel="noopener">Methodology</a>
+      <span class="legal-inline-sep">•</span>
+      <a href="/legal/contact" target="_blank" rel="noopener">Contact</a>
+      <span class="legal-inline-sep">•</span>
+      <span>Free beta educational software only — not financial advice.</span>
+    </footer>
+
+  </main>
+
+
+  <section class="ad-zone ad-zone-mobile-bottom" data-ad-slot="mobile_bottom" data-ad-format="horizontal" aria-label="Advertisement area">
+    <div class="ad-zone-kicker">ADVERTISEMENT</div>
+    <div class="ad-zone-body">Mobile responsive banner</div>
+  </section>
+
+  
+  <div class="modal-overlay" id="authModal" style="display:none" role="dialog" aria-modal="true" aria-labelledby="authModalTitle" aria-describedby="authModalDescription">
+    <div class="modal-box auth-modal-box" tabindex="-1">
+      <div class="modal-title" id="authModalTitle">ORYNTRA AI ACCOUNT</div>
+      <p class="auth-modal-subtitle" id="authModalDescription">Sign in to keep paper trades linked to your account.</p>
+      <div class="auth-tabs" role="tablist" aria-label="Account action">
+        <button class="auth-tab active" id="authLoginTab" type="button" role="tab" aria-selected="true" data-mode="login">LOGIN</button>
+        <button class="auth-tab" id="authSignupTab" type="button" role="tab" aria-selected="false" data-mode="signup">SIGN UP</button>
+      </div>
+      <div class="modal-fields">
+        <div class="modal-field modal-field-full" id="authNameField" style="display:none">
+          <label for="authName">DISPLAY NAME</label>
+          <input type="text" id="authName" name="display_name" class="modal-input" placeholder="Silas" autocomplete="name" />
+        </div>
+        <div class="modal-field modal-field-full">
+          <label for="authEmail">EMAIL</label>
+          <input type="email" id="authEmail" name="email" class="modal-input" placeholder="you@example.com" autocomplete="username email" />
+        </div>
+        <div class="modal-field modal-field-full">
+          <label for="authPassword">PASSWORD</label>
+          <input type="password" id="authPassword" name="password" class="modal-input" placeholder="8+ characters" autocomplete="current-password" />
+        </div>
+      </div>
+      <div class="auth-error" id="authError" role="alert" aria-live="assertive"></div>
+      <p class="search-legal-note auth-legal-note">By creating an account or logging in, you agree to the <a href="/legal/terms" target="_blank" rel="noopener">Terms</a> and <a href="/legal/privacy" target="_blank" rel="noopener">Privacy Policy</a>.</p>
+      <div class="modal-actions">
+        <button class="modal-cancel" id="authCancel" type="button">CANCEL</button>
+        <button class="modal-confirm" id="authSubmit" type="button">LOGIN</button>
+      </div>
+    </div>
+  </div>
+
+  
+  <div class="modal-overlay" id="paperModal" style="display:none" role="dialog" aria-modal="true" aria-labelledby="paperModalTitle">
+    <div class="modal-box" tabindex="-1">
+      <div class="modal-title" id="paperModalTitle">OPEN PAPER TRADE</div>
+      <div class="modal-ticker" id="modalTicker">—</div>
+      <div class="modal-fields">
+        <div class="modal-field">
+          <label for="modalDir">DIRECTION</label>
+          <select id="modalDir" class="modal-input">
+            <option value="LONG">LONG</option>
+            <option value="SHORT">SHORT</option>
+          </select>
+        </div>
+        <div class="modal-field">
+          <label for="modalEntry">ENTRY PRICE</label>
+          <input type="number" id="modalEntry" class="modal-input" step="0.01" />
+        </div>
+        <div class="modal-field">
+          <label for="modalStop">STOP PRICE</label>
+          <input type="number" id="modalStop" class="modal-input" step="0.01" />
+        </div>
+        <div class="modal-field">
+          <label for="modalTarget">TARGET PRICE</label>
+          <input type="number" id="modalTarget" class="modal-input" step="0.01" />
+        </div>
+        <div class="modal-field">
+          <label for="modalSize">SIZE ($)</label>
+          <input type="number" id="modalSize" class="modal-input" value="1000" />
+        </div>
+        <div class="modal-field modal-field-full">
+          <label for="modalNotes">NOTES</label>
+          <input type="text" id="modalNotes" class="modal-input" placeholder="Why are you taking this trade?" />
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="modal-cancel" id="modalCancel" type="button">CANCEL</button>
+        <button class="modal-confirm" id="modalConfirm" type="button">OPEN TRADE</button>
+      </div>
+    </div>
+  </div>
+
+  
+  <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+  <script src="/static/js/app.js?v=050-optimized-worker"></script>
+  <script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const psaBanner = document.getElementById("psaBanner");
+    const psaMessage = document.getElementById("psaMessage");
+    const psaCloseBtn = document.getElementById("psaCloseBtn");
+
+    if (!psaBanner || !psaMessage) {
+      return;
+    }
+
+    const hasPSA =
+      psaMessage.textContent.trim().length > 0 ||
+      psaMessage.querySelector("img, video, a, strong, em, span");
+
+    psaBanner.hidden = !hasPSA;
+
+    if (psaCloseBtn) {
+      psaCloseBtn.addEventListener("click", function () {
+        psaBanner.hidden = true;
+      });
+    }
+  });
+</script>
+</body>
+</html>

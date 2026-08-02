@@ -1,0 +1,98 @@
+ORYNTRA AI PROPRIETARY SOURCE-AVAILABLE LICENSE
+Version 1.1 — August 2026
+
+Copyright © 2026 Oryntra AI. All rights reserved.
+
+NOTICE: THIS SOFTWARE IS PROPRIETARY AND IS NOT OPEN SOURCE.
+
+This license applies to the source code, object code, models, model artifacts, algorithms, scoring systems, interfaces, documentation, graphics, branding, data structures, configuration, and other original materials made available in this repository by Oryntra AI or its owner(s), collectively the “Software.” Third-party materials remain subject to their respective licenses and terms.
+
+1. OWNERSHIP AND LIMITED SOURCE AVAILABILITY
+
+The Software is made publicly viewable for evaluation, security review, product review, and demonstration. Oryntra AI retains all copyright, trademark, trade-secret, patent, contractual, and other rights that may apply to the Software.
+
+No ownership interest is transferred. Except for rights that GitHub independently requires under its Terms of Service to operate a public repository—including viewing and forking through GitHub’s functionality—no license or permission is granted unless expressly stated in a separate written agreement signed by an authorized owner of Oryntra AI.
+
+2. NO GENERAL LICENSE TO USE
+
+Without prior express written permission, you may not use, reproduce, modify, adapt, translate, compile, build, execute, deploy, host, publish, distribute, sublicense, sell, lease, provide as a service, create derivative works from, or otherwise exploit the Software, in whole or in part.
+
+A GitHub fork, clone, download, cache, or other copy made available through platform functionality does not grant any right to use that copy outside the limited platform rights described above.
+
+3. SPECIFICALLY PROHIBITED ACTIVITIES
+
+Without prior express written permission, you may not directly or indirectly:
+
+(a) use the Software for commercial activity, revenue generation, internal business operations, consulting, investment services, financial services, or any product or service supplied to another person;
+
+(b) use the Software, its architecture, workflows, interfaces, scoring logic, signals, models, prompts, outputs, documentation, or non-public implementation details to build, operate, benchmark, validate, or improve a competing or substantially similar product or service;
+
+(c) reverse engineer, decompile, disassemble, extract, reconstruct, discover, reproduce, or attempt to derive any algorithm, model, model weight, scoring method, signal, rule, API behavior, security mechanism, or non-public implementation detail, except only to the limited extent that applicable law expressly prohibits this restriction;
+
+(d) scrape, crawl, systematically download, mirror, archive, index, harvest, or use automated means to collect repository content, except for ordinary indexing or caching performed by GitHub to operate the repository;
+
+(e) use the Software or repository content to train, fine-tune, evaluate, benchmark, ground, augment, or otherwise develop an artificial-intelligence, machine-learning, statistical, or automated decision system;
+
+(f) remove, alter, obscure, or misrepresent any copyright, trademark, attribution, proprietary, financial-risk, security, or licensing notice;
+
+(g) use “Oryntra,” “Oryntra AI,” associated logos, product names, domain names, visual identity, or confusingly similar marks;
+
+(h) bypass or attempt to bypass authentication, authorization, access controls, rate limits, payment controls, subscription restrictions, technical protections, or usage restrictions;
+
+(i) expose, transmit, retain, or misuse API credentials, OAuth secrets, access tokens, private user information, signing materials, or protected market data; or
+
+(j) use the Software for unlawful, deceptive, abusive, infringing, harmful, or unauthorized purposes.
+
+4. THIRD-PARTY SERVICES, DATA, AND MATERIALS
+
+This license grants no rights to third-party APIs, market data, brokerage services, charting services, libraries, trademarks, or other third-party materials. Alpaca, TradingView, Apple, Google, market-data providers, and other service providers may impose separate registration, attribution, display, redistribution, privacy, security, commercial-use, and approval requirements.
+
+Possession of this repository does not authorize access to or redistribution of third-party data, does not create a brokerage or advisory relationship, and does not imply affiliation with or endorsement by any third party.
+
+5. CONTRIBUTIONS
+
+No pull request, patch, suggestion, issue submission, code contribution, documentation contribution, or other material is accepted under an implied license. Oryntra AI may reject, close, remove, or decline to incorporate any submission.
+
+Any contribution accepted for incorporation requires separate written terms establishing ownership or licensing rights before it is merged. Submission of material does not obligate Oryntra AI to use, compensate for, or maintain it.
+
+6. NO TRADEMARK OR PUBLICITY LICENSE
+
+No trademark, trade dress, publicity, endorsement, sponsorship, or branding right is granted. You may not represent that you are affiliated with, sponsored by, approved by, or acting for Oryntra AI, Alpaca, TradingView, or any other provider without written authorization from the relevant rights holder.
+
+7. FINANCIAL AND INFORMATIONAL DISCLAIMER
+
+The Software is intended for informational, research, demonstration, and educational purposes only. It does not provide personalized investment, financial, legal, tax, accounting, brokerage, or fiduciary advice and does not guarantee any result.
+
+Market data, indicators, scores, signals, patterns, forecasts, explanations, backtests, simulations, and trade plans may be delayed, incomplete, inaccurate, unavailable, or unsuitable. Simulated and historical results do not represent actual execution and do not guarantee future results. Users are solely responsible for decisions, regulatory obligations, taxes, and losses.
+
+8. NO WARRANTY
+
+TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED “AS IS” AND “AS AVAILABLE,” WITH ALL FAULTS AND WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, WHETHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, INCLUDING WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, TITLE, NON-INFRINGEMENT, ACCURACY, COMPLETENESS, AVAILABILITY, SECURITY, PERFORMANCE, OR RESULTS.
+
+9. LIMITATION OF LIABILITY
+
+TO THE MAXIMUM EXTENT PERMITTED BY LAW, ORYNTRA AI AND ITS OWNERS, DEVELOPERS, CONTRIBUTORS, AFFILIATES, LICENSORS, AND SERVICE PROVIDERS WILL NOT BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, CONSEQUENTIAL, RELIANCE, OR PUNITIVE DAMAGES; LOSS OF DATA, PROFITS, REVENUE, BUSINESS, GOODWILL, OPPORTUNITY, OR INVESTMENTS; TRADING LOSSES; SECURITY INCIDENTS; OR CLAIMS ARISING FROM ACCESS TO, INABILITY TO ACCESS, OR USE OF THE SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
+
+Nothing in this license excludes liability that cannot lawfully be excluded or limited.
+
+10. TERMINATION
+
+Any limited permission granted by Oryntra AI terminates automatically upon violation of this license. Upon termination, you must cease all unauthorized use and delete copies in your possession or control, except copies that GitHub independently maintains or that applicable law requires you to preserve.
+
+Sections concerning ownership, restrictions, third-party rights, disclaimers, limitations, termination, and remedies survive termination.
+
+11. REMEDIES
+
+Unauthorized use may cause harm for which monetary damages are inadequate. Subject to applicable law, Oryntra AI may seek injunctive relief, damages, disgorgement of profits, recovery of reasonable enforcement costs, and any other available remedy.
+
+12. NO WAIVER; SEVERABILITY; ENTIRE PERMISSION
+
+Failure to enforce a provision is not a waiver. If a provision is held invalid or unenforceable, it will be enforced to the maximum lawful extent and the remaining provisions will continue in effect.
+
+No oral statement, repository description, issue comment, pull-request discussion, or informal communication grants additional rights. Any exception, commercial license, redistribution right, deployment permission, or other authorization must be contained in a separate written agreement signed by an authorized owner of Oryntra AI.
+
+13. CONTACT AND LEGAL REVIEW
+
+Requests for written permission or commercial licensing must be sent through the official contact information published by Oryntra AI.
+
+This is a custom proprietary license. Repository publication and this license do not replace advice from qualified legal counsel regarding enforceability, intellectual-property ownership, financial regulation, market-data rights, privacy, consumer protection, or third-party platform requirements.

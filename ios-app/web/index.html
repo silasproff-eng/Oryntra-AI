@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <base href="$FLUTTER_BASE_HREF">
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=Edge">
+  <meta name="description" content="Oryntra AI v0.5.1 mobile interface preview.">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#04101C">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Oryntra AI Preview">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+  <link rel="icon" type="image/png" href="favicon.png">
+  <link rel="manifest" href="manifest.json">
+  <title>Oryntra AI v0.5.1 Preview</title>
+  <style>
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: #020711;
+    }
+
+    body {
+      display: flex;
+      justify-content: center;
+      align-items: stretch;
+    }
+
+    #flutter_host {
+      width: min(100vw, 430px);
+      height: 100vh;
+      overflow: hidden;
+      background: #000;
+      box-shadow: 0 0 70px rgba(0, 0, 0, 0.65);
+    }
+
+    @media (max-width: 430px) {
+      #flutter_host {
+        width: 100vw;
+        box-shadow: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="flutter_host" aria-label="Oryntra AI mobile preview"></div>
+  <noscript>JavaScript is required to run the Oryntra AI preview.</noscript>
+  <script src="flutter_bootstrap.js" async></script>
+</body>
+</html>

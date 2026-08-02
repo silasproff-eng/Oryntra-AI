@@ -1,0 +1,22 @@
+{
+  "name": "Oryntra AI v0.5.1 Preview",
+  "short_name": "Oryntra Preview",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#04101C",
+  "description": "Safe browser preview of the Oryntra AI Flutter mobile interface.",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "icons/Icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/Icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

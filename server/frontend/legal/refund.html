@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#080d14" />
+  <script src="/static/js/theme-init.js?v=061-blue"></script>
+  <meta
+    name="description"
+    content="Payment, billing, cancellation, and refund information for Oryntra AI."
+  />
+  <title>Payments and Refunds | Oryntra AI</title>
+  <link rel="stylesheet" href="/static/css/main.css?v=legal-20260729" />
+
+  <style>
+    :root {
+      color-scheme: dark;
+      --legal-bg: #03070c;
+      --legal-panel: rgba(255,255,255,.038);
+      --legal-border: rgba(56,207,243,.23);
+      --legal-accent: var(--accent-primary, #38cff3);
+      --legal-text: rgba(255,255,255,.88);
+      --legal-muted: rgba(255,255,255,.62);
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      margin: 0;
+      padding: 36px 24px;
+      background:
+        radial-gradient(circle at top, rgba(56,207,243,.09), transparent 34rem),
+        var(--legal-bg);
+      color: var(--legal-text);
+      font: 16px/1.72 var(--font-body, Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif);
+    }
+
+    a { color: var(--legal-accent); text-underline-offset: 3px; }
+    a:hover, a:focus-visible { text-decoration-thickness: 2px; }
+    .legal-shell { width: min(100%, 980px); margin: 0 auto; }
+
+    .legal-page {
+      overflow: hidden;
+      background: var(--legal-panel);
+      border: 1px solid var(--legal-border);
+      border-radius: 26px;
+      box-shadow: 0 28px 90px rgba(0,0,0,.3);
+      backdrop-filter: blur(18px);
+    }
+
+    .legal-header {
+      padding: 38px;
+      border-bottom: 1px solid rgba(255,255,255,.1);
+      background: linear-gradient(135deg, rgba(56,207,243,.09), rgba(255,255,255,.018));
+    }
+
+    .legal-kicker {
+      margin: 0 0 10px;
+      color: var(--legal-accent);
+      font-size: .78rem;
+      font-weight: 700;
+      letter-spacing: .16em;
+      text-transform: uppercase;
+    }
+
+    h1, h2 {
+      font-family: var(--font-display, system-ui, sans-serif);
+      line-height: 1.18;
+      scroll-margin-top: 24px;
+    }
+
+    h1 {
+      margin: 0;
+      color: #fff;
+      font-size: clamp(2.35rem, 6vw, 4rem);
+      letter-spacing: -.035em;
+    }
+
+    h2 {
+      margin: 0 0 14px;
+      color: #fff;
+      font-size: clamp(1.35rem, 3vw, 1.85rem);
+    }
+
+    p { margin: 0 0 14px; }
+
+    .legal-meta {
+      margin-top: 16px;
+      color: var(--legal-muted);
+      font-size: .92rem;
+    }
+
+    .legal-summary, .legal-callout {
+      padding: 17px 18px;
+      border: 1px solid rgba(56,207,243,.25);
+      border-radius: 16px;
+      background: rgba(56,207,243,.07);
+    }
+
+    .legal-summary { margin-top: 24px; }
+    .legal-callout { margin: 18px 0; }
+    .legal-content { padding: 34px 38px 38px; }
+
+    .legal-section {
+      padding: 30px 0;
+      border-top: 1px solid rgba(255,255,255,.1);
+    }
+
+    .legal-section:first-child {
+      padding-top: 0;
+      border-top: 0;
+    }
+
+    .legal-section-label {
+      display: block;
+      margin-bottom: 7px;
+      color: var(--legal-accent);
+      font-size: .75rem;
+      font-weight: 700;
+      letter-spacing: .13em;
+      text-transform: uppercase;
+    }
+
+    ul { margin: 12px 0 18px; padding-left: 22px; }
+    li { margin: 7px 0; }
+
+    .legal-footer {
+      padding: 24px 38px;
+      border-top: 1px solid rgba(255,255,255,.1);
+      background: rgba(0,0,0,.13);
+    }
+
+    .legal-footer nav {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 16px;
+    }
+
+    .legal-footer p {
+      margin: 12px 0 0;
+      color: var(--legal-muted);
+      font-size: .84rem;
+    }
+
+    @media (max-width: 700px) {
+      body { padding: 18px 12px; }
+      .legal-page { border-radius: 20px; }
+      .legal-header, .legal-content, .legal-footer {
+        padding-left: 20px;
+        padding-right: 20px;
+      }
+    }
+  </style>
+  <link rel="stylesheet" href="/static/css/refined.css?v=061-blue" />
+</head>
+
+<body>
+  <div class="legal-shell">
+    <main class="legal-page">
+      <header class="legal-header">
+        <p class="legal-kicker">Oryntra AI Legal</p>
+        <h1>Payments and Refunds</h1>
+        <p class="legal-meta">
+          <strong>Effective date:</strong> July 29, 2026
+        </p>
+
+        <div class="legal-summary">
+          This policy explains how payments, subscriptions, cancellations, and
+          refund requests are handled when paid Oryntra AI features are offered.
+        </div>
+      </header>
+
+      <div class="legal-content">
+        <section class="legal-section">
+          <span class="legal-section-label">Current Service</span>
+          <h2>Current Payment Status</h2>
+
+          <p>
+            As of the effective date, Oryntra AI does not directly process
+            payment-card information or charge users through its website.
+          </p>
+
+          <p>
+            Free access may be supported by advertising. Viewing or interacting
+            with an advertisement does not create a payment obligation to
+            Oryntra AI.
+          </p>
+        </section>
+
+        <section class="legal-section">
+          <span class="legal-section-label">App Store Purchases</span>
+          <h2>Purchases Processed by Apple</h2>
+
+          <p>
+            If Oryntra AI offers an in-app purchase or subscription through the
+            Apple App Store, Apple processes the payment and maintains the
+            associated billing information.
+          </p>
+
+          <p>
+            App Store purchases are also subject to Apple’s applicable terms,
+            billing rules, cancellation procedures, and refund decisions.
+          </p>
+        </section>
+
+        <section class="legal-section">
+          <span class="legal-section-label">Refund Requests</span>
+          <h2>Requesting an Apple Refund</h2>
+
+          <p>
+            Refund requests for purchases processed by Apple must generally be
+            submitted directly to Apple. Oryntra AI cannot approve, deny, or
+            directly issue a refund for a transaction controlled by Apple.
+          </p>
+
+          <p>
+            To request an eligible refund, visit
+            <a href="https://reportaproblem.apple.com/" target="_blank" rel="noopener noreferrer">
+              reportaproblem.apple.com
+            </a>
+            and follow Apple’s instructions.
+          </p>
+
+          <div class="legal-callout">
+            Refund eligibility and processing times may vary by country,
+            region, payment method, purchase type, and applicable consumer law.
+          </div>
+        </section>
+
+        <section class="legal-section">
+          <span class="legal-section-label">Subscriptions</span>
+          <h2>Cancellation and Renewal</h2>
+
+          <p>
+            If a recurring subscription is offered, its price, billing period,
+            renewal terms, and available trial terms will be shown before
+            purchase.
+          </p>
+
+          <p>
+            Canceling a subscription generally stops future renewals but does
+            not automatically refund a completed billing period. Access may
+            continue until the end of the paid period, subject to the applicable
+            platform rules.
+          </p>
+
+          <p>
+            App Store subscriptions can be managed through the subscription
+            settings associated with the user’s Apple Account.
+          </p>
+        </section>
+
+        <section class="legal-section">
+          <span class="legal-section-label">Billing Problems</span>
+          <h2>Duplicate or Unrecognized Charges</h2>
+
+          <p>
+            For an App Store charge, first review the Apple receipt and Apple
+            purchase history. Report unrecognized Apple transactions through
+            Apple’s official support and purchase-reporting channels.
+          </p>
+
+          <p>
+            You may also contact Oryntra AI support with non-sensitive
+            information about the issue. Do not send complete card numbers,
+            passwords, authentication codes, or banking credentials.
+          </p>
+        </section>
+
+        <section class="legal-section">
+          <span class="legal-section-label">Future Changes</span>
+          <h2>Future Paid Features</h2>
+
+          <p>
+            If Oryntra AI introduces direct website billing or another payment
+            method, this policy will be updated before that method is used to
+            collect payment.
+          </p>
+
+          <p>
+            Any paid offer should identify its price, billing interval,
+            automatic-renewal terms, cancellation method, and material feature
+            limitations before purchase.
+          </p>
+        </section>
+
+        <section class="legal-section">
+          <span class="legal-section-label">Contact</span>
+          <h2>Payment Support</h2>
+
+          <p>
+            Questions may be submitted through the
+            <a href="/legal/contact">Oryntra AI contact page</a>
+            or by emailing
+            <a href="mailto:silasproff@gmail.com">silasproff@gmail.com</a>.
+          </p>
+        </section>
+      </div>
+
+      <footer class="legal-footer">
+        <nav aria-label="Legal links">
+          <a href="/">Oryntra AI</a>
+          <a href="/legal/privacy">Privacy Policy</a>
+          <a href="/legal/terms">Terms of Service</a>
+          <a href="/legal/risk-disclaimer">Risk Disclaimer</a>
+          <a href="/legal/methodology">Methodology</a>
+          <a href="/legal/contact">Contact</a>
+        </nav>
+
+        <p>© 2026 Oryntra AI. All rights reserved.</p>
+      </footer>
+    </main>
+  </div>
+</body>
+</html>

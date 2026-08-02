@@ -1,0 +1,72 @@
+# Secrets and environment files
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p8
+*.p12
+*.pfx
+*.cer
+*.mobileprovision
+GoogleService-Info.plist
+credentials.json
+secrets.json
+
+# OAuth, sessions, and tokens
+*access_token*
+*refresh_token*
+*oauth_token*
+*client_secret*
+token-store/
+sessions/
+
+# Python
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Runtime data and databases
+data/
+*.db
+*.db-*
+*.sqlite
+*.sqlite3
+*.log
+
+# Flutter and Dart
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+build/
+coverage/
+
+# CocoaPods, Xcode, and Apple signing
+**/Pods/
+**/.symlinks/
+**/Flutter/ephemeral/
+DerivedData/
+*.xcuserstate
+xcuserdata/
+
+# Android and Gradle
+.gradle/
+**/local.properties
+*.jks
+*.keystore
+key.properties
+
+# Editors and operating systems
+.DS_Store
+._*
+__MACOSX/
+.idea/
+.vscode/
+*.swp

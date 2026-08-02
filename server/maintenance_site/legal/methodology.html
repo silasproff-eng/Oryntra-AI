@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#080d14" />
+  <script src="/static/js/theme-init.js?v=061-blue"></script>
+  <meta
+    name="description"
+    content="An overview of the data, calculations, limitations, and simulation methods used by Oryntra AI."
+  />
+  <title>Methodology | Oryntra AI</title>
+  <link rel="stylesheet" href="/static/css/main.css?v=legal-20260729" />
+
+  <style>
+    :root {
+      color-scheme: dark;
+      --legal-bg: #03070c;
+      --legal-panel: rgba(255,255,255,.038);
+      --legal-border: rgba(56,207,243,.23);
+      --legal-accent: var(--accent-primary, #38cff3);
+      --legal-text: rgba(255,255,255,.88);
+      --legal-muted: rgba(255,255,255,.62);
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      margin: 0;
+      padding: 36px 24px;
+      background:
+        radial-gradient(circle at top, rgba(56,207,243,.09), transparent 34rem),
+        var(--legal-bg);
+      color: var(--legal-text);
+      font: 16px/1.72 var(--font-body, Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif);
+    }
+
+    a { color: var(--legal-accent); text-underline-offset: 3px; }
+    a:hover, a:focus-visible { text-decoration-thickness: 2px; }
+
+    .legal-shell { width: min(100%, 980px); margin: 0 auto; }
+
+    .legal-page {
+      overflow: hidden;
+      background: var(--legal-panel);
+      border: 1px solid var(--legal-border);
+      border-radius: 26px;
+      box-shadow: 0 28px 90px rgba(0,0,0,.3);
+      backdrop-filter: blur(18px);
+    }
+
+    .legal-header {
+      padding: 38px;
+      border-bottom: 1px solid rgba(255,255,255,.1);
+      background: linear-gradient(135deg, rgba(56,207,243,.09), rgba(255,255,255,.018));
+    }
+
+    .legal-kicker {
+      margin: 0 0 10px;
+      color: var(--legal-accent);
+      font-size: .78rem;
+      font-weight: 700;
+      letter-spacing: .16em;
+      text-transform: uppercase;
+    }
+
+    h1, h2, h3 {
+      font-family: var(--font-display, system-ui, sans-serif);
+      line-height: 1.18;
+      scroll-margin-top: 24px;
+    }
+
+    h1 {
+      margin: 0;
+      color: #fff;
+      font-size: clamp(2.35rem, 6vw, 4rem);
+      letter-spacing: -.035em;
+    }
+
+    h2 {
+      margin: 0 0 14px;
+      color: #fff;
+      font-size: clamp(1.35rem, 3vw, 1.85rem);
+    }
+
+    h3 {
+      margin: 22px 0 8px;
+      color: rgba(255,255,255,.95);
+    }
+
+    p { margin: 0 0 14px; }
+
+    .legal-meta {
+      margin-top: 16px;
+      color: var(--legal-muted);
+      font-size: .92rem;
+    }
+
+    .legal-summary, .legal-warning {
+      margin-top: 20px;
+      padding: 17px 18px;
+      border-radius: 16px;
+    }
+
+    .legal-summary {
+      border: 1px solid rgba(56,207,243,.25);
+      background: rgba(56,207,243,.07);
+    }
+
+    .legal-warning {
+      border: 1px solid rgba(255,92,112,.42);
+      background: rgba(255,92,112,.09);
+    }
+
+    .legal-content { padding: 34px 38px 38px; }
+
+    .toc {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 8px 18px;
+      margin: 0 0 36px;
+      padding: 20px;
+      border: 1px solid rgba(255,255,255,.1);
+      border-radius: 18px;
+      background: rgba(255,255,255,.025);
+    }
+
+    .toc strong {
+      grid-column: 1 / -1;
+      color: #fff;
+      font-size: .82rem;
+      letter-spacing: .11em;
+      text-transform: uppercase;
+    }
+
+    .toc a { text-decoration: none; }
+
+    .legal-section {
+      padding: 30px 0;
+      border-top: 1px solid rgba(255,255,255,.1);
+    }
+
+    .legal-section:first-of-type {
+      padding-top: 0;
+      border-top: 0;
+    }
+
+    .legal-section-label {
+      display: block;
+      margin-bottom: 7px;
+      color: var(--legal-accent);
+      font-size: .75rem;
+      font-weight: 700;
+      letter-spacing: .13em;
+      text-transform: uppercase;
+    }
+
+    ul { margin: 12px 0 18px; padding-left: 22px; }
+    li { margin: 7px 0; }
+
+    .legal-footer {
+      padding: 24px 38px;
+      border-top: 1px solid rgba(255,255,255,.1);
+      background: rgba(0,0,0,.13);
+    }
+
+    .legal-footer nav {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 16px;
+    }
+
+    .legal-footer p {
+      margin: 12px 0 0;
+      color: var(--legal-muted);
+      font-size: .84rem;
+    }
+
+    @media (max-width: 700px) {
+      body { padding: 18px 12px; }
+      .legal-page { border-radius: 20px; }
+      .legal-header, .legal-content, .legal-footer {
+        padding-left: 20px;
+        padding-right: 20px;
+      }
+      .toc { grid-template-columns: 1fr; }
+    }
+  </style>
+  <link rel="stylesheet" href="/static/css/refined.css?v=061-blue" />
+</head>
+
+<body>
+  <div class="legal-shell">
+    <main class="legal-page">
+      <header class="legal-header">
+        <p class="legal-kicker">Oryntra AI Transparency</p>
+        <h1>Methodology</h1>
+        <p class="legal-meta">
+          <strong>Effective date:</strong> July 29, 2026
+        </p>
+
+        <div class="legal-summary">
+          This page provides a general overview of how Oryntra AI produces
+          technical-analysis outputs, simulations, and educational planning
+          information.
+        </div>
+
+        <div class="legal-warning">
+          <strong>Educational analysis only.</strong>
+          Oryntra AI outputs are software-generated estimates, not personalized
+          financial advice, trade instructions, probabilities of profit, or
+          guarantees of future performance.
+        </div>
+      </header>
+
+      <div class="legal-content">
+        <nav class="toc" aria-label="Methodology contents">
+          <strong>Contents</strong>
+          <a href="#overview">1. Overview</a>
+          <a href="#inputs">2. Data Inputs</a>
+          <a href="#analysis">3. Technical Analysis</a>
+          <a href="#scores">4. Scores and Labels</a>
+          <a href="#ai">5. AI-Generated Content</a>
+          <a href="#simulation">6. Paper Trading</a>
+          <a href="#backtesting">7. Backtesting</a>
+          <a href="#limitations">8. Limitations</a>
+          <a href="#verification">9. Independent Verification</a>
+        </nav>
+
+        <section class="legal-section" id="overview">
+          <span class="legal-section-label">Section 1</span>
+          <h2>Overview</h2>
+
+          <p>
+            Oryntra AI combines technical market data, defined software rules,
+            calculated indicators, pattern-detection methods, and generated
+            summaries to provide educational market-analysis tools.
+          </p>
+
+          <p>
+            Methodologies, calculations, data sources, interfaces, and feature
+            availability may change as the service is maintained and improved.
+          </p>
+        </section>
+
+        <section class="legal-section" id="inputs">
+          <span class="legal-section-label">Section 2</span>
+          <h2>Data Inputs</h2>
+
+          <p>Depending on the feature, the service may evaluate:</p>
+
+          <ul>
+            <li>Historical and recent market prices.</li>
+            <li>Opening, high, low, and closing values.</li>
+            <li>Trading volume and changes in volume.</li>
+            <li>Trend direction and price structure.</li>
+            <li>Momentum and volatility measurements.</li>
+            <li>Support and resistance areas.</li>
+            <li>Selected chart and candlestick patterns.</li>
+            <li>Risk-and-reward planning values.</li>
+          </ul>
+
+          <p>
+            Data may originate from third-party providers and may be delayed,
+            revised, incomplete, unavailable, or inaccurate.
+          </p>
+        </section>
+
+        <section class="legal-section" id="analysis">
+          <span class="legal-section-label">Section 3</span>
+          <h2>Technical Analysis</h2>
+
+          <p>
+            Oryntra AI may apply rules, calculations, and statistical methods
+            to identify technical conditions. These conditions may be
+            summarized as trends, setups, patterns, ranges, or planning levels.
+          </p>
+
+          <p>
+            Technical analysis is inherently uncertain. A recognized pattern
+            does not establish that a security will move in a particular
+            direction or reach a displayed level.
+          </p>
+        </section>
+
+        <section class="legal-section" id="scores">
+          <span class="legal-section-label">Section 4</span>
+          <h2>Scores, Confidence Labels, and Rankings</h2>
+
+          <p>
+            Scores and labels are comparative software outputs based on the
+            factors selected for a feature. They are intended to summarize
+            technical conditions consistently.
+          </p>
+
+          <p>
+            A higher score or stronger label does not mean that a trade will be
+            profitable and must not be interpreted as a verified probability
+            of profit unless the service expressly identifies it as such and
+            explains the relevant validation.
+          </p>
+        </section>
+
+        <section class="legal-section" id="ai">
+          <span class="legal-section-label">Section 5</span>
+          <h2>AI-Generated Content</h2>
+
+          <p>
+            Some summaries may be generated or organized using artificial
+            intelligence. AI-generated content may misunderstand data, omit
+            relevant context, use incorrect assumptions, or produce inaccurate
+            statements.
+          </p>
+
+          <p>
+            AI-generated text should be treated as an educational explanation
+            of available software outputs—not as an independent verification
+            of the underlying information.
+          </p>
+        </section>
+
+        <section class="legal-section" id="simulation">
+          <span class="legal-section-label">Section 6</span>
+          <h2>Simulated Paper Trading</h2>
+
+          <p>
+            Paper trading is simulated and does not involve real money,
+            securities, brokerage accounts, or trade execution.
+          </p>
+
+          <p>
+            Simulated results may not reflect slippage, liquidity, spreads,
+            partial fills, rejected orders, commissions, fees, taxes, margin
+            requirements, market halts, or broker-specific behavior.
+          </p>
+        </section>
+
+        <section class="legal-section" id="backtesting">
+          <span class="legal-section-label">Section 7</span>
+          <h2>Backtests and Historical Statistics</h2>
+
+          <p>
+            Backtests and historical pattern statistics are hypothetical. They
+            may be affected by data quality, limited sample sizes, selection
+            bias, survivorship bias, overfitting, hindsight, changing market
+            conditions, and assumptions about entries, exits, timing, fees,
+            and execution.
+          </p>
+
+          <p>
+            Backtested or historical performance does not predict or guarantee
+            future performance.
+          </p>
+        </section>
+
+        <section class="legal-section" id="limitations">
+          <span class="legal-section-label">Section 8</span>
+          <h2>Important Limitations</h2>
+
+          <ul>
+            <li>Displayed prices may not be current executable prices.</li>
+            <li>Signals and patterns may be incorrectly identified.</li>
+            <li>Calculated levels may not be reached.</li>
+            <li>Market conditions can change without warning.</li>
+            <li>Historical relationships may stop behaving as expected.</li>
+            <li>Software, network, provider, and calculation errors can occur.</li>
+          </ul>
+        </section>
+
+        <section class="legal-section" id="verification">
+          <span class="legal-section-label">Section 9</span>
+          <h2>Independent Verification</h2>
+
+          <p>
+            Users should independently verify prices, company information,
+            market conditions, calculations, and risks using appropriate
+            professional and primary sources.
+          </p>
+
+          <p>
+            Oryntra AI does not connect to brokerage accounts or execute
+            real-money transactions. Users remain solely responsible for their
+            own financial decisions.
+          </p>
+        </section>
+      </div>
+
+      <footer class="legal-footer">
+        <nav aria-label="Legal links">
+          <a href="/">Oryntra AI</a>
+          <a href="/legal/privacy">Privacy Policy</a>
+          <a href="/legal/terms">Terms of Service</a>
+          <a href="/legal/risk-disclaimer">Risk Disclaimer</a>
+          <a href="/legal/refund">Payments and Refunds</a>
+          <a href="/legal/contact">Contact</a>
+        </nav>
+
+        <p>© 2026 Oryntra AI. All rights reserved.</p>
+      </footer>
+    </main>
+  </div>
+</body>
+</html>

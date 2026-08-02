@@ -1,0 +1,2971 @@
+/**
+ * Oryntra Frontend — Complete Dashboard Logic
+ * TradingView widget integration + full API communication
+ */
+
+'use strict';
+
+var plan = {};
+window.plan = plan;
+
+const nativeFetch = window.fetch.bind(window);
+function apiFetch(url, options = {}) {
+  const opts = Object.assign({ credentials: 'same-origin', cache: 'no-store' }, options || {});
+  opts.headers = opts.headers || {};
+  return nativeFetch(url, opts);
+}
+
+
+const IS_PRO_BUILD = false;
+const AUTH_TOKEN_KEY = 'oryntra_auth_token';
+const AUTH_USER_KEY = 'oryntra_auth_user';
+const AUTH_TOKEN_COOKIE = 'oryntra_client_session';
+const AUTH_USER_COOKIE = 'oryntra_user_cache';
+let lastDialogFocus = null;
+let lastDevLabFocus = null;
+
+function getCookie(name) {
+  try {
+    const match = document.cookie.match(new RegExp('(?:^|; )' + name.replace(/[.$?*|{}()\[\]\\/\+^]/g, '\\$&') + '=([^;]*)'));
+    return match ? decodeURIComponent(match[1]) : '';
+  } catch (_) {
+    return '';
+  }
+}
+
+function setClientCookie(name, value, days = 30) {
+  try {
+    const maxAge = Math.max(1, days) * 24 * 60 * 60;
+    document.cookie = `${name}=${encodeURIComponent(value || '')}; Max-Age=${maxAge}; Path=/; SameSite=Lax`;
+  } catch (_) {}
+}
+
+function deleteClientCookie(name) {
+  try {
+    document.cookie = `${name}=; Max-Age=0; Path=/; SameSite=Lax`;
+  } catch (_) {}
+}
+
+function safeStorageGet(key) {
+  try { return localStorage.getItem(key) || ''; } catch (_) { return ''; }
+}
+
+function safeStorageSet(key, value) {
+  try { localStorage.setItem(key, value); } catch (_) {}
+}
+
+function safeStorageRemove(key) {
+  try { localStorage.removeItem(key); } catch (_) {}
+}
+
+const APP_THEME_KEY = 'oryntra_theme';
+const themeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+let themeMediaListenerAttached = false;
+
+function getThemePreference() {
+  const stored = safeStorageGet(APP_THEME_KEY);
+  return ['system', 'light', 'dark'].includes(stored) ? stored : 'system';
+}
+
+function resolveTheme(preference = getThemePreference()) {
+  if (preference === 'light' || preference === 'dark') return preference;
+  return themeMediaQuery.matches ? 'dark' : 'light';
+}
+
+function updateThemeControls(preference) {
+  document.querySelectorAll('[data-theme-value]').forEach((choice) => {
+    const selected = choice.dataset.themeValue === preference;
+    choice.setAttribute('aria-checked', selected ? 'true' : 'false');
+    choice.tabIndex = selected ? 0 : -1;
+  });
+}
+
+function applyTheme(preference, options = {}) {
+  const nextPreference = ['system', 'light', 'dark'].includes(preference) ? preference : 'system';
+  const previousTheme = document.documentElement.dataset.theme;
+  const resolvedTheme = resolveTheme(nextPreference);
+
+  document.documentElement.dataset.theme = resolvedTheme;
+  document.documentElement.dataset.themePreference = nextPreference;
+  if (options.persist !== false) safeStorageSet(APP_THEME_KEY, nextPreference);
+
+  const themeColor = document.querySelector('meta[name="theme-color"]');
+  if (themeColor) {
+    const pageColor = getComputedStyle(document.documentElement).getPropertyValue('--bg-void').trim();
+    themeColor.content = pageColor || (resolvedTheme === 'light' ? '#d4dce5' : '#080d14');
+  }
+  updateThemeControls(nextPreference);
+
+  if (options.refreshChart && previousTheme !== resolvedTheme && currentTicker) {
+    loadTradingView(currentTicker, currentInterval);
+  }
+}
+
+function initThemeSettings() {
+  const choices = Array.from(document.querySelectorAll('[data-theme-value]'));
+  const preference = getThemePreference();
+  applyTheme(preference, { persist: false });
+
+  choices.forEach((choice, index) => {
+    choice.addEventListener('click', () => {
+      applyTheme(choice.dataset.themeValue, { refreshChart: true });
+    });
+    choice.addEventListener('keydown', (event) => {
+      if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) return;
+      event.preventDefault();
+      const step = event.key === 'ArrowLeft' || event.key === 'ArrowUp' ? -1 : 1;
+      const next = choices[(index + step + choices.length) % choices.length];
+      next.focus();
+      applyTheme(next.dataset.themeValue, { refreshChart: true });
+    });
+  });
+
+  if (!themeMediaListenerAttached) {
+    themeMediaQuery.addEventListener('change', () => {
+      if (getThemePreference() === 'system') {
+        applyTheme('system', { persist: false, refreshChart: true });
+      }
+    });
+    themeMediaListenerAttached = true;
+  }
+}
+
+const APP_VERSION = '0.5.1';
+const APP_RELEASE_KEY = 'oryntra_client_release';
+const PUBLIC_ANALYSIS_ENGINE = 'official';
+
+function applyReleaseClientReset() {
+  try {
+    const previous = safeStorageGet(APP_RELEASE_KEY);
+    if (previous !== APP_VERSION) {
+      const keys = Object.keys(localStorage || {});
+      keys.forEach((key) => {
+        if (
+          key === 'oryntra_pattern_engine_mode' ||
+          key === 'oryntra_total_stock_searches' ||
+          key.startsWith('oryntra_paper_cache_')
+        ) {
+          localStorage.removeItem(key);
+        }
+      });
+      safeStorageSet(APP_RELEASE_KEY, APP_VERSION);
+    }
+    safeStorageSet('oryntra_pattern_engine_mode', PUBLIC_ANALYSIS_ENGINE);
+  } catch (_) {
+    safeStorageSet('oryntra_pattern_engine_mode', PUBLIC_ANALYSIS_ENGINE);
+  }
+}
+
+applyReleaseClientReset();
+
+let authToken = safeStorageGet(AUTH_TOKEN_KEY) || getCookie(AUTH_TOKEN_COOKIE) || '';
+let currentUser = null;
+let authMode = 'login';
+
+function authHeaders(json=true) {
+  const headers = json ? {'Content-Type':'application/json'} : {};
+  authToken = authToken || safeStorageGet(AUTH_TOKEN_KEY) || getCookie(AUTH_TOKEN_COOKIE) || '';
+  if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
+  return headers;
+}
+
+function apiJson(response) {
+  return response.json().catch(() => ({})).then(payload => {
+    if (response.ok) return payload;
+    const detail = payload.detail || payload;
+    if (response.status === 402 || (detail && detail.code === 'SUBSCRIPTION_REQUIRED')) {
+      showSubscriptionModal();
+      throw new Error('Subscription required to analyze tickers in Oryntra AI Pro.');
+    }
+    if (response.status === 401) {
+      openAuthModal('login');
+      throw new Error('Sign in required.');
+    }
+    const validationMessage = Array.isArray(detail)
+      ? detail.map((item) => {
+          const location = Array.isArray(item?.loc) ? item.loc.filter(part => part !== 'body').join('.') : '';
+          return `${location ? `${location}: ` : ''}${item?.msg || item?.message || 'Invalid value'}`;
+        }).join(' · ')
+      : '';
+    const message = typeof detail === 'string'
+      ? detail
+      : validationMessage || detail?.message || detail?.error || payload?.message || payload?.error;
+    throw new Error(message || `Request failed with HTTP ${response.status}.`);
+  });
+}
+
+
+const API = {
+  scan:       (ticker, period='6mo') => apiFetch(`/api/analysis/scan`, {
+    method: 'POST',
+    headers: authHeaders(true),
+    body: JSON.stringify({ticker, period, pattern_mode: PUBLIC_ANALYSIS_ENGINE})
+  }).then(apiJson),
+
+  scanMultiple: (tickers) => apiFetch(`/api/analysis/scan-multiple`, {
+    method: 'POST',
+    headers: authHeaders(true),
+    body: JSON.stringify({tickers})
+  }).then(apiJson),
+
+  explain: (ticker, analysis, question=null) => apiFetch(`/api/ai/explain`, {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ticker, analysis, question})
+  }).then(r => r.json()),
+
+  stats: () => apiFetch('/api/analysis/stats', {cache: 'no-store'}).then(r => r.ok ? r.json() : Promise.reject(new Error('Stats endpoint failed'))),
+
+
+  auth: {
+    signup: (data) => apiFetch('/api/auth/signup', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(data)}).then(apiJson),
+    login:  (data) => apiFetch('/api/auth/login',  {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(data)}).then(apiJson),
+    me:     () => apiFetch('/api/auth/me', {headers: authHeaders(false)}).then(r => r.json()),
+    logout: () => apiFetch('/api/auth/logout', {method:'POST', headers: authHeaders(false)}).then(r => r.json()),
+    subscribe: (plan_code) => apiFetch('/api/auth/subscribe', {method:'POST', headers: authHeaders(true), body: JSON.stringify({plan_code})}).then(apiJson),
+  },
+
+  watchlist: {
+    get:    () => apiFetch('/api/watchlist/').then(r => r.json()),
+    add:    (ticker) => apiFetch('/api/watchlist/add', {
+      method:'POST', headers: authHeaders(true),
+      body: JSON.stringify({ticker})
+    }).then(r => r.json()),
+    remove: (ticker) => apiFetch(`/api/watchlist/${ticker}`, {method:'DELETE'}).then(r => r.json()),
+  },
+
+  dev: {
+    modes: () => apiFetch('/api/dev/pattern-modes').then(apiJson),
+    patternLab: (data) => apiFetch('/api/dev/pattern-lab/run', {method:'POST', headers: authHeaders(true), body: JSON.stringify(data)}).then(apiJson),
+    patternLabStart: (data) => apiFetch('/api/dev/pattern-lab/start', {method:'POST', headers: authHeaders(true), body: JSON.stringify(data)}).then(apiJson),
+    patternLabStatus: (jobId) => apiFetch(`/api/dev/pattern-lab/status/${encodeURIComponent(jobId)}`).then(apiJson),
+    patternLabStop: (jobId) => apiFetch(`/api/dev/pattern-lab/stop/${encodeURIComponent(jobId)}`, {method:'POST', headers: authHeaders(false)}).then(apiJson),
+    patternLabResume: (jobId) => apiFetch(`/api/dev/pattern-lab/resume/${encodeURIComponent(jobId)}`, {method:'POST', headers: authHeaders(false)}).then(apiJson),
+    patternLabJobs: () => apiFetch('/api/dev/pattern-lab/jobs').then(apiJson),
+    patternLabUniverse: (count, seed) => apiFetch(`/api/dev/pattern-lab/universe?count=${encodeURIComponent(count)}&seed=${encodeURIComponent(seed)}`).then(apiJson),
+    cacheStatus: (tickers) => apiFetch('/api/dev/cache/status?tickers=' + encodeURIComponent((tickers || []).join(','))).then(apiJson),
+    cacheWarmStart: (data) => apiFetch('/api/dev/cache/warm-start', {method:'POST', headers: authHeaders(true), body: JSON.stringify(data)}).then(apiJson),
+    cacheWarmStatus: (jobId) => apiFetch('/api/dev/cache/warm-status/' + encodeURIComponent(jobId)).then(apiJson),
+    vaiModelStatus: () => apiFetch('/api/dev/vai2/model/status').then(apiJson),
+    vaiTrainStart: (data) => apiFetch('/api/dev/vai/train/start', {method:'POST', headers: authHeaders(true), body: JSON.stringify(data)}).then(apiJson),
+    vaiTrainStatus: (jobId) => apiFetch('/api/dev/vai/train/status/' + encodeURIComponent(jobId)).then(apiJson),
+  },
+
+  paper: {
+    getOpen:  () => apiFetch('/api/paper/trades', {headers: authHeaders(false)}).then(apiJson),
+    getAll:   () => apiFetch('/api/paper/trades/all', {headers: authHeaders(false)}).then(apiJson),
+    open:     (data) => apiFetch('/api/paper/open', {
+      method:'POST', headers: authHeaders(true),
+      body: JSON.stringify(data)
+    }).then(apiJson),
+    close:    (data) => apiFetch('/api/paper/close', {
+      method:'POST', headers: authHeaders(true),
+      body: JSON.stringify(data)
+    }).then(apiJson),
+    stats:    () => apiFetch('/api/paper/stats', {headers: authHeaders(false)}).then(apiJson),
+  }
+};
+
+
+function sanitizeTickerSymbol(raw) {
+  const value = String(raw || '').trim().toUpperCase();
+  if (!value) return '';
+  if (value.includes('@') || value.includes('://') || /\s/.test(value)) return '';
+  return value.replace(/[^A-Z0-9.\-]/g, '').slice(0, 10);
+}
+
+function clearTickerIfAutofilledEmail() {
+  const input = document.getElementById('tickerInput');
+  if (!input) return false;
+  const value = String(input.value || '');
+  if (value.includes('@') || value.toLowerCase().includes('gmail.com') || value.toLowerCase().includes('yahoo.com') || value.toLowerCase().includes('outlook.com')) {
+    input.value = '';
+    input.placeholder = 'AAPL, TSLA, NVDA...';
+    return true;
+  }
+  return false;
+}
+
+let currentAnalysis = null;
+let tvWidget        = null;
+let currentInterval = 'D';
+let currentPeriod   = '6mo';
+let currentTicker   = '';
+let savedPatternMode = safeStorageGet('oryntra_pattern_engine_mode');
+const PUBLIC_ENGINE_MODES = ['official'];
+if (!PUBLIC_ENGINE_MODES.includes(savedPatternMode)) {
+  savedPatternMode = 'official';
+  safeStorageSet('oryntra_pattern_engine_mode', 'official');
+}
+let currentPatternMode = PUBLIC_ANALYSIS_ENGINE;
+let currentCacheWarmJobId = null;
+let currentPatternLabJobId = null;
+const PATTERN_LAB_ACTIVE_KEY = 'oryntra_pattern_lab_active_job';
+const PATTERN_LAB_LAST_KEY = 'oryntra_pattern_lab_last_job';
+let currentVAITrainingJobId = null;
+const JOB_STARTING = '__starting__';
+let lastPatternLabProgressPct = 0;
+let lastPatternLabCompletedTickers = 0;
+const DEFAULT_PATTERN_LAB_TICKERS = 'AAPL,MSFT,NVDA,TSLA,AMZN,META,GOOGL,AMD,AVGO,JPM,V,XOM,CVX,UNH,LLY,JNJ,WMT,COST,HD,MCD,NKE,CAT,BA,RTX,NEE,PLTR,CRWD,SPY,QQQ,SMH'.split(',');
+const TRAINING_TICKERS_150 = 'AAPL,MSFT,NVDA,TSLA,AMZN,META,GOOGL,AMD,AVGO,JPM,V,XOM,CVX,UNH,LLY,JNJ,WMT,COST,HD,MCD,NKE,CAT,BA,RTX,NEE,PLTR,CRWD,SPY,QQQ,SMH,ORCL,NFLX,CRM,ADBE,INTC,MU,QCOM,TXN,AMAT,LRCX,KLAC,MRVL,NOW,SNOW,DDOG,NET,PANW,ZS,MDB,SHOP,UBER,ABNB,DASH,PYPL,COIN,HOOD,SOFI,SQ,MSTR,DELL,GS,MS,BAC,C,WFC,AXP,BLK,SCHW,COF,MA,BRK.B,PGR,TRV,AIG,USB,PNC,TFC,BK,ICE,CME,ABBV,MRK,PFE,TMO,DHR,ABT,ISRG,SYK,MDT,GILD,AMGN,REGN,VRTX,BMY,CVS,HUM,CI,ELV,ZBH,BSX,LOW,SBUX,TGT,TJX,ROST,LULU,CMG,YUM,KO,PEP,PG,CL,KMB,MDLZ,CAG,GIS,KR,DG,DLTR,EL,DE,GE,HON,UPS,FDX,LMT,NOC,GD,ETN,EMR,MMM,URI,CSX,NSC,UNP,DAL,UAL,AAL,LUV,RCL,COP,SLB,EOG,MPC,PSX,OXY,KMI,WMB,HAL,BKR,DUK,SO,AEP,EXC,SRE,XEL,D,PEG,ED,AWK'.split(',');
+
+
+let adsConfig = null;
+
+function adSlotAllowed(el) {
+  const key = el.dataset.adSlot;
+  const width = window.innerWidth || document.documentElement.clientWidth;
+  if (key === 'results_side') return width >= 1200;
+  if (key === 'mobile_bottom') return width < 900;
+  if (key === 'home_top') return width >= 560;
+  return true;
+}
+
+function hideAdSlot(el) {
+  el.classList.remove('ad-live', 'ad-preview', 'ad-error');
+  el.classList.add('ad-hidden');
+  el.replaceChildren();
+}
+
+function showAdPreview(el) {
+  if (!adSlotAllowed(el)) {
+    hideAdSlot(el);
+    return;
+  }
+  const key = el.dataset.adSlot || 'ad';
+  el.classList.remove('ad-hidden', 'ad-live', 'ad-error');
+  el.classList.add('ad-preview');
+  el.innerHTML = `<div class="ad-zone-kicker">ADVERTISEMENT PREVIEW</div><div class="ad-zone-body">AdSense placement: ${escapeHtml(key.replaceAll('_', ' '))}</div>`;
+}
+
+function renderAdsenseSlot(el, config) {
+  if (!adSlotAllowed(el)) {
+    hideAdSlot(el);
+    return false;
+  }
+  const key = el.dataset.adSlot;
+  const slot = config.web.slots[key];
+  const client = config.web.client;
+  if (!client || !slot) {
+    hideAdSlot(el);
+    return false;
+  }
+  const requestedFormat = el.dataset.adFormat || 'auto';
+  const format = requestedFormat === 'rectangle' ? 'rectangle' : requestedFormat === 'horizontal' ? 'horizontal' : 'auto';
+  el.classList.remove('ad-hidden', 'ad-preview', 'ad-error');
+  el.classList.add('ad-live');
+  el.innerHTML = `<div class="ad-zone-kicker">ADVERTISEMENT</div><ins class="adsbygoogle" style="display:block" data-ad-client="${escapeHtml(client)}" data-ad-slot="${escapeHtml(slot)}" data-ad-format="${format}" data-full-width-responsive="true"></ins>`;
+  try {
+    window.adsbygoogle = window.adsbygoogle || [];
+    window.adsbygoogle.push({});
+    return true;
+  } catch (error) {
+    console.warn(`AdSense slot ${key} did not initialize`, error);
+    hideAdSlot(el);
+    return false;
+  }
+}
+
+async function initAdSlots() {
+  const slots = Array.from(document.querySelectorAll('[data-ad-slot]'));
+  if (!slots.length) return;
+  slots.forEach(hideAdSlot);
+  try {
+    const response = await apiFetch('/api/app/ads', {cache: 'no-store'});
+    adsConfig = response.ok ? await response.json() : null;
+  } catch (error) {
+    console.warn('Ad configuration could not be loaded', error);
+    return;
+  }
+  if (!adsConfig?.web) return;
+  if (adsConfig.web.preview_mode) {
+    slots.forEach(showAdPreview);
+    return;
+  }
+  if (!adsConfig.web.enabled || !adsConfig.web.client) return;
+  slots.forEach((el) => renderAdsenseSlot(el, adsConfig));
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  initAuth();
+  initTabs();
+  initScanner();
+  initWatchlist();
+  initPaperTrades();
+  initModal();
+  loadSearchCounter();
+  initDevTools();
+  initSettingsPage();
+  initAdSlots();
+  initAccessibility();
+});
+
+function visibleDialog() {
+  return Array.from(document.querySelectorAll('.modal-overlay[role="dialog"]'))
+    .find(modal => window.getComputedStyle(modal).display !== 'none') || null;
+}
+
+function openAccessibleDialog(modal, preferredFocus) {
+  if (!modal) return;
+  if (window.getComputedStyle(modal).display === 'none') lastDialogFocus = document.activeElement;
+  modal.style.display = 'flex';
+  const target = preferredFocus || modal.querySelector('input, select, button, [tabindex]:not([tabindex="-1"])');
+  window.setTimeout(() => target?.focus(), 0);
+}
+
+function closeAccessibleDialog(modal) {
+  if (!modal) return;
+  modal.style.display = 'none';
+  const target = lastDialogFocus;
+  lastDialogFocus = null;
+  window.setTimeout(() => target?.focus(), 0);
+}
+
+function initAccessibility() {
+  document.addEventListener('keydown', event => {
+    const modal = visibleDialog();
+    if (modal) {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        if (modal.id === 'authModal') closeAuthModal();
+        if (modal.id === 'paperModal') closeModal();
+        return;
+      }
+      if (event.key === 'Tab') {
+        const focusable = Array.from(modal.querySelectorAll(
+          'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])'
+        )).filter(element => window.getComputedStyle(element).display !== 'none');
+        if (!focusable.length) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault();
+          last.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first.focus();
+        }
+      }
+      return;
+    }
+    const panel = document.getElementById('devLabPanel');
+    if (event.key === 'Escape' && panel && !panel.classList.contains('dev-hidden')) {
+      event.preventDefault();
+      panel.classList.add('dev-hidden');
+      document.querySelector('.beta-version-badge, .beta-badge')?.setAttribute('aria-expanded', 'false');
+      lastDevLabFocus?.focus();
+      lastDevLabFocus = null;
+    }
+  });
+}
+
+
+function initAuth() {
+  const authBtn = document.getElementById('authOpenBtn');
+  if (authBtn) authBtn.addEventListener('click', () => currentUser ? logoutUser() : openAuthModal('login'));
+
+  const cancel = document.getElementById('authCancel');
+  if (cancel) cancel.addEventListener('click', closeAuthModal);
+  const submit = document.getElementById('authSubmit');
+  if (submit) submit.addEventListener('click', submitAuth);
+
+  document.querySelectorAll('.auth-tab').forEach(btn => {
+    btn.addEventListener('click', () => openAuthModal(btn.dataset.mode || 'login'));
+  });
+
+  const subClose = document.getElementById('subscriptionClose');
+  if (subClose) subClose.addEventListener('click', closeSubscriptionModal);
+  const betaPreviewAuthBtn = document.getElementById('betaPreviewAuthBtn');
+  if (betaPreviewAuthBtn) betaPreviewAuthBtn.addEventListener('click', () => openAuthModal(currentUser ? 'login' : 'signup'));
+  document.querySelectorAll('.plan-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (!currentUser) {
+        closeSubscriptionModal();
+        openAuthModal('signup');
+        return;
+      }
+      try {
+        const res = await API.auth.subscribe(btn.dataset.plan);
+        applyAuthResponse(res);
+        closeSubscriptionModal();
+        showError('Plan activated for testing. Replace this mock unlock with Stripe before real paid launch.');
+        setTimeout(hideError, 3500);
+      } catch (e) {
+        showError(String(e));
+      }
+    });
+  });
+
+  const cachedUser = loadCachedAuthUser();
+  if (cachedUser) setAuthUI(cachedUser);
+  refreshAuthState();
+}
+
+function loadCachedAuthUser() {
+  try {
+    const raw = safeStorageGet(AUTH_USER_KEY) || getCookie(AUTH_USER_COOKIE);
+    return raw ? JSON.parse(raw) : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+function storeCachedAuthUser(user) {
+  try {
+    if (user) {
+      const packed = JSON.stringify(user);
+      safeStorageSet(AUTH_USER_KEY, packed);
+      setClientCookie(AUTH_USER_COOKIE, packed, 30);
+    } else {
+      safeStorageRemove(AUTH_USER_KEY);
+      deleteClientCookie(AUTH_USER_COOKIE);
+    }
+  } catch (_) {}
+}
+
+async function refreshAuthState() {
+  try {
+    const res = await API.auth.me();
+    if (res && res.authenticated) {
+      currentUser = res.user;
+      storeCachedAuthUser(currentUser);
+      setAuthUI(currentUser);
+      return;
+    }
+    authToken = '';
+    safeStorageRemove(AUTH_TOKEN_KEY);
+    deleteClientCookie(AUTH_TOKEN_COOKIE);
+    storeCachedAuthUser(null);
+    setAuthUI(null);
+  } catch (_) {
+    const cachedUser = loadCachedAuthUser();
+    if (cachedUser) setAuthUI(cachedUser);
+    else setAuthUI(null);
+  }
+}
+
+function setAuthUI(user) {
+  currentUser = user || null;
+  const state = document.getElementById('authStateText');
+  const btn = document.getElementById('authOpenBtn');
+  if (!state || !btn) return;
+  if (!user) {
+    state.textContent = 'SIGNED OUT';
+    btn.textContent = 'LOGIN';
+    return;
+  }
+  const plan = user.subscription ? (user.subscription.plan_name || user.subscription.plan_code || 'ACTIVE') : 'FREE';
+  state.textContent = `${user.email} · ${plan}`;
+  btn.textContent = 'LOGOUT';
+}
+
+function openAuthModal(mode='login') {
+  authMode = mode;
+  const modal = document.getElementById('authModal');
+  if (!modal) return;
+  document.querySelectorAll('.auth-tab').forEach(b => {
+    const selected = b.dataset.mode === mode;
+    b.classList.toggle('active', selected);
+    b.setAttribute('aria-selected', String(selected));
+  });
+  const nameField = document.getElementById('authNameField');
+  if (nameField) nameField.style.display = mode === 'signup' ? '' : 'none';
+  const submit = document.getElementById('authSubmit');
+  if (submit) submit.textContent = mode === 'signup' ? 'CREATE ACCOUNT' : 'LOGIN';
+  const err = document.getElementById('authError');
+  if (err) err.textContent = '';
+  openAccessibleDialog(
+    modal,
+    mode === 'signup' ? document.getElementById('authName') : document.getElementById('authEmail')
+  );
+}
+
+function closeAuthModal() {
+  const modal = document.getElementById('authModal');
+  closeAccessibleDialog(modal);
+}
+
+async function submitAuth() {
+  const err = document.getElementById('authError');
+  if (err) err.textContent = '';
+  const email = (document.getElementById('authEmail')?.value || '').trim();
+  const password = document.getElementById('authPassword')?.value || '';
+  const display_name = (document.getElementById('authName')?.value || '').trim();
+  try {
+    const res = authMode === 'signup'
+      ? await API.auth.signup({email, password, display_name})
+      : await API.auth.login({email, password});
+    applyAuthResponse(res);
+    closeAuthModal();
+  } catch (e) {
+    if (err) err.textContent = String(e);
+  }
+}
+
+function applyAuthResponse(res) {
+  if (res.token) {
+    authToken = res.token;
+    safeStorageSet(AUTH_TOKEN_KEY, authToken);
+    setClientCookie(AUTH_TOKEN_COOKIE, authToken, 30);
+  } else {
+    authToken = authToken || safeStorageGet(AUTH_TOKEN_KEY) || getCookie(AUTH_TOKEN_COOKIE) || '';
+  }
+  const user = res.user || null;
+  storeCachedAuthUser(user);
+  setAuthUI(user);
+  clearTickerIfAutofilledEmail();
+  if (document.querySelector('#tab-paper.active')) {
+    loadPaperTrades().catch(() => {});
+  }
+}
+
+async function logoutUser() {
+  try { await API.auth.logout(); } catch (_) {}
+  authToken = '';
+  safeStorageRemove(AUTH_TOKEN_KEY);
+  safeStorageRemove(AUTH_USER_KEY);
+  deleteClientCookie(AUTH_TOKEN_COOKIE);
+  deleteClientCookie(AUTH_USER_COOKIE);
+  setAuthUI(null);
+  loadPaperTrades().catch(() => {});
+}
+
+function showSubscriptionModal() {
+  const modal = document.getElementById('subscriptionModal');
+  if (modal) modal.style.display = 'flex';
+}
+
+function closeSubscriptionModal() {
+  const modal = document.getElementById('subscriptionModal');
+  if (modal) modal.style.display = 'none';
+}
+
+function initTabs() {
+  const tabs = Array.from(document.querySelectorAll('.tab-btn'));
+  const activate = btn => {
+    const tab = btn.dataset.tab;
+    tabs.forEach(item => {
+      const selected = item === btn;
+      item.classList.toggle('active', selected);
+      item.setAttribute('aria-selected', String(selected));
+      item.tabIndex = selected ? 0 : -1;
+    });
+    document.querySelectorAll('.tab-panel').forEach(panel => {
+      const selected = panel.id === `tab-${tab}`;
+      panel.classList.toggle('active', selected);
+      panel.setAttribute('aria-hidden', String(!selected));
+    });
+    if (tab === 'watchlist') loadWatchlist();
+    if (tab === 'paper') loadPaperTrades();
+  };
+  tabs.forEach((btn, index) => {
+    btn.addEventListener('click', () => {
+      activate(btn);
+    });
+    btn.addEventListener('keydown', event => {
+      if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+      event.preventDefault();
+      let nextIndex = index;
+      if (event.key === 'ArrowLeft') nextIndex = (index - 1 + tabs.length) % tabs.length;
+      if (event.key === 'ArrowRight') nextIndex = (index + 1) % tabs.length;
+      if (event.key === 'Home') nextIndex = 0;
+      if (event.key === 'End') nextIndex = tabs.length - 1;
+      tabs[nextIndex].focus();
+      activate(tabs[nextIndex]);
+    });
+  });
+}
+
+function initScanner() {
+  const input   = document.getElementById('tickerInput');
+  const scanBtn = document.getElementById('scanBtn');
+
+  scanBtn.addEventListener('click', () => runScan());
+  input.addEventListener('keydown', e => { if (e.key === 'Enter') runScan(); });
+  input.addEventListener('focus', () => clearTickerIfAutofilledEmail());
+  input.addEventListener('input', () => {
+    if (clearTickerIfAutofilledEmail()) return;
+    const clean = sanitizeTickerSymbol(input.value);
+    if (input.value && input.value !== clean) input.value = clean;
+  });
+
+  document.querySelectorAll('.quick-pick-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      const t = chip.dataset.ticker;
+      if (input) input.value = t;
+      runScan(t);
+    });
+  });
+
+  const periodGroup = document.querySelector('.chart-period-group');
+  if (periodGroup) {
+    console.log('✅ Period group found - attaching delegated listener');
+    periodGroup.addEventListener('click', (e) => {
+      const btn = e.target.closest('.tv-period-btn');
+      if (!btn) return; // Click wasn't on a period button
+      
+      console.log('🎯 PERIOD BUTTON CLICKED:', btn.dataset.period, '(' + btn.textContent + ')');
+      
+      document.querySelectorAll('.tv-period-btn').forEach(b => {
+        b.classList.remove('active');
+        b.setAttribute('aria-pressed', 'false');
+      });
+      
+      btn.classList.add('active');
+      btn.setAttribute('aria-pressed', 'true');
+      console.log('✅ ACTIVE CLASS SET TO:', btn.dataset.period);
+      
+      currentPeriod = btn.dataset.period;
+      console.log('✅ CURRENT PERIOD:', currentPeriod);
+      
+      if (currentTicker) {
+        console.log('✅ TRIGGERING SCAN - Ticker:', currentTicker, 'Period:', currentPeriod);
+        runScan(currentTicker, currentPeriod);
+      } else {
+        console.log('⚠️ No ticker yet - search first');
+      }
+    });
+  } else {
+    console.error('❌ Period group NOT found!');
+  }
+
+  const intervalGroup = document.querySelector('.chart-interval-group');
+  if (intervalGroup) {
+    console.log('✅ Interval group found - attaching delegated listener');
+    intervalGroup.addEventListener('click', (e) => {
+      const btn = e.target.closest('.tv-interval-btn');
+      if (!btn) return; // Click wasn't on an interval button
+      
+      console.log('🎯 INTERVAL BUTTON CLICKED:', btn.dataset.interval, '(' + btn.textContent + ')');
+      
+      document.querySelectorAll('.tv-interval-btn').forEach(b => {
+        b.classList.remove('active');
+        b.setAttribute('aria-pressed', 'false');
+      });
+      
+      btn.classList.add('active');
+      btn.setAttribute('aria-pressed', 'true');
+      console.log('✅ ACTIVE CLASS SET TO:', btn.dataset.interval);
+      
+      currentInterval = btn.dataset.interval;
+      console.log('✅ CURRENT INTERVAL:', currentInterval);
+      
+      if (currentTicker) {
+        console.log('✅ LOADING TRADINGVIEW - Ticker:', currentTicker, 'Interval:', currentInterval);
+        loadTradingView(currentTicker, currentInterval);
+      } else {
+        console.log('⚠️ No ticker yet - search first');
+      }
+    });
+  } else {
+    console.error('❌ Interval group NOT found!');
+  }
+
+  const refreshAiBtn = document.getElementById('refreshAiBtn');
+  if (refreshAiBtn) {
+    refreshAiBtn.addEventListener('click', () => {
+      if (currentAnalysis) generateAI(currentAnalysis);
+    });
+  }
+
+  document.getElementById('addToWatchlistBtn').addEventListener('click', () => {
+    if (currentTicker) addToWatchlist(currentTicker);
+  });
+}
+
+async function runScan(ticker = null, period = null) {
+  const inputEl = document.getElementById('tickerInput');
+  const rawInput = ticker || (inputEl ? inputEl.value : '');
+  if (String(rawInput || '').includes('@')) {
+    if (inputEl) inputEl.value = '';
+    showError('That looks like an email address, not a ticker. Try AAPL, TSLA, NVDA, SPY, etc.');
+    return;
+  }
+  const raw = sanitizeTickerSymbol(rawInput);
+  if (!raw) return;
+  if (inputEl) inputEl.value = raw;
+
+  currentTicker = raw;
+  currentPeriod = period || currentPeriod;
+  showLoading(true);
+  hideError();
+  hideResults();
+
+  try {
+    animateLoadingSteps();
+    const data = await API.scan(raw, currentPeriod);
+    currentAnalysis = data;
+    if (Number.isFinite(Number(data.search_counter))) {
+      updateSearchCounter(data.search_counter);
+    } else {
+      const cached = Number(localStorage.getItem('oryntra_total_stock_searches') || '0');
+      updateSearchCounter((Number.isFinite(cached) ? cached : 0) + 1);
+      loadSearchCounter();
+    }
+    renderResults(data);
+    loadTradingView(raw, currentInterval);
+    generateAI(data);
+    document.getElementById('addToWatchlistBtn').style.display = '';
+    showResults();
+  } catch (err) {
+    console.error('Oryntra scan failed:', err);
+    let msg = typeof err === 'string' ? err : (err && err.message ? err.message : 'Couldn\'t analyze that ticker.');
+    if (/not found|check the symbol|no .*data/i.test(msg)) {
+      msg = `"${raw}" didn't return data. Double-check the symbol — try a major US ticker like AAPL, MSFT, or SPY.`;
+    } else if (/rate limit/i.test(msg)) {
+      msg = 'Hit the data provider\'s rate limit. Wait a few seconds and try again.';
+    } else if (/network|timed out|timeout/i.test(msg)) {
+      msg = 'Network hiccup reaching the data provider. Check your connection and try again.';
+    }
+    showError(msg);
+  } finally {
+    showLoading(false);
+  }
+}
+
+async function loadSearchCounter() {
+  try {
+    const stats = await API.stats();
+    const count = Number(stats.total_stock_searches);
+    if (Number.isFinite(count)) {
+      updateSearchCounter(count, {persist: true});
+      return;
+    }
+    throw new Error('Invalid counter payload');
+  } catch (err) {
+    const cached = Number(localStorage.getItem('oryntra_total_stock_searches') || '0');
+    updateSearchCounter(Number.isFinite(cached) ? cached : 0, {persist: false, animate: false});
+  }
+}
+
+function updateSearchCounter(value, options = {}) {
+  const {persist = true, animate = true} = options;
+  const els = document.querySelectorAll('.stock-search-counter-number');
+  if (!els.length) return;
+  const n = Number(value);
+  const safe = Number.isFinite(n) && n >= 0 ? Math.floor(n) : 0;
+  const text = safe.toLocaleString();
+  els.forEach(el => { el.textContent = text; });
+  if (persist) {
+    localStorage.setItem('oryntra_total_stock_searches', String(safe));
+  }
+  if (!animate) return;
+
+  ['homeSearchCounter', 'resultsSearchCounter'].forEach(id => {
+    const card = document.getElementById(id);
+    if (!card) return;
+    card.classList.remove('counter-pop');
+    void card.offsetWidth;
+    card.classList.add('counter-pop');
+  });
+}
+
+
+function renderLabBasedGrade(grade) {
+  if (!grade || !grade.grade) return '';
+  const evidence = Array.isArray(grade.evidence) ? grade.evidence : [];
+  const warnings = Array.isArray(grade.warnings) ? grade.warnings : [];
+  const evHtml = evidence.length ? `<ul>${evidence.map(x => `<li>${escapeHtml(x)}</li>`).join('')}</ul>` : '';
+  const warnHtml = warnings.length ? `<ul>${warnings.map(x => `<li>${escapeHtml(x)}</li>`).join('')}</ul>` : '';
+  const g = String(grade.grade || '');
+  const tone = g.startsWith('A') ? 'good' : (g.startsWith('F') || g.startsWith('D') ? 'bad' : 'mid');
+  return `
+    <section class="lab-grade-card lab-grade-${tone}">
+      <div class="lab-grade-main">
+        <div>
+          <span class="lab-grade-label">LAB-BASED TRADE GRADE</span>
+          <strong class="lab-grade-letter">${escapeHtml(g)}</strong>
+        </div>
+        <div class="lab-grade-score">${fmtNum(grade.score)} / 100</div>
+      </div>
+      <div class="lab-grade-meta">Direction: <b>${escapeHtml(grade.direction || 'NEUTRAL')}</b> · Regime: <b>${escapeHtml(grade.regime || 'UNKNOWN')}</b>${grade.top_pattern ? ` · Pattern: <b>${escapeHtml(grade.top_pattern)}</b>` : ''}</div>
+      <div class="lab-grade-note">${escapeHtml(grade.lab_basis || '')}</div>
+      ${evHtml ? `<details open><summary>Why it scored well</summary>${evHtml}</details>` : ''}
+      ${warnHtml ? `<details ${tone === 'bad' ? 'open' : ''}><summary>Grade warnings</summary>${warnHtml}</details>` : ''}
+    </section>`;
+}
+
+function renderResults(d) {
+  const labGradeHtml = renderLabBasedGrade(d.lab_based_grade || d.lab_grade || d.grade_lab_based);
+  const tp    = d.trade_plan || {};
+  const plan  = tp;
+  window.plan = tp;
+  const setup = d.setup || {};
+  const preds = d.predictions || {};
+  const vol   = d.volume || {};
+  const mom   = d.momentum || {};
+  const levels = d.levels || {};
+  const bb    = d.bollinger || {};
+  const macd  = d.macd || {};
+  const stoch = d.stochastic || {};
+
+  setText('rTicker',  d.ticker);
+  setText('rCompany', d.company_name || '');
+  setText('rPrice',   fmt$(d.price));
+  const chEl = document.getElementById('rChange');
+  chEl.textContent = `${d.day_change > 0 ? '+' : ''}${d.day_change}%`;
+  chEl.className = `price-change ${d.day_change >= 0 ? 'up' : 'down'}`;
+  setText('r52wHigh', fmt$(d.high_52w));
+  setText('r52wLow',  fmt$(d.low_52w));
+  setText('rAtrPct',  d.atr_pct ? `${d.atr_pct}%` : '—');
+
+  const srcEl = document.getElementById('rDataSource');
+  if (srcEl) {
+    const prov = (d.data_provider || 'market data').toUpperCase();
+    const tf   = d.timeframe ? ` · ${d.timeframe.toUpperCase()}` : '';
+    srcEl.textContent = `${prov}${tf}`;
+  }
+
+  const setupColor = setupColorMap(setup.setup_type, tp.direction);
+  const setupEl    = document.getElementById('setupBadge');
+  setupEl.textContent = (setup.setup_type || '—').replace(/_/g, ' ');
+  setupEl.style.color = setupColor;
+
+  const signal     = tp.signal || 'HOLD';
+  const bannerEl   = document.getElementById('signalBanner');
+  const iconEl     = document.getElementById('signalIcon');
+  const labelEl    = document.getElementById('signalLabel');
+
+  const signalMap = {
+    'STRONG_BUY':  { cls: 'strong-buy',  icon: '▲▲', label: 'STRONG BUY'  },
+    'BUY':         { cls: 'buy',         icon: '▲',  label: 'BUY'         },
+    'HOLD':        { cls: 'hold',        icon: '◆',  label: 'HOLD'        },
+    'SELL':        { cls: 'sell',        icon: '▼',  label: 'SELL'        },
+    'STRONG_SELL': { cls: 'strong-sell', icon: '▼▼', label: 'STRONG SELL' },
+  };
+  const sm = signalMap[signal] || signalMap['HOLD'];
+  bannerEl.className   = `signal-banner ${sm.cls}`;
+  iconEl.textContent   = sm.icon;
+  labelEl.textContent  = sm.label;
+
+  const dirEl = document.getElementById('setupDirection');
+  dirEl.textContent  = tp.direction ? `◀ ${tp.direction} ▶` : '—';
+  dirEl.style.color  = tp.direction === 'LONG' ? 'var(--bull)' : tp.direction === 'SHORT' ? 'var(--bear)' : 'var(--neutral)';
+
+  const score = tp.quality_score || 0;
+  setText('qualityScore',    score.toFixed(0));
+  setText('qualityGrade',    tp.quality_grade || '—');
+  setText('convictionLabel', tp.conviction || '—');
+
+  const bar = document.getElementById('qualityBar');
+  bar.style.width      = `${score}%`;
+  bar.style.background = score >= 70 ? 'var(--bull)' : score >= 50 ? 'var(--neutral)' : 'var(--bear)';
+
+  const cvEl = document.getElementById('convictionLabel');
+  cvEl.style.color = score >= 70 ? 'var(--bull)' : score >= 50 ? 'var(--neutral)' : 'var(--bear)';
+
+  const conf = d.confluence || {};
+  const agreeing = Number(conf.agreeing || 0);
+  const total    = Number(conf.total || 7);
+  const confDir  = conf.confirmation || 'MIXED';
+  const confColor = confDir === 'BULLISH' ? 'var(--bull)' : confDir === 'BEARISH' ? 'var(--bear)' : 'var(--text-dim)';
+  setText('confluenceCount', `${agreeing}/${total}`);
+  const cdEl = document.getElementById('confluenceDir');
+  if (cdEl) { cdEl.textContent = confDir; cdEl.style.color = confColor; }
+  const dotsEl = document.getElementById('confluenceDots');
+  if (dotsEl) {
+    dotsEl.innerHTML = '';
+    for (let i = 0; i < total; i++) {
+      const dot = document.createElement('span');
+      dot.className = 'confluence-dot';
+      dot.style.background = i < agreeing ? confColor : 'var(--border)';
+      dotsEl.appendChild(dot);
+    }
+  }
+
+  renderMARow('maRow9',   'EMA 9',   d.ema9,   d.price);
+  renderMARow('maRow21',  'EMA 21',  d.ema21,  d.price);
+  renderMARow('maRow20',  'SMA 20',  d.ma20,   d.price);
+  renderMARow('maRow50',  'SMA 50',  d.ma50,   d.price);
+  renderMARow('maRow200', 'SMA 200', d.ma200,  d.price);
+
+  renderGauge('rsiGauge',   d.rsi14,     0, 100);
+  renderGauge('stochGauge', stoch.k,     0, 100);
+  renderGauge('bbGauge',    bb.pct,      0, 100);
+  setText('rsiValue',  d.rsi14 ? d.rsi14.toFixed(1) : '—');
+  setText('stochValue', stoch.k ? stoch.k.toFixed(1) : '—');
+  setText('bbPct',     bb.pct  ? bb.pct.toFixed(1)  : '—');
+  setText('macdHist',  macd.hist  ? (macd.hist > 0 ? '+' : '') + macd.hist.toFixed(3) : '—');
+
+  renderOscSignal('rsiSignal',   rsiSignalText(d.rsi14),   rsiSignalClass(d.rsi14));
+  renderOscSignal('stochSignal', stoch.signal || '—',  oscClass(stoch.signal));
+  renderOscSignal('bbSignal',    bbSignalText(bb.pct),  bbSignalClass(bb.pct));
+  renderOscSignal('macdSignal',  macd.cross || '—',    macdClass(macd.cross));
+
+  const adxData  = d.adx         || {};
+  const obvData  = d.obv         || {};
+  const ichiData = d.ichimoku    || {};
+  const adxVal   = adxData.value;
+  const wrVal    = d.williams_r;
+  const vwapVal  = d.vwap_20d;
+  const emaCross = d.ema_cross   || '';
+  const volDiv   = d.volume_price_divergence || 'NONE';
+
+  renderGauge('adxGauge', adxVal != null ? Math.min(adxVal, 60) : null, 0, 60);
+  setText('adxValue', adxVal != null ? adxVal.toFixed(1) : '—');
+  renderOscSignal('adxSignal', adxData.trend || '—',
+    adxVal >= 40 ? 'signal-bull' : adxVal >= 25 ? 'signal-neutral' : 'signal-bear');
+
+  const dip = adxData.di_plus, dim = adxData.di_minus;
+  if (dip != null && dim != null) {
+    setText('diValue', `+${dip.toFixed(1)} / −${dim.toFixed(1)}`);
+    renderOscSignal('diSignal', dip > dim ? 'BULLS LEAD' : 'BEARS LEAD',
+      dip > dim ? 'signal-bull' : 'signal-bear');
+  }
+
+  renderGauge('wrGauge', wrVal != null ? (wrVal + 100) : null, 0, 100);
+  setText('wrValue', wrVal != null ? wrVal.toFixed(1) : '—');
+  const wrSig  = wrVal != null ? (wrVal >= -20 ? 'OVERBOUGHT' : wrVal <= -80 ? 'OVERSOLD' : 'NEUTRAL') : '—';
+  const wrCls  = wrVal != null ? (wrVal >= -20 ? 'signal-bear' : wrVal <= -80 ? 'signal-bull' : 'signal-neutral') : '';
+  renderOscSignal('wrSignal', wrSig, wrCls);
+
+  setText('obvTrend', obvData.trend || '—');
+  const obvCls = obvData.signal === 'CONFIRMING' ? 'signal-bull'
+               : obvData.signal === 'DIVERGING'  ? 'signal-bear' : 'signal-neutral';
+  renderOscSignal('obvSignal', obvData.signal || '—', obvCls);
+
+  if (vwapVal != null) {
+    setText('vwapValue', '$' + vwapVal.toFixed(2));
+    const aboveVwap = d.above_vwap;
+    renderOscSignal('vwapSignal', aboveVwap ? 'ABOVE' : 'BELOW',
+      aboveVwap ? 'signal-bull' : 'signal-bear');
+  } else {
+    setText('vwapValue', '—');
+  }
+
+  const ichiSig = ichiData.signal || '';
+  setText('ichiValue', ichiSig.replace('_', ' ') || '—');
+  const ichiCls = ichiSig.includes('BULL') ? 'signal-bull'
+                : ichiSig.includes('BEAR') ? 'signal-bear' : 'signal-neutral';
+  renderOscSignal('ichiSignal', ichiSig || '—', ichiCls);
+
+  setText('emaCrossValue', emaCross || '—');
+  renderOscSignal('emaCrossSignal', emaCross,
+    emaCross === 'BULLISH' ? 'signal-bull' : emaCross === 'BEARISH' ? 'signal-bear' : 'signal-neutral');
+
+  const vdLabel = volDiv === 'BULLISH_DIVERGENCE' ? '⬆ BULL DIVERGENCE'
+                : volDiv === 'BEARISH_DIVERGENCE' ? '⬇ BEAR DIVERGENCE' : 'NONE';
+  const vdEl = document.getElementById('volDivValue');
+  if (vdEl) {
+    vdEl.textContent = vdLabel;
+    vdEl.style.color = volDiv === 'BULLISH_DIVERGENCE' ? 'var(--bull)'
+                     : volDiv === 'BEARISH_DIVERGENCE' ? 'var(--bear)' : 'var(--text-dim)';
+  }
+
+  const posSize = tp.position_size || null;
+  const posSizeRow = document.getElementById('posSizeRow');
+  if (posSize && posSize.shares && posSizeRow) {
+    posSizeRow.style.display = '';
+    setText('posSizeVal', `${posSize.shares} shares ($${posSize.position_value.toLocaleString()})`);
+    setText('posSizeNote', posSize.note || '');
+  } else if (posSizeRow) {
+    posSizeRow.style.display = 'none';
+  }
+  const ratio    = vol.ratio || 0;
+  const volColor = ratio >= 2.0 ? 'var(--bull)' : ratio >= 1.5 ? 'var(--neutral)' : ratio < 0.8 ? 'var(--bear)' : 'var(--text-primary)';
+  const ratioEl  = document.getElementById('volRatio');
+  ratioEl.textContent   = `${ratio}×`;
+  ratioEl.style.color   = volColor;
+
+  const sigTagEl = document.getElementById('volSignal');
+  sigTagEl.textContent  = vol.volume_signal || (ratio >= 2 ? 'SURGE' : ratio >= 1.5 ? 'HIGH' : 'NORMAL');
+  sigTagEl.style.background = volColor + '22';
+  sigTagEl.style.color      = volColor;
+
+  setText('volCurrent', fmtVol(vol.current));
+  setText('volAvg',     fmtVol(vol.avg_20d));
+
+  const vtEl = document.getElementById('volTrend');
+  vtEl.textContent = vol.trend || '—';
+  vtEl.style.color = vol.trend === 'INCREASING' ? 'var(--bull)' : vol.trend === 'DECLINING' ? 'var(--bear)' : 'var(--text-secondary)';
+
+  const sideNote = document.getElementById('tradePlanSide');
+  const targetLabel = document.querySelector('.zone-target .zone-label');
+  const stopLabel = document.querySelector('.zone-stop .zone-label');
+  const entryLabel = document.querySelector('.zone-entry .zone-label');
+  const tradeZones = document.querySelector('.trade-zones');
+
+  if (tp.direction && tp.direction !== 'NEUTRAL') {
+    const isShort = tp.direction === 'SHORT';
+    const entry = Number(tp.entry_ideal);
+    const target = Number(tp.target);
+    const stop = Number(tp.stop);
+    const validLong = tp.direction === 'LONG' && target > entry && stop < entry;
+    const validShort = isShort && target < entry && stop > entry;
+
+    if (targetLabel) targetLabel.textContent = isShort ? 'SHORT TARGET' : 'LONG TARGET';
+    if (entryLabel) entryLabel.textContent = 'ENTRY ZONE';
+    if (stopLabel) stopLabel.textContent = isShort ? 'STOP ABOVE' : 'STOP LOSS';
+
+    if (tradeZones) tradeZones.className = `trade-zones ${isShort ? 'short' : 'long'}`;
+
+    if (sideNote) {
+      sideNote.className = `trade-plan-side ${isShort ? 'short' : 'long'}`;
+      sideNote.textContent = isShort
+        ? 'SHORT PLAN — profit target is below entry; stop is above entry.'
+        : 'LONG PLAN — profit target is above entry; stop is below entry.';
+    }
+
+    const planIsValid = validLong || validShort;
+    setText('planEntry',      fmt$(tp.entry_ideal));
+    setText('planEntryRange', tp.entry_low ? `${fmt$(tp.entry_low)} – ${fmt$(tp.entry_high)}` : '—');
+    setText('planStop',       fmt$(tp.stop));
+    setText('planTarget',     fmt$(tp.target));
+    setText('planStopPct',    tp.risk_pct   ? `−${tp.risk_pct}%` : '—');
+    setText('planTargetPct',  tp.reward_pct ? `+${tp.reward_pct}%` : '—');
+    const rrEl = document.getElementById('planRR');
+    rrEl.textContent = planIsValid && tp.risk_reward ? `${tp.risk_reward}:1` : 'CHECK';
+    rrEl.style.color = planIsValid
+      ? (tp.risk_reward >= 2 ? 'var(--bull)' : tp.risk_reward >= 1.5 ? 'var(--neutral)' : 'var(--bear)')
+      : 'var(--bear)';
+
+    const paperBtn = document.getElementById('paperTradeBtn');
+    paperBtn.style.display = planIsValid ? '' : 'none';
+    paperBtn.onclick = planIsValid ? () => openPaperModal(d) : null;
+  } else {
+    if (tradeZones) tradeZones.className = 'trade-zones';
+    if (targetLabel) targetLabel.textContent = 'TARGET';
+    if (stopLabel) stopLabel.textContent = 'STOP LOSS';
+    if (entryLabel) entryLabel.textContent = 'ENTRY ZONE';
+    if (sideNote) {
+      sideNote.className = 'trade-plan-side';
+      sideNote.textContent = 'No active long/short trade plan for this scan.';
+    }
+    ['planEntry','planEntryRange','planStop','planTarget','planStopPct','planTargetPct'].forEach(id => setText(id, '—'));
+    setText('planRR', 'N/A');
+    document.getElementById('paperTradeBtn').style.display = 'none';
+  }
+
+  renderPred('5d',  preds['5d']);
+  renderPred('10d', preds['10d']);
+  renderPred('20d', preds['20d']);
+
+  const trendEl = document.getElementById('trendBadge');
+  trendEl.textContent = (d.trend || 'UNKNOWN').replace(/_/g,' ');
+  const isUp   = d.trend && d.trend.includes('UP');
+  const isDown = d.trend && d.trend.includes('DOWN');
+  trendEl.style.background = isUp ? 'var(--bull-dim)' : isDown ? 'var(--bear-dim)' : 'var(--neutral-dim)';
+  trendEl.style.color      = isUp ? 'var(--bull)'     : isDown ? 'var(--bear)'     : 'var(--neutral)';
+  trendEl.style.padding    = '4px 12px';
+  trendEl.style.borderRadius = '4px';
+
+  setText('trendStrength', d.trend_strength != null ? `R²: ${d.trend_strength.toFixed(0)}%` : '');
+
+  renderMomentumBars({ '5D': mom['5d'], '20D': mom['20d'], '60D': mom['60d'] });
+
+  setText('levelR2',    fmt$(levels.resist_2));
+  setText('levelR1',    fmt$(levels.resist_1));
+  setText('levelPivot', fmt$(levels.pivot));
+  setText('levelS1',    fmt$(levels.support_1));
+  setText('levelS2',    fmt$(levels.support_2));
+
+  renderPatterns(d.patterns || {});
+
+  const rulesList = document.getElementById('rulesList');
+  const rules     = setup.rules_fired || [];
+  rulesList.innerHTML = rules.length
+    ? rules.map(r => `<div class="rule-item"><span class="rule-bullet">▸</span>${escHtml(r)}</div>`).join('')
+    : '<div class="rule-item" style="color:var(--text-dim)">No strong rules triggered.</div>';
+
+  const allScores = setup.all_scores || {};
+  const winner    = setup.setup_type;
+  const scoresGrid = document.getElementById('allScoresGrid');
+  scoresGrid.innerHTML = Object.entries(allScores)
+    .sort(([,a],[,b]) => b - a)
+    .map(([name, sc]) => `
+      <div class="score-chip ${name === winner ? 'winner' : ''}">
+        <div class="score-chip-name">${name.replace(/_/g,' ')}</div>
+        <div class="score-chip-val">${sc.toFixed(0)}</div>
+        <div class="score-chip-bar-wrap"><div class="score-chip-bar" style="width:${sc}%"></div></div>
+      </div>
+    `).join('');
+}
+
+
+function renderPatterns(patterns) {
+  const list = document.getElementById('patternList');
+  const count = document.getElementById('patternCount');
+  const summaryRow = document.getElementById('patternSummaryRow');
+  if (!list || !count || !summaryRow) return;
+
+  const recent = patterns.recent || [];
+  const summary = patterns.summary || {};
+  const filter = summary.display_filter || {};
+  count.textContent = `${recent.length || 0} SHOWN`;
+
+  const byFamily = summary.by_family || {};
+  const byDirection = summary.by_direction || {};
+  summaryRow.innerHTML = [
+    `FILTERED ${summary.displayed_patterns ?? recent.length ?? 0}`,
+    `TOTAL ${summary.total_patterns || 0}`,
+    `HIGH ${summary.high_confidence_count || 0}`,
+    `1D ANY`,
+    `30D HIGH ${filter.high_confidence || 70}%+`,
+    `BULL ${byDirection.BULLISH || 0}`,
+    `BEAR ${byDirection.BEARISH || 0}`,
+    `FVG ${byFamily.FVG || 0}`,
+    `CANDLE ${byFamily.CANDLE || 0}`,
+  ].map(x => `<span class="pattern-summary-chip">${escHtml(x)}</span>`).join('');
+
+  if (!recent.length) {
+    list.innerHTML = '<div class="pattern-empty">No recent mid/high-confidence patterns detected on this scan.</div>';
+    return;
+  }
+
+  const sorted = [...recent]
+    .sort((a, b) => {
+      const ai = Number(a.candle_index ?? 0);
+      const bi = Number(b.candle_index ?? 0);
+      const ac = Number(a.confidence ?? 0);
+      const bc = Number(b.confidence ?? 0);
+      return (bi - ai) || (bc - ac);
+    })
+    .slice(0, 8);
+
+  list.innerHTML = sorted.map((p, idx) => {
+    const direction = (p.direction || 'NEUTRAL').toLowerCase();
+    const family = p.pattern_family || 'PATTERN';
+    const name = (p.pattern_name || 'UNKNOWN').replace(/_/g, ' ');
+    const conf = Number(p.confidence || 0).toFixed(0);
+    const date = formatPatternDate(p.timestamp);
+    const zone = (p.zone_low != null && p.zone_high != null)
+      ? `<div class="pattern-zone">ZONE ${fmt$(p.zone_low)} – ${fmt$(p.zone_high)}</div>`
+      : '';
+    const data = encodeURIComponent(JSON.stringify(p));
+    return `
+      <button type="button" class="pattern-item ${direction}" data-pattern="${data}" onclick="focusPatternFromCard(this)">
+        <div class="pattern-head">
+          <div class="pattern-name">${escHtml(name)}</div>
+          <div class="pattern-confidence">${conf}%</div>
+        </div>
+        <div class="pattern-meta">
+          <span class="pattern-tag">${escHtml(family)}</span>
+          <span class="pattern-tag">${escHtml(p.direction || 'NEUTRAL')}</span>
+          <span class="pattern-tag">${escHtml(date)}</span>
+        </div>
+        ${zone}
+        <div class="pattern-click-hint">${escHtml(p.display_reason || 'CLICK TO LOCATE DATE')}</div>
+      </button>
+    `;
+  }).join('');
+}
+
+function formatPatternDate(value) {
+  if (!value) return 'DATE —';
+  const raw = String(value).slice(0, 10);
+  const date = new Date(`${raw}T12:00:00`);
+  if (Number.isNaN(date.getTime())) return raw;
+  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+window.focusPatternFromCard = function(el) {
+  try {
+    const p = JSON.parse(decodeURIComponent(el.dataset.pattern || '{}'));
+    focusPatternOnChart(p);
+  } catch (err) {
+    console.error('Failed to focus pattern', err);
+  }
+};
+
+function focusPatternOnChart(p) {
+  const chartCard = document.querySelector('.card-chart');
+  const focusBox = document.getElementById('patternFocus');
+  const focusText = document.getElementById('patternFocusText');
+  const focusLink = document.getElementById('patternFocusLink');
+  if (!focusBox || !focusText || !focusLink) return;
+
+  document.querySelectorAll('.pattern-item.active').forEach(x => x.classList.remove('active'));
+  const encoded = encodeURIComponent(JSON.stringify(p));
+  const active = document.querySelector(`.pattern-item[data-pattern="${encoded}"]`);
+  if (active) active.classList.add('active');
+
+  const name = (p.pattern_name || 'Pattern').replace(/_/g, ' ');
+  const direction = p.direction || 'NEUTRAL';
+  const family = p.pattern_family || 'PATTERN';
+  const conf = Number(p.confidence || 0).toFixed(0);
+  const date = formatPatternDate(p.timestamp);
+  const zone = (p.zone_low != null && p.zone_high != null)
+    ? ` Zone: ${fmt$(p.zone_low)} – ${fmt$(p.zone_high)}.`
+    : '';
+  const trigger = p.trigger_price != null ? ` Trigger: ${fmt$(p.trigger_price)}.` : '';
+
+  focusText.textContent = `${name} (${family}, ${direction}, ${conf}%). Look at the candle dated ${date}.${zone}${trigger}`;
+  const ticker = (currentAnalysis && currentAnalysis.ticker) ? currentAnalysis.ticker : (document.getElementById('tickerInput')?.value || '').toUpperCase();
+  const tvSymbol = ticker ? normalizeTVSymbol(ticker) : '';
+  focusLink.href = `https://www.tradingview.com/chart/?symbol=${encodeURIComponent(tvSymbol)}`;
+  focusLink.textContent = ticker ? `OPEN ${ticker} CHART ↗` : 'OPEN CHART ↗';
+  focusBox.classList.remove('hidden');
+
+  if (chartCard) {
+    chartCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+}
+
+function loadTradingView(ticker, interval) {
+  const container = document.getElementById('tradingview_widget');
+  container.innerHTML = '';
+
+  const tvSymbol = normalizeTVSymbol(ticker);
+
+  if (typeof TradingView === 'undefined') {
+    container.innerHTML = `
+      <div style="display:flex;align-items:center;justify-content:center;height:100%;flex-direction:column;gap:16px;color:var(--text-secondary);font-family:var(--font-body);font-size:12px;background:var(--bg-input);border-radius:14px;">
+        <div style="font-size:32px;">📊</div>
+        <div>TradingView unavailable — open in TradingView directly</div>
+        <a href="https://www.tradingview.com/chart/?symbol=${encodeURIComponent(tvSymbol)}" target="_blank"
+           style="color:var(--accent-primary);text-decoration:none;border:1px solid var(--border-bright);padding:9px 18px;border-radius:10px;font-size:11px;font-weight:650;">
+          OPEN ${ticker} IN TRADINGVIEW ↗
+        </a>
+      </div>`;
+    return;
+  }
+
+  try {
+    const lightChart = document.documentElement.dataset.theme === 'light';
+    const themeStyles = getComputedStyle(document.documentElement);
+    const chartBackground = themeStyles.getPropertyValue('--chart-bg').trim() || (lightChart ? '#dce4ec' : '#0c141f');
+    const chartGrid = themeStyles.getPropertyValue('--chart-grid').trim() || (lightChart ? 'rgba(61,87,119,0.14)' : 'rgba(100,145,194,0.12)');
+    const chartText = themeStyles.getPropertyValue('--chart-text').trim() || (lightChart ? '#485b6e' : '#a9b8c8');
+    tvWidget = new TradingView.widget({
+      container_id:     'tradingview_widget',
+      symbol:           tvSymbol,
+      interval:         interval,
+      timezone:         'America/New_York',
+      theme:            lightChart ? 'light' : 'dark',
+      style:            '1',
+      locale:           'en',
+      toolbar_bg:       chartBackground,
+      backgroundColor:  chartBackground,
+      gridColor:        chartGrid,
+      enable_publishing: false,
+      hide_top_toolbar: false,
+      hide_side_toolbar: false,
+      allow_symbol_change: true,
+      save_image:        false,
+      studies: [
+        'MASimple@tv-basicstudies',
+        'MASimple@tv-basicstudies',
+        'RSI@tv-basicstudies',
+        'MACD@tv-basicstudies',
+        'Volume@tv-basicstudies',
+      ],
+      studies_overrides: {
+        'moving average.length': 20,
+      },
+      overrides: {
+        'paneProperties.background':          chartBackground,
+        'paneProperties.backgroundGradientStartColor': chartBackground,
+        'paneProperties.backgroundGradientEndColor':   chartBackground,
+        'paneProperties.vertGridProperties.color': chartGrid,
+        'paneProperties.horzGridProperties.color': chartGrid,
+        'scalesProperties.textColor':         chartText,
+        'mainSeriesProperties.candleStyle.upColor':   '#5f957a',
+        'mainSeriesProperties.candleStyle.downColor': '#b96569',
+        'mainSeriesProperties.candleStyle.borderUpColor':   '#5f957a',
+        'mainSeriesProperties.candleStyle.borderDownColor': '#b96569',
+        'mainSeriesProperties.candleStyle.wickUpColor':   '#5f957a',
+        'mainSeriesProperties.candleStyle.wickDownColor': '#b96569',
+      },
+      width:  '100%',
+      height: 430,
+      autosize: false,
+    });
+  } catch (e) {
+    console.error('TradingView widget error:', e);
+  }
+}
+
+function normalizeTVSymbol(ticker) {
+  const cryptoMap = {'BTC':'COINBASE:BTCUSD','ETH':'COINBASE:ETHUSD'};
+  if (cryptoMap[ticker]) return cryptoMap[ticker];
+  return `NASDAQ:${ticker}`; // Default to NASDAQ; TradingView auto-resolves
+}
+
+async function generateAI(analysis, question = null) {
+  const textEl    = document.getElementById('aiText');
+  const loadingEl = document.getElementById('aiLoading');
+
+  textEl.style.display    = 'none';
+  loadingEl.style.display = 'flex';
+
+  try {
+    const result = await API.explain(analysis.ticker, analysis, question);
+    const raw    = result.explanation || 'No explanation available.';
+
+    textEl.innerHTML       = formatAIText(raw);
+    textEl.style.display   = '';
+    loadingEl.style.display = 'none';
+  } catch (e) {
+    textEl.textContent     = 'AI analysis unavailable right now. Using the dashboard signals instead.';
+    textEl.style.display   = '';
+    loadingEl.style.display = 'none';
+  }
+}
+
+function formatAIText(text) {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/\*\*(.+?)\*\*/g, '<strong style="color:var(--text-primary)">$1</strong>')
+    .replace(/\n\n/g, '</p><p>')
+    .replace(/\n/g,   '<br/>')
+    .replace(/(\$[\d,.]+)/g, '<span style="color:var(--accent-primary)">$1</span>')
+    .replace(/(LONG|BULLISH|BUY)/g, '<span style="color:var(--bull)">$1</span>')
+    .replace(/(SHORT|BEARISH|SELL)/g, '<span style="color:var(--bear)">$1</span>');
+}
+
+
+
+function initDevTools() {
+  const panel = document.getElementById('devLabPanel');
+  const select = document.getElementById('patternEngineSelect');
+  const closeBtn = document.getElementById('devLabCloseBtn');
+  const runBtn = document.getElementById('runPatternLabBtn');
+  const stopLabBtn = document.getElementById('stopPatternLabBtn');
+  const resumeLabBtn = document.getElementById('resumePatternLabBtn');
+  const warmBtn = document.getElementById('warmPatternCacheBtn');
+  const cacheStatusBtn = document.getElementById('patternCacheStatusBtn');
+  const load150Btn = document.getElementById('loadTraining150Btn');
+  const trainVAIBtn = document.getElementById('trainVAIBtn');
+  const vaiStatusBtn = document.getElementById('vaiModelStatusBtn');
+  const badge = document.querySelector('.beta-version-badge') || document.querySelector('.beta-badge');
+  let badgeClicks = 0;
+
+  if (select) {
+    if (!Array.from(select.options).some(opt => opt.value === currentPatternMode)) {
+      currentPatternMode = 'official';
+      safeStorageSet('oryntra_pattern_engine_mode', 'official');
+    }
+    select.value = currentPatternMode;
+    if (select.value !== currentPatternMode) {
+      currentPatternMode = 'official';
+      select.value = 'official';
+      safeStorageSet('oryntra_pattern_engine_mode', 'official');
+    }
+    select.addEventListener('change', () => {
+      currentPatternMode = select.value || 'official';
+      safeStorageSet('oryntra_pattern_engine_mode', currentPatternMode);
+      if (['official','v8','vai2'].includes(currentPatternMode)) updateSettingsEngineDisplay();
+      const settingsSelect = document.getElementById('settingsEngineSelect'); if (settingsSelect && ['official','v8','vai2'].includes(currentPatternMode)) settingsSelect.value = currentPatternMode;
+      updatePatternModePill();
+      if (currentTicker) showError(`Pattern engine set to ${currentPatternMode.toUpperCase()}. Run the scan again to compare.`);
+      setTimeout(hideError, 2800);
+    });
+  }
+
+  if (closeBtn) closeBtn.addEventListener('click', () => {
+    if (!panel) return;
+    panel.classList.add('dev-hidden');
+    badge?.setAttribute('aria-expanded', 'false');
+    lastDevLabFocus?.focus();
+    lastDevLabFocus = null;
+  });
+  if (runBtn) runBtn.addEventListener('click', runPatternLab);
+  if (stopLabBtn) stopLabBtn.addEventListener('click', stopPatternLab);
+  if (resumeLabBtn) resumeLabBtn.addEventListener('click', resumePatternLab);
+  if (warmBtn) warmBtn.addEventListener('click', warmPatternCache);
+  if (cacheStatusBtn) cacheStatusBtn.addEventListener('click', showPatternCacheStatus);
+  if (load150Btn) load150Btn.addEventListener('click', loadTraining150Tickers);
+  if (trainVAIBtn) trainVAIBtn.addEventListener('click', trainVAIModel);
+  if (vaiStatusBtn) vaiStatusBtn.addEventListener('click', showVAIModelStatus);
+
+  const savedPatternJob = safeStorageGet(PATTERN_LAB_ACTIVE_KEY);
+  if (savedPatternJob) {
+    currentPatternLabJobId = savedPatternJob;
+    pollPatternLabJob(savedPatternJob);
+  }
+
+  document.addEventListener('keydown', (e) => {
+    if (e.ctrlKey && e.shiftKey && String(e.key).toLowerCase() === 'd') {
+      e.preventDefault();
+      toggleDevLab();
+    }
+  });
+
+  if (badge) {
+    badge.style.cursor = 'pointer';
+    badge.title = 'Developer menu: Ctrl+Shift+D or click 5 times';
+    badge.addEventListener('keydown', event => {
+      if (!['Enter', ' '].includes(event.key)) return;
+      event.preventDefault();
+      badgeClicks = 0;
+      toggleDevLab();
+    });
+    badge.addEventListener('click', () => {
+      badgeClicks += 1;
+      if (badgeClicks >= 5) {
+        badgeClicks = 0;
+        toggleDevLab();
+      }
+    });
+  }
+  updatePatternModePill();
+}
+
+function toggleDevLab() {
+  const panel = document.getElementById('devLabPanel');
+  if (!panel) return;
+  const badge = document.querySelector('.beta-version-badge') || document.querySelector('.beta-badge');
+  const opening = panel.classList.contains('dev-hidden');
+  if (opening) lastDevLabFocus = document.activeElement;
+  panel.classList.toggle('dev-hidden');
+  badge?.setAttribute('aria-expanded', String(!panel.classList.contains('dev-hidden')));
+  if (!panel.classList.contains('dev-hidden')) {
+    panel.scrollIntoView({behavior:'smooth', block:'start'});
+    panel.focus({preventScroll:true});
+  } else {
+    lastDevLabFocus?.focus();
+    lastDevLabFocus = null;
+  }
+}
+
+function updatePatternModePill() {
+  let pill = document.getElementById('patternModePill');
+  const target = document.querySelector('.beta-version-badge') || document.querySelector('.beta-badge');
+  if (!target) return;
+  if (!pill) {
+    pill = document.createElement('span');
+    pill.id = 'patternModePill';
+    pill.className = 'pattern-mode-pill';
+    target.insertAdjacentElement('afterend', pill);
+  }
+  pill.textContent = `ENGINE: ${engineLabel(currentPatternMode)}`;
+}
+
+
+function engineLabel(mode) {
+  const labels = {official: 'V7 OFFICIAL', v8: 'V8 ANALYTICS', vai2: 'VAI 2.1'};
+  return labels[String(mode || '').toLowerCase()] || String(mode || 'official').toUpperCase();
+}
+
+function setAppEngine(mode, opts={}) {
+  const allowed = ['official'];
+  const next = allowed.includes(String(mode || '').toLowerCase()) ? String(mode).toLowerCase() : 'official';
+  currentPatternMode = next;
+  safeStorageSet('oryntra_pattern_engine_mode', next);
+  const devSelect = document.getElementById('patternEngineSelect');
+  if (devSelect && Array.from(devSelect.options).some(o => o.value === next)) devSelect.value = next;
+  const settingsSelect = document.getElementById('settingsEngineSelect');
+  if (settingsSelect) settingsSelect.value = next;
+  updatePatternModePill();
+  updateSettingsEngineDisplay();
+  if (opts.notice && currentTicker) {
+    showError(`Engine set to ${engineLabel(next)}. Run the scan again to compare.`);
+    setTimeout(hideError, 2600);
+  }
+}
+
+function initSettingsPage() {
+  const select = document.getElementById('settingsEngineSelect');
+  if (select) {
+    select.value = 'official';
+    select.addEventListener('change', () => setAppEngine(select.value, {notice:true}));
+  }
+  initThemeSettings();
+  updateSettingsEngineDisplay();
+}
+
+function updateSettingsEngineDisplay() {
+  const el = document.getElementById('settingsCurrentEngine');
+  if (el) el.textContent = `ENGINE: ${engineLabel(currentPatternMode)}`;
+}
+
+function copyTerminalText(elementId) {
+  const el = document.getElementById(elementId);
+  const text = el ? (el.innerText || el.textContent || '') : '';
+  if (!text) return;
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(() => showCopyToast('Copied terminal output.')).catch(() => fallbackCopyText(text));
+  } else {
+    fallbackCopyText(text);
+  }
+}
+
+function fallbackCopyText(text) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.position = 'fixed';
+  ta.style.left = '-9999px';
+  document.body.appendChild(ta);
+  ta.focus(); ta.select();
+  try { document.execCommand('copy'); showCopyToast('Copied terminal output.'); } catch (_) {}
+  document.body.removeChild(ta);
+}
+
+function showCopyToast(message) {
+  const banner = document.getElementById('errorBanner');
+  const text = document.getElementById('errorText');
+  if (banner && text) {
+    text.textContent = message;
+    banner.style.display = 'flex';
+    setTimeout(() => { banner.style.display = 'none'; }, 1800);
+  }
+}
+
+function terminalBlock(id, text, title='COPY TERMINAL') {
+  return `<div class="copy-terminal-card"><div class="copy-terminal-head"><strong>${escapeHtml(title)}</strong><button class="dev-close-btn" type="button" onclick="copyTerminalText('${id}')">COPY TERMINAL</button></div><pre id="${id}" class="copy-terminal-pre">${escapeHtml(text || '')}</pre></div>`;
+}
+
+
+async function syncDocumentedBetaCounter() {
+  try {
+    const res = await fetch('/api/dev/counters/sync-beta-counts', {method: 'POST'});
+    if (!res.ok) throw new Error(`Counter sync failed (${res.status})`);
+    const data = await res.json();
+    const after = data.after || {};
+    if (Number.isFinite(Number(after.stock_searches))) {
+      updateSearchCounter(Number(after.stock_searches), {persist: true, animate: true});
+    }
+    const out = document.getElementById('patternLabOutput');
+    if (out) {
+      out.innerHTML = `<div class="dev-lab-note">Beta counter synced. Market analyses: ${Number(after.stock_searches || 0).toLocaleString()} · Engine checks: ${Number(after.pattern_lab_engine_checks || 0).toLocaleString()}</div>` + out.innerHTML;
+    }
+    return data;
+  } catch (err) {
+    const out = document.getElementById('patternLabOutput');
+    if (out) out.innerHTML = `<div class="dev-error">${escapeHtml(err.message || String(err))}</div>` + out.innerHTML;
+    throw err;
+  }
+}
+
+function getSelectedPatternLabEngines() {
+  const boxes = Array.from(document.querySelectorAll('#patternLabEngineChecks input[type="checkbox"]'));
+  let selected = boxes.filter(b => b.checked).map(b => String(b.value || '').trim()).filter(Boolean);
+  if (!selected.length) {
+    selected = ['official'];
+    const v5 = boxes.find(b => b.value === 'official');
+    if (v5) v5.checked = true;
+  }
+  return selected;
+}
+
+function selectedPatternLabEnginesLabel(engineModes) {
+  const labels = {official:'V7', v8:'V8', vai2:'VAI 2.1'};
+  return (engineModes || []).map(m => labels[m] || String(m).toUpperCase()).join(' vs ');
+}
+
+async function runPatternLab() {
+  const out = document.getElementById('patternLabOutput');
+  if (!out) return;
+  if (currentPatternLabJobId) {
+    showCopyToast(currentPatternLabJobId === JOB_STARTING ? 'Pattern Lab is starting.' : 'A Pattern Lab job is already running.');
+    return;
+  }
+  const tickers = (document.getElementById('patternLabTickers')?.value || '')
+    .split(',').map(t => sanitizeTickerSymbol(t)).filter(Boolean);
+  const period = document.getElementById('patternLabPeriod')?.value || '5y';
+  const horizon_days = Number(document.getElementById('patternLabHorizon')?.value || 10);
+  const step = Number(document.getElementById('patternLabStep')?.value || 5);
+  const max_tests_per_ticker = Number(document.getElementById('patternLabMaxTests')?.value || 40);
+  const data_source = document.getElementById('patternLabDataSource')?.value || 'cache_only';
+  const engine_modes = getSelectedPatternLabEngines();
+  const universe_mode = document.getElementById('patternLabUniverseMode')?.value || 'manual';
+  const universe_size = Number(document.getElementById('patternLabUniverseSize')?.value || 150);
+  const random_seed = Number(document.getElementById('patternLabSeed')?.value || 73021);
+  const sampling_mode = document.getElementById('patternLabSamplingMode')?.value || 'even';
+  const random_window_bars = Number(document.getElementById('patternLabRandomWindowBars')?.value || 180);
+  const start_date = document.getElementById('patternLabStartDate')?.value || '';
+  const end_date = document.getElementById('patternLabEndDate')?.value || '';
+  const transaction_cost_bps = Number(document.getElementById('patternLabTransactionCost')?.value || 6);
+  const slippage_bps = Number(document.getElementById('patternLabSlippage')?.value || 4);
+  const walk_forward_folds = Number(document.getElementById('patternLabWalkForwardFolds')?.value || 5);
+  const bootstrap_samples = Number(document.getElementById('patternLabBootstrapSamples')?.value || 500);
+  const payload = {
+    tickers, period, horizon_days, step, max_tests_per_ticker, data_source, engine_modes,
+    universe_mode, universe_size, random_seed, sampling_mode, random_window_bars,
+    start_date, end_date, transaction_cost_bps, slippage_bps,
+    walk_forward_folds, bootstrap_samples,
+    api_delay_seconds: Number(document.getElementById('patternCacheDelay')?.value || 13),
+  };
+
+  currentPatternLabJobId = JOB_STARTING;
+  lastPatternLabProgressPct = 0;
+  lastPatternLabCompletedTickers = 0;
+  out.innerHTML = renderPatternLabProgressCard({
+    status: 'queued',
+    phase: 'starting',
+    progress_pct: 0,
+    total_tickers: universe_mode === 'manual' ? tickers.length : universe_size,
+    completed_tickers: 0,
+    current_ticker: '—',
+    message: `Starting ${selectedPatternLabEnginesLabel(engine_modes)} test from ${data_source}.`
+  });
+
+  try {
+    const job = await API.dev.patternLabStart(payload);
+    const jobId = String(job?.job_id || '').trim();
+    if (!jobId) throw new Error('Pattern Lab did not return a job ID.');
+    currentPatternLabJobId = jobId;
+    safeStorageSet(PATTERN_LAB_ACTIVE_KEY, jobId);
+    safeStorageSet(PATTERN_LAB_LAST_KEY, jobId);
+    renderPatternLabProgress(job);
+    pollPatternLabJob(jobId);
+  } catch (err) {
+    currentPatternLabJobId = null;
+    out.innerHTML = `<div class="dev-empty">Pattern lab failed to start: ${escapeHtml(String(err))}</div>`;
+  }
+}
+
+async function pollPatternLabJob(jobId) {
+  if (!jobId || currentPatternLabJobId !== jobId) return;
+  try {
+    const job = await API.dev.patternLabStatus(jobId);
+    if (currentPatternLabJobId !== jobId) return;
+    renderPatternLabProgress(job);
+    if (job.status === 'queued' || job.status === 'running' || job.status === 'stopping') {
+      setTimeout(() => pollPatternLabJob(jobId), 1500);
+    } else if (job.status === 'done' || job.status === 'stopped') {
+      renderPatternLabResults(job.result || job);
+      safeStorageSet(PATTERN_LAB_LAST_KEY, jobId);
+      localStorage.removeItem(PATTERN_LAB_ACTIVE_KEY);
+      currentPatternLabJobId = null;
+    } else if (job.status === 'failed' || job.status === 'not_found') {
+      safeStorageSet(PATTERN_LAB_LAST_KEY, jobId);
+      localStorage.removeItem(PATTERN_LAB_ACTIVE_KEY);
+      currentPatternLabJobId = null;
+    }
+  } catch (err) {
+    if (currentPatternLabJobId !== jobId) return;
+    const out = document.getElementById('patternLabOutput');
+    if (out) out.innerHTML = `<div class="dev-empty">Pattern lab progress check failed: ${escapeHtml(String(err))}. Retrying...</div>`;
+    setTimeout(() => pollPatternLabJob(jobId), 5000);
+  }
+}
+
+async function stopPatternLab() {
+  if (!currentPatternLabJobId || currentPatternLabJobId === JOB_STARTING) {
+    showCopyToast(currentPatternLabJobId === JOB_STARTING ? 'Pattern Lab is still starting.' : 'No Pattern Lab job is running.');
+    return;
+  }
+  try {
+    const job = await API.dev.patternLabStop(currentPatternLabJobId);
+    renderPatternLabProgress(job);
+    pollPatternLabJob(currentPatternLabJobId);
+  } catch (err) {
+    showCopyToast(`Could not stop Pattern Lab: ${err.message || String(err)}`);
+  }
+}
+
+async function resumePatternLab() {
+  if (currentPatternLabJobId) {
+    showCopyToast('A Pattern Lab job is already active.');
+    return;
+  }
+  const prior = safeStorageGet(PATTERN_LAB_LAST_KEY);
+  if (!prior) {
+    showCopyToast('No saved Pattern Lab checkpoint is available.');
+    return;
+  }
+  try {
+    const job = await API.dev.patternLabResume(prior);
+    if (!job?.job_id || job.status === 'not_found') throw new Error(job?.message || 'No checkpoint is available.');
+    currentPatternLabJobId = String(job.job_id);
+    safeStorageSet(PATTERN_LAB_ACTIVE_KEY, currentPatternLabJobId);
+    safeStorageSet(PATTERN_LAB_LAST_KEY, currentPatternLabJobId);
+    renderPatternLabProgress(job);
+    pollPatternLabJob(currentPatternLabJobId);
+  } catch (err) {
+    showCopyToast(`Could not resume Pattern Lab: ${err.message || String(err)}`);
+  }
+}
+
+function renderPatternLabProgress(job) {
+  const out = document.getElementById('patternLabOutput');
+  if (!out || !job) return;
+  if (job.status === 'done' && job.result) {
+    renderPatternLabResults(job.result);
+    return;
+  }
+  out.innerHTML = renderPatternLabProgressCard(job);
+}
+
+function renderPatternLabProgressCard(job) {
+  let pct = Math.max(0, Math.min(100, Number(job.progress_pct || 0)));
+  const completedTickers = Number(job.completed_tickers || 0);
+  if (job.status === 'done') {
+    pct = 100;
+  } else {
+    pct = Math.max(pct, lastPatternLabProgressPct || 0);
+  }
+  lastPatternLabProgressPct = pct;
+  lastPatternLabCompletedTickers = Math.max(lastPatternLabCompletedTickers || 0, completedTickers);
+  const totalTickers = Number(job.total_tickers || (Array.isArray(job.tickers) ? job.tickers.length : 0));
+  const completedChecks = Number(job.completed_checks || 0);
+  const totalChecks = Number(job.total_checks_estimated || 0);
+  const status = String(job.status || 'running').toUpperCase();
+  const phase = String(job.phase || '').replace(/_/g, ' ').toUpperCase();
+  const current = escapeHtml(job.current_ticker || '—');
+  const date = escapeHtml(job.current_date || '—');
+  const message = escapeHtml(job.message || 'Running pattern test...');
+  const started = job.started_at ? new Date(job.started_at).getTime() : Date.now();
+  const elapsedSec = Number.isFinite(Number(job.elapsed_seconds)) ? Math.round(Number(job.elapsed_seconds)) : Math.max(0, Math.round((Date.now() - started) / 1000));
+  const etaSec = Math.max(0, Math.round(Number(job.eta_seconds || 0)));
+  const errors = Array.isArray(job.ticker_errors) && job.ticker_errors.length
+    ? `<div class="dev-lab-note">Recent errors: ${job.ticker_errors.slice(-4).map(e => `${escapeHtml(e.ticker || '')}: ${escapeHtml(e.error || '')}`).join(' · ')}</div>` : '';
+  const policy = job.resource_policy || {};
+  const workerNote = job.worker_pid
+    ? `<div class="dev-lab-note">Worker PID ${escapeHtml(String(job.worker_pid))} · CPU share ${Math.round(Number(policy.cpu_share || 0.30) * 100)}% · nice ${escapeHtml(String(policy.nice ?? 12))} · checkpoint ${job.checkpoint_available ? 'available' : 'pending'}</div>`
+    : '';
+
+  return `
+    <div class="dev-cache-card pattern-test-progress-card">
+      <div class="dev-summary-title">PATTERN TEST: ${escapeHtml(status)} ${phase ? '· ' + escapeHtml(phase) : ''}</div>
+      <div class="dev-progress big"><span style="width:${pct}%"></span></div>
+      <div class="dev-summary-metric"><span>Progress</span><strong>${pct.toFixed(2)}%</strong></div>
+      <div class="dev-summary-metric"><span>Tickers</span><strong>${Math.max(completedTickers, lastPatternLabCompletedTickers || 0)}/${totalTickers}</strong></div>
+      <div class="dev-summary-metric"><span>Engine checks</span><strong>${completedChecks}${totalChecks ? '/' + totalChecks : ''}</strong></div>
+      <div class="dev-summary-metric"><span>Current ticker</span><strong>${current}</strong></div>
+      <div class="dev-summary-metric"><span>Current date</span><strong>${date}</strong></div>
+      <div class="dev-summary-metric"><span>Elapsed</span><strong>${elapsedSec}s</strong></div>
+      <div class="dev-summary-metric"><span>ETA</span><strong>${etaSec ? etaSec + 's' : 'calculating'}</strong></div>
+      <div class="dev-lab-note">${message}</div>
+      ${workerNote}
+      ${errors}
+    </div>`;
+}
+
+
+function applyPatternLabCounterUpdate(res) {
+  const cu = res && res.counter_update ? res.counter_update : null;
+  if (!cu) return '';
+  const total = Number(cu.total_stock_searches);
+  if (Number.isFinite(total)) {
+    updateSearchCounter(total, {persist: true});
+  }
+  const added = Number(cu.added_stock_analyses || 0);
+  const checks = Number(cu.added_engine_checks || 0);
+  if (!added && !checks) return '';
+  return ` · Counter synced: ${added.toLocaleString()} market-analysis runs${checks ? ' / ' + checks.toLocaleString() + ' engine checks' : ''}`;
+}
+
+
+function buildPatternLabTerminal(res) {
+  const lines = [];
+  lines.push('ORYNTRA PATTERN LAB TERMINAL REPORT');
+  lines.push('='.repeat(64));
+  lines.push(`Generated: ${res.generated_at || new Date().toISOString()}`);
+  const p = res.params || {};
+  lines.push(`Tickers: ${(p.tickers || []).join(',')}`);
+  lines.push(`Period: ${p.period || 'unknown'} | Horizon: ${p.horizon_days || '?'} | Step: ${p.step || '?'} | Max/ticker: ${p.max_tests_per_ticker || '?'}`);
+  lines.push(`Engines: ${(p.engine_modes || []).map(m => String(m).toUpperCase()).join(', ')}`);
+  lines.push(`Sampling: ${p.sampling_mode || 'unknown'} | Seed: ${p.random_seed ?? '?'} | Window bars: ${p.random_window_bars ?? '?'}`);
+  lines.push(`Costs: ${p.transaction_cost_bps ?? 0} bps transaction + ${p.slippage_bps ?? 0} bps slippage | Evaluation profiles persisted: ${p.persist_evaluation_profiles === true}`);
+  lines.push('');
+  lines.push('SUMMARY');
+  lines.push('Mode | Tests | Actionable | Coverage | Win % | Avg Return % | MFE/MAE | Target % | Stop %');
+  (res.summary || []).forEach(s => lines.push(`${String(s.mode).toUpperCase()} | ${s.tests} | ${s.actionable} | ${fmtNum(s.coverage_pct)} | ${fmtNum(s.win_rate_pct)} | ${fmtNum(s.avg_return_pct)} | ${fmtNum(s.reward_risk_ratio)} | ${fmtNum(s.target_hit_rate_pct)} | ${fmtNum(s.stop_hit_rate_pct)}`));
+  lines.push('');
+  lines.push('BASELINES');
+  lines.push('Mode | Tests | Win % | Avg Return % | MFE % | MAE %');
+  (res.baselines || []).forEach(b => lines.push(`${String(b.mode).toUpperCase()} | ${b.tests} | ${fmtNum(b.win_rate_pct)} | ${fmtNum(b.avg_return_pct)} | ${fmtNum(b.avg_mfe_pct)} | ${fmtNum(b.avg_mae_pct)}`));
+  lines.push('');
+  lines.push('TOP TICKERS');
+  (res.ticker_level || []).slice(0, 30).forEach(r => lines.push(`${String(r.mode).toUpperCase()} ${r.ticker}: signals=${r.signals ?? r.actionable ?? 0}, win=${fmtNum(r.win_rate_pct)}%, return=${fmtNum(r.avg_return_pct)}%, MFE=${fmtNum(r.avg_mfe_pct)}%, MAE=${fmtNum(r.avg_mae_pct)}%`));
+  lines.push('');
+  lines.push('TOP PATTERNS');
+  (res.pattern_level || []).slice(0, 30).forEach(r => lines.push(`${String(r.mode).toUpperCase()} ${String(r.top_pattern).toUpperCase()}: signals=${r.signals ?? r.actionable ?? 0}, win=${fmtNum(r.win_rate_pct)}%, return=${fmtNum(r.avg_return_pct)}%, target=${fmtNum(r.target_hit_rate_pct)}%, stop=${fmtNum(r.stop_hit_rate_pct)}%`));
+  lines.push('');
+  lines.push('REGIMES');
+  (res.regime_level || []).slice(0, 30).forEach(r => lines.push(`${String(r.mode).toUpperCase()} ${String(r.regime).toUpperCase()}: signals=${r.signals ?? r.actionable ?? 0}, win=${fmtNum(r.win_rate_pct)}%, return=${fmtNum(r.avg_return_pct)}%`));
+  lines.push('');
+  lines.push('BIAS / GENERALIZATION GATES');
+  (res.bias_audit || []).forEach(r => lines.push(`${String(r.mode).toUpperCase()}: long=${fmtNum(r.long_signal_share_pct)}%, preset_return_gap=${fmtNum(r.preset_return_gap_pct)}%, time_range=${fmtNum(r.time_return_range_pct)}%, passes=${r.passes_direction_balance}/${r.passes_preset_gap}/${r.passes_time_stability}`));
+  const cu = res.counter_update || {};
+  lines.push('');
+  lines.push(`COUNTER: added=${cu.added_stock_analyses || 0} market-analysis runs, engine_checks=${cu.added_engine_checks || 0}`);
+  lines.push('');
+  lines.push('OUT-OF-SAMPLE VALIDATION');
+  Object.entries(res.robust_validation || {}).forEach(([mode, validation]) => {
+    const wf = validation?.walk_forward || {};
+    const pooled = wf?.pooled_out_of_sample || {};
+    const boot = validation?.bootstrap || {};
+    lines.push(`${String(mode).toUpperCase()}: positive_folds=${wf.positive_test_folds || 0}/${wf.total_test_folds || 0}, pooled_expectancy=${fmtNum(pooled.expectancy_pct)}%, pooled_win=${fmtNum(pooled.win_rate_pct)}%, expectancy_95ci=${JSON.stringify(boot.expectancy_95_ci_pct || null)}`);
+  });
+  if (Array.isArray(res.ticker_errors) && res.ticker_errors.length) {
+    lines.push(''); lines.push('TICKER ERRORS');
+    res.ticker_errors.slice(0, 80).forEach(e => lines.push(`${e.ticker}: ${e.error}`));
+  }
+  return lines.join('\n');
+}
+
+function renderPatternLabResults(res) {
+  const out = document.getElementById('patternLabOutput');
+  if (!out) return;
+  const summary = Array.isArray(res.summary) ? res.summary : [];
+  const best = res.best_mode ? res.best_mode.mode : '';
+  const cards = summary.map(s => `
+    <div class="dev-summary-card ${s.mode === best ? 'best' : ''}">
+      <div class="dev-summary-title">${escapeHtml(String(s.mode || '').toUpperCase())}${s.mode === best ? ' · BEST' : ''}</div>
+      <div class="dev-summary-metric"><span>Win rate</span><strong>${fmtNum(s.win_rate_pct)}%</strong></div>
+      <div class="dev-summary-metric"><span>Avg return</span><strong>${fmtNum(s.avg_return_pct)}%</strong></div>
+      <div class="dev-summary-metric"><span>Coverage</span><strong>${fmtNum(s.coverage_pct)}%</strong></div>
+      <div class="dev-summary-metric"><span>Actionable</span><strong>${s.actionable || 0}/${s.tests || 0}</strong></div>
+      <div class="dev-summary-metric"><span>Target/stop</span><strong>${fmtNum(s.target_hit_rate_pct)}% / ${fmtNum(s.stop_hit_rate_pct)}%</strong></div>
+      <div class="dev-summary-metric"><span>Avg confidence</span><strong>${fmtNum(s.avg_confidence)}</strong></div>
+    </div>`).join('');
+
+  const rows = summary.map(s => `
+    <tr>
+      <td>${escapeHtml(String(s.mode || '').toUpperCase())}</td>
+      <td>${s.tests || 0}</td>
+      <td>${s.actionable || 0}</td>
+      <td>${fmtNum(s.coverage_pct)}%</td>
+      <td>${fmtNum(s.win_rate_pct)}%</td>
+      <td>${fmtNum(s.avg_return_pct)}%</td>
+      <td>${fmtNum(s.avg_mfe_pct)}%</td>
+      <td>${fmtNum(s.avg_mae_pct)}%</td>
+      <td>${fmtNum(s.reward_risk_ratio)}</td>
+      <td>${fmtNum(s.target_hit_rate_pct)}%</td>
+      <td>${fmtNum(s.stop_hit_rate_pct)}%</td>
+      <td>${s.errors || 0}</td>
+    </tr>`).join('');
+
+  const baselineRows = renderLabMiniRows(res.baselines || [], ['mode','tests','win_rate_pct','avg_return_pct','avg_mfe_pct','avg_mae_pct'], {
+    mode:'Baseline', tests:'Tests', win_rate_pct:'Win %', avg_return_pct:'Avg return %', avg_mfe_pct:'MFE %', avg_mae_pct:'MAE %'
+  });
+
+  const directionRows = renderLabMiniRows(res.direction_split || [], ['mode','direction','actionable','win_rate_pct','avg_return_pct','target_hit_rate_pct','stop_hit_rate_pct'], {
+    mode:'Mode', direction:'Direction', actionable:'Signals', win_rate_pct:'Win %', avg_return_pct:'Avg return %', target_hit_rate_pct:'Target %', stop_hit_rate_pct:'Stop %'
+  });
+
+  const thresholdRows = renderLabMiniRows((res.threshold_report || []).filter(r => Number(r.actionable || 0) > 0), ['mode','threshold','actionable','coverage_pct','win_rate_pct','avg_return_pct'], {
+    mode:'Mode', threshold:'Min conf', actionable:'Signals', coverage_pct:'Coverage %', win_rate_pct:'Win %', avg_return_pct:'Avg return %'
+  }, 80);
+
+  const confidenceRows = renderLabMiniRows(res.confidence_buckets || [], ['mode','bucket','actionable','win_rate_pct','avg_return_pct','target_hit_rate_pct','stop_hit_rate_pct'], {
+    mode:'Mode', bucket:'Confidence', actionable:'Signals', win_rate_pct:'Win %', avg_return_pct:'Avg return %', target_hit_rate_pct:'Target %', stop_hit_rate_pct:'Stop %'
+  }, 80);
+
+  const tickerRows = renderLabMiniRows(res.ticker_level || [], ['mode','ticker','actionable','win_rate_pct','avg_return_pct','avg_mfe_pct','avg_mae_pct'], {
+    mode:'Mode', ticker:'Ticker', actionable:'Signals', win_rate_pct:'Win %', avg_return_pct:'Avg return %', avg_mfe_pct:'MFE %', avg_mae_pct:'MAE %'
+  }, 120);
+
+  const patternRows = renderLabMiniRows(res.pattern_level || [], ['mode','top_pattern','actionable','win_rate_pct','avg_return_pct','target_hit_rate_pct','stop_hit_rate_pct'], {
+    mode:'Mode', top_pattern:'Pattern', actionable:'Signals', win_rate_pct:'Win %', avg_return_pct:'Avg return %', target_hit_rate_pct:'Target %', stop_hit_rate_pct:'Stop %'
+  }, 120);
+
+  const regimeRows = renderLabMiniRows(res.regime_level || [], ['mode','regime','actionable','win_rate_pct','avg_return_pct'], {
+    mode:'Mode', regime:'Regime', actionable:'Signals', win_rate_pct:'Win %', avg_return_pct:'Avg return %'
+  }, 80);
+  const biasRows = renderLabMiniRows(res.bias_audit || [], ['mode','long_signal_share_pct','preset_return_gap_pct','preset_coverage_gap_pp','time_return_range_pct','passes_direction_balance','passes_preset_gap','passes_time_stability'], {
+    mode:'Mode', long_signal_share_pct:'Long share %', preset_return_gap_pct:'Preset return gap %', preset_coverage_gap_pp:'Preset coverage gap pp', time_return_range_pct:'Time range %', passes_direction_balance:'Direction pass', passes_preset_gap:'Preset pass', passes_time_stability:'Time pass'
+  }, 40);
+
+  const walkForwardRows = [];
+  const bootstrapRows = [];
+  Object.entries(res.robust_validation || {}).forEach(([mode, validation]) => {
+    const wf = validation?.walk_forward || {};
+    (wf.folds || []).forEach(fold => walkForwardRows.push({
+      mode, fold: fold.fold, threshold: fold.selected_confidence_threshold,
+      test_start: fold.test_start, test_end: fold.test_end,
+      actionable: fold.test?.actionable || 0, win_rate_pct: fold.test?.win_rate_pct || 0,
+      expectancy_pct: fold.test?.expectancy_pct || 0
+    }));
+    const boot = validation?.bootstrap || {};
+    bootstrapRows.push({
+      mode, samples: boot.samples || 0,
+      expectancy_95_ci_pct: Array.isArray(boot.expectancy_95_ci_pct) ? boot.expectancy_95_ci_pct.join(' to ') : 'n/a',
+      win_rate_95_ci_pct: Array.isArray(boot.win_rate_95_ci_pct) ? boot.win_rate_95_ci_pct.join(' to ') : 'n/a',
+      positive_folds: `${wf.positive_test_folds || 0}/${wf.total_test_folds || 0}`,
+      pooled_expectancy_pct: wf.pooled_out_of_sample?.expectancy_pct || 0
+    });
+  });
+  const walkForwardTable = renderLabMiniRows(walkForwardRows, ['mode','fold','threshold','test_start','test_end','actionable','win_rate_pct','expectancy_pct'], {
+    mode:'Mode', fold:'Fold', threshold:'Chosen conf', test_start:'Test start', test_end:'Test end', actionable:'Signals', win_rate_pct:'OOS win %', expectancy_pct:'OOS expectancy %'
+  }, 100);
+  const bootstrapTable = renderLabMiniRows(bootstrapRows, ['mode','samples','positive_folds','pooled_expectancy_pct','expectancy_95_ci_pct','win_rate_95_ci_pct'], {
+    mode:'Mode', samples:'Bootstrap draws', positive_folds:'Positive folds', pooled_expectancy_pct:'Pooled OOS expectancy %', expectancy_95_ci_pct:'Expectancy 95% CI', win_rate_95_ci_pct:'Win-rate 95% CI'
+  }, 20);
+
+  const errors = Array.isArray(res.ticker_errors) && res.ticker_errors.length
+    ? `<div class="dev-lab-note">Ticker errors: ${res.ticker_errors.map(e => `${escapeHtml(e.ticker)}: ${escapeHtml(e.error)}`).join(' · ')}</div>` : '';
+  const cache = res.cache || {};
+  const testedEngines = Array.isArray(res?.params?.engine_modes) ? res.params.engine_modes.map(m => String(m).toUpperCase()).join(', ') : 'selected';
+  const counterLine = applyPatternLabCounterUpdate(res);
+  const promotion = res?.production_promotion || {};
+  const isolationText = promotion.automatic === false ? ' · Live weights unchanged' : '';
+  const cacheLine = `<div class="dev-lab-note">Engines tested: ${escapeHtml(testedEngines)} · Data source: ${escapeHtml(cache.data_source || res?.params?.data_source || 'unknown')} · Cache hits: ${cache.cache_hits ?? 0} · API fetches: ${cache.api_fetches ?? 0} · DB size: ${fmtNum(cache.db_size_mb || 0)} MB${escapeHtml(counterLine)}${escapeHtml(isolationText)}</div>`;
+
+  const terminalText = buildPatternLabTerminal(res);
+  out.innerHTML = `
+    ${terminalBlock('patternLabTerminalText', terminalText, 'ENGINE VS ENGINE RESULTS')}
+    <div class="dev-summary-grid">${cards || '<div class="dev-empty">No summary returned.</div>'}</div>
+    <table class="dev-lab-table">
+      <thead><tr><th>Mode</th><th>Tests</th><th>Actionable</th><th>Coverage</th><th>Win Rate</th><th>Avg Return</th><th>Avg MFE</th><th>Avg MAE</th><th>MFE/MAE</th><th>Target Hit</th><th>Stop Hit</th><th>Errors</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    ${cacheLine}
+    <div class="dev-lab-note">${escapeHtml(res.note || 'Educational approximate backtest only.')}</div>
+    ${errors}
+
+    <div class="dev-detail-grid">
+      ${renderLabSection('Purged walk-forward out-of-sample folds', walkForwardTable)}
+      ${renderLabSection('Cluster-bootstrap uncertainty', bootstrapTable)}
+      ${renderLabSection('Baselines: does Oryntra beat dumb guesses?', baselineRows)}
+      ${renderLabSection('Bullish vs bearish split', directionRows)}
+      ${renderLabSection('Confidence thresholds', thresholdRows)}
+      ${renderLabSection('Confidence buckets', confidenceRows)}
+      ${renderLabSection('Ticker-level results', tickerRows)}
+      ${renderLabSection('Pattern-level results', patternRows)}
+      ${renderLabSection('Market-regime results', regimeRows)}
+      ${renderLabSection('Bias and generalization gates', biasRows)}
+    </div>
+  `;
+}
+
+function renderLabSection(title, tableHtml) {
+  return `
+    <section class="dev-lab-section">
+      <h3>${escapeHtml(title)}</h3>
+      ${tableHtml || '<div class="dev-empty">No rows.</div>'}
+    </section>`;
+}
+
+function renderLabMiniRows(items, keys, labels, limit = 80) {
+  const rows = (Array.isArray(items) ? items : []).slice(0, limit);
+  if (!rows.length) return '';
+  const head = keys.map(k => `<th>${escapeHtml(labels[k] || k)}</th>`).join('');
+  const body = rows.map(r => `<tr>${keys.map(k => `<td>${formatLabCell(k, r[k])}</td>`).join('')}</tr>`).join('');
+  return `<div class="dev-lab-table-wrap"><table class="dev-lab-table compact"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>`;
+}
+
+function formatLabCell(key, value) {
+  if (value === undefined || value === null) return '—';
+  if (String(key).includes('pct') || String(key).includes('rate')) return `${fmtNum(value)}%`;
+  if (typeof value === 'number') return fmtNum(value);
+  return escapeHtml(String(value).toUpperCase());
+}
+
+
+async function loadTraining150Tickers() {
+  const input = document.getElementById('patternLabTickers');
+  const count = Number(document.getElementById('patternLabUniverseSize')?.value || 150);
+  const seed = Number(document.getElementById('patternLabSeed')?.value || 73021);
+  try {
+    const universe = await API.dev.patternLabUniverse(count, seed);
+    if (input) input.value = (universe.tickers || []).join(',');
+    const mode = document.getElementById('patternLabUniverseMode');
+    if (mode) mode.value = 'unseen150';
+    showCopyToast(`Generated ${universe.count || 0} tickers unused by the current cache.`);
+  } catch (err) {
+    showCopyToast(`Universe generation failed: ${err.message || String(err)}`);
+  }
+}
+
+function buildVAITrainingPayload() {
+  const tickers = (document.getElementById('patternLabTickers')?.value || DEFAULT_PATTERN_LAB_TICKERS.join(','))
+    .split(',').map(t => sanitizeTickerSymbol(t)).filter(Boolean).slice(0, 150);
+  return {
+    tickers,
+    period: document.getElementById('patternLabPeriod')?.value || '5y',
+    horizon_days: Number(document.getElementById('patternLabHorizon')?.value || 10),
+    step: Number(document.getElementById('patternLabStep')?.value || 8),
+    max_tests_per_ticker: Number(document.getElementById('patternLabMaxTests')?.value || 30),
+    data_source: document.getElementById('patternLabDataSource')?.value || 'cache_only',
+    min_samples: 80,
+    model_version: 'vai2',
+    force_promote: false,
+  };
+}
+
+async function trainVAIModel() {
+  const out = document.getElementById('vaiTrainingOutput');
+  if (currentVAITrainingJobId) {
+    showCopyToast(currentVAITrainingJobId === JOB_STARTING ? 'VAI 2.1 training is starting.' : 'VAI 2.1 training is already running.');
+    return;
+  }
+  const payload = buildVAITrainingPayload();
+  currentVAITrainingJobId = JOB_STARTING;
+  if (out) out.innerHTML = `<div class="dev-lab-loading">Starting VAI 2.1 training on ${payload.tickers.length} tickers...</div>`;
+  try {
+    const job = await API.dev.vaiTrainStart(payload);
+    const jobId = String(job?.job_id || '').trim();
+    if (!jobId) throw new Error('VAI 2.1 training did not return a job ID.');
+    currentVAITrainingJobId = jobId;
+    renderVAITrainingStatus(job);
+    pollVAITrainingJob(jobId);
+  } catch (err) {
+    currentVAITrainingJobId = null;
+    if (out) out.innerHTML = `<div class="dev-error">VAI training failed to start: ${escapeHtml(err.message || String(err))}</div>`;
+  }
+}
+
+async function pollVAITrainingJob(jobId) {
+  if (!jobId || currentVAITrainingJobId !== jobId) return;
+  const out = document.getElementById('vaiTrainingOutput');
+  try {
+    const job = await API.dev.vaiTrainStatus(jobId);
+    if (currentVAITrainingJobId !== jobId) return;
+    renderVAITrainingStatus(job);
+    if (job.status === 'queued' || job.status === 'running') {
+      setTimeout(() => pollVAITrainingJob(jobId), 3000);
+    } else {
+      currentVAITrainingJobId = null;
+    }
+  } catch (err) {
+    if (currentVAITrainingJobId !== jobId) return;
+    if (out) out.innerHTML = `<div class="dev-error">VAI training status check failed: ${escapeHtml(err.message || String(err))}. Retrying...</div>`;
+    setTimeout(() => pollVAITrainingJob(jobId), 5000);
+  }
+}
+
+function renderVAITrainingStatus(job) {
+  const out = document.getElementById('vaiTrainingOutput');
+  if (!out || !job) return;
+  const pct = Math.max(0, Math.min(100, Number(job.progress_pct || 0)));
+  if (job.status === 'done' || job.result) {
+    const result = job.result || {};
+    const terminal = result.terminal_output || JSON.stringify(result, null, 2);
+    out.innerHTML = `${terminalBlock('vaiTrainingTerminalText', terminal, 'VAI2.1 TRAINING OUTPUT')}
+      <div class="dev-cache-card">
+        <div class="dev-summary-title">VAI TRAINING: ${escapeHtml(String(job.status || '').toUpperCase())}</div>
+        <div class="dev-summary-metric"><span>Status</span><strong>${escapeHtml(String(result.status || job.status || 'unknown').toUpperCase())}</strong></div>
+        <div class="dev-summary-metric"><span>Samples</span><strong>${Number(result?.model_status?.samples || result?.training?.samples || 0).toLocaleString()}</strong></div>
+        <div class="dev-summary-metric"><span>Threshold</span><strong>${fmtNum(result?.model_status?.threshold || 0)}</strong></div>
+      </div>`;
+    return;
+  }
+  out.innerHTML = `<div class="dev-cache-card">
+    <div class="dev-summary-title">VAI TRAINING: ${escapeHtml(String(job.status || '').toUpperCase())}</div>
+    <div class="dev-summary-metric"><span>Progress</span><strong>${fmtNum(pct)}%</strong></div>
+    <div class="dev-summary-metric"><span>Phase</span><strong>${escapeHtml(job.phase || '—')}</strong></div>
+    <div class="dev-summary-metric"><span>Current</span><strong>${escapeHtml(job.current_ticker || '—')}</strong></div>
+    <div class="dev-lab-note">${escapeHtml(job.message || '')}</div>
+    <div class="dev-progress"><span style="width:${pct}%"></span></div>
+  </div>`;
+}
+
+async function showVAIModelStatus() {
+  const out = document.getElementById('vaiTrainingOutput');
+  if (out) out.innerHTML = '<div class="dev-lab-loading">Checking VAI model...</div>';
+  try {
+    const status = await API.dev.vaiModelStatus();
+    const terminal = `VAI 2.1 MODEL STATUS\n${'='.repeat(32)}\nTrained: ${status.trained}\nVersion: ${status.version || 'none'}\nCreated: ${status.created_at || 'none'}\nSamples: ${status.samples || 0}\nThreshold: ${status.threshold || 'n/a'}\nValidation: ${JSON.stringify(status.validation || {}, null, 2)}\n\nTop positive features:\n${(status.top_positive_features || []).map(x => '  + ' + x[0] + ': ' + fmtNum(x[1])).join('\n')}\n\nTop negative features:\n${(status.top_negative_features || []).map(x => '  - ' + x[0] + ': ' + fmtNum(x[1])).join('\n')}`;
+    if (out) out.innerHTML = terminalBlock('vaiTrainingTerminalText', terminal, 'VAI MODEL STATUS');
+  } catch (err) {
+    if (out) out.innerHTML = `<div class="dev-error">VAI status failed: ${escapeHtml(err.message || String(err))}</div>`;
+  }
+}
+
+async function warmPatternCache() {
+  const statusEl = document.getElementById('patternCacheStatus');
+  if (currentCacheWarmJobId) {
+    showCopyToast(currentCacheWarmJobId === JOB_STARTING ? 'Cache warming is starting.' : 'A cache warm job is already running.');
+    return;
+  }
+  currentCacheWarmJobId = JOB_STARTING;
+  if (statusEl) statusEl.innerHTML = '<div class="dev-lab-loading">Starting cache warm job...</div>';
+  try {
+    let tickers = (document.getElementById('patternLabTickers')?.value || '')
+      .split(',').map(t => sanitizeTickerSymbol(t)).filter(Boolean).slice(0, 150);
+    if (!tickers.length && (document.getElementById('patternLabUniverseMode')?.value || 'manual') !== 'manual') {
+      const count = Number(document.getElementById('patternLabUniverseSize')?.value || 150);
+      const seed = Number(document.getElementById('patternLabSeed')?.value || 73021);
+      const universe = await API.dev.patternLabUniverse(count, seed);
+      tickers = universe.tickers || [];
+      const input = document.getElementById('patternLabTickers');
+      if (input) input.value = tickers.join(',');
+    }
+    const period = document.getElementById('patternLabPeriod')?.value || '5y';
+    const delay_seconds = Number(document.getElementById('patternCacheDelay')?.value || 13);
+    const max_cache_gb = Number(document.getElementById('patternCacheMaxGb')?.value || 10);
+    const job = await API.dev.cacheWarmStart({tickers, period, delay_seconds, max_cache_gb});
+    const jobId = String(job?.job_id || '').trim();
+    if (!jobId) throw new Error('Cache warm did not return a job ID.');
+    currentCacheWarmJobId = jobId;
+    renderCacheWarmStatus(job);
+    pollCacheWarmJob(jobId);
+  } catch (err) {
+    currentCacheWarmJobId = null;
+    if (statusEl) statusEl.innerHTML = `<div class="dev-empty">Cache warm failed to start: ${escapeHtml(err.message || String(err))}</div>`;
+  }
+}
+
+async function pollCacheWarmJob(jobId) {
+  if (!jobId || currentCacheWarmJobId !== jobId) return;
+  try {
+    const job = await API.dev.cacheWarmStatus(jobId);
+    if (currentCacheWarmJobId !== jobId) return;
+    renderCacheWarmStatus(job);
+    if (job.status === 'queued' || job.status === 'running') {
+      setTimeout(() => pollCacheWarmJob(jobId), 2500);
+    } else {
+      currentCacheWarmJobId = null;
+    }
+  } catch (err) {
+    if (currentCacheWarmJobId !== jobId) return;
+    const statusEl = document.getElementById('patternCacheStatus');
+    if (statusEl) statusEl.innerHTML = `<div class="dev-empty">Cache status check failed: ${escapeHtml(String(err))}. Retrying...</div>`;
+    setTimeout(() => pollCacheWarmJob(jobId), 5000);
+  }
+}
+
+function renderCacheWarmStatus(job) {
+  const statusEl = document.getElementById('patternCacheStatus');
+  if (!statusEl || !job) return;
+  const total = Number(job.total || 0);
+  const completed = Number(job.completed || 0);
+  const pct = total ? Math.min(100, Math.round(completed / total * 100)) : 0;
+  const errors = Array.isArray(job.errors) && job.errors.length
+    ? `<div class="dev-lab-note">Recent errors: ${job.errors.slice(-4).map(e => `${escapeHtml(e.ticker || '')}: ${escapeHtml(e.error || '')}`).join(' · ')}</div>` : '';
+  const message = job.message
+    ? `<div class="dev-lab-note">${escapeHtml(job.message)}</div>` : '';
+  statusEl.innerHTML = `
+    <div class="dev-cache-card">
+      <div class="dev-summary-title">CACHE WARM: ${escapeHtml(String(job.status || '').toUpperCase())}</div>
+      <div class="dev-summary-metric"><span>Progress</span><strong>${completed}/${total} (${pct}%)</strong></div>
+      <div class="dev-summary-metric"><span>Stored bars</span><strong>${job.stored_bars || 0}</strong></div>
+      <div class="dev-summary-metric"><span>Current</span><strong>${escapeHtml(job.current_ticker || '—')}</strong></div>
+      <div class="dev-summary-metric"><span>DB size</span><strong>${fmtNum((job.db_size_bytes || 0) / 1024 / 1024)} MB</strong></div>
+      <div class="dev-progress"><span style="width:${pct}%"></span></div>
+      ${message}
+      ${errors}
+    </div>`;
+}
+
+async function showPatternCacheStatus() {
+  const statusEl = document.getElementById('patternCacheStatus');
+  const tickers = (document.getElementById('patternLabTickers')?.value || DEFAULT_PATTERN_LAB_TICKERS.join(','))
+    .split(',').map(t => sanitizeTickerSymbol(t)).filter(Boolean).slice(0, 150);
+  if (statusEl) statusEl.innerHTML = '<div class="dev-lab-loading">Checking local candle cache...</div>';
+  try {
+    const res = await API.dev.cacheStatus(tickers);
+    const rows = Array.isArray(res.rows) ? res.rows : [];
+    const preview = rows.slice(0, 12).map(r => `${escapeHtml(r.ticker)}:${r.bars}`).join(' · ');
+    const missing = Array.isArray(res.missing) ? res.missing : [];
+    if (statusEl) statusEl.innerHTML = `
+      <div class="dev-cache-card">
+        <div class="dev-summary-title">LOCAL OHLCV CACHE</div>
+        <div class="dev-summary-metric"><span>Cached tickers</span><strong>${res.tickers_cached || 0}/${res.tickers_requested || 0}</strong></div>
+        <div class="dev-summary-metric"><span>DB size</span><strong>${fmtNum(res.db_size_mb || 0)} MB</strong></div>
+        <div class="dev-lab-note">Preview bars: ${preview || 'No cached bars yet.'}</div>
+        <div class="dev-lab-note">Missing: ${missing.slice(0, 80).map(escapeHtml).join(', ') || 'none'}</div>
+      </div>`;
+  } catch (err) {
+    if (statusEl) statusEl.innerHTML = `<div class="dev-empty">Cache status failed: ${escapeHtml(String(err))}</div>`;
+  }
+}
+
+function fmtNum(v) {
+  const n = Number(v);
+  return Number.isFinite(n) ? n.toFixed(2) : '0.00';
+}
+
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>'"]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#039;','"':'&quot;'}[ch]));
+}
+
+async function loadWatchlist() {
+  const container = document.getElementById('watchlistContainer');
+  try {
+    const items = await API.watchlist.get();
+    if (!items.length) {
+      container.innerHTML = '<div class="wl-empty">No tickers in watchlist. Add some above.</div>';
+      return;
+    }
+    container.innerHTML = items.map(item => `
+      <div class="wl-card">
+        <span class="wl-ticker">${escHtml(item.ticker)}</span>
+        <div class="wl-actions">
+          <button class="wl-scan-btn" type="button" onclick="scanFromWatchlist('${escHtml(item.ticker)}')">SCAN</button>
+          <button class="wl-del-btn" type="button" aria-label="Remove ${escHtml(item.ticker)} from watchlist" onclick="removeFromWatchlist('${escHtml(item.ticker)}')">✕</button>
+        </div>
+      </div>
+    `).join('');
+  } catch (e) {
+    container.innerHTML = '<div class="wl-empty">Failed to load watchlist.</div>';
+  }
+}
+
+function initWatchlist() {
+  document.getElementById('wlAddBtn').addEventListener('click', async () => {
+    const ticker = document.getElementById('wlInput').value.trim().toUpperCase();
+    if (ticker) {
+      await addToWatchlist(ticker);
+      document.getElementById('wlInput').value = '';
+      loadWatchlist();
+    }
+  });
+
+  document.getElementById('wlInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') document.getElementById('wlAddBtn').click();
+  });
+
+  document.getElementById('wlScanAllBtn').addEventListener('click', scanAllWatchlist);
+}
+
+async function addToWatchlist(ticker) {
+  await API.watchlist.add(ticker);
+}
+
+window.removeFromWatchlist = async function(ticker) {
+  await API.watchlist.remove(ticker);
+  loadWatchlist();
+};
+
+window.scanFromWatchlist = function(ticker) {
+  document.getElementById('tickerInput').value = ticker;
+  document.querySelector('[data-tab="scanner"]').click();
+  runScan();
+};
+
+async function scanAllWatchlist() {
+  const items = await API.watchlist.get();
+  if (!items.length) return;
+
+  const btn = document.getElementById('wlScanAllBtn');
+  btn.textContent = '⟳ SCANNING...';
+  btn.disabled    = true;
+
+  try {
+    const tickers = items.map(i => i.ticker);
+    const result  = await API.scanMultiple(tickers);
+    renderScannerResults(result.results);
+  } finally {
+    btn.textContent = '⬡ SCAN ALL';
+    btn.disabled    = false;
+  }
+}
+
+function renderScannerResults(results) {
+  const container = document.getElementById('scannerResults');
+  const grid      = document.getElementById('scannerResultsGrid');
+  container.style.display = '';
+
+  if (!results.length) {
+    grid.innerHTML = '<div style="color:var(--text-dim);padding:20px;">No results.</div>';
+    return;
+  }
+
+  grid.innerHTML = results.map(d => {
+    const tp    = d.trade_plan || {};
+    const setup = d.setup || {};
+    const color = tp.direction === 'LONG' ? 'var(--bull)' : tp.direction === 'SHORT' ? 'var(--bear)' : 'var(--neutral)';
+    return `
+      <button class="scanner-result-card" type="button" onclick="scanFromWatchlist('${d.ticker}')">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;">
+          <span class="src-ticker">${d.ticker}</span>
+          <span class="src-price">${fmt$(d.price)}</span>
+        </div>
+        <div class="src-setup" style="color:${color}">
+          ${(setup.setup_type||'—').replace(/_/g,' ')} — ${tp.direction || 'NEUTRAL'}
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;">
+          <span class="src-score">Score: ${(tp.quality_score||0).toFixed(0)} | ${tp.quality_grade||'—'}</span>
+          <span style="font-size:11px;color:var(--text-dim)">R:R ${tp.risk_reward ? tp.risk_reward.toFixed(1)+':1' : '—'}</span>
+        </div>
+      </button>`;
+  }).join('');
+}
+
+function initPaperTrades() {}
+
+function paperCacheKey() {
+  return `oryntra_paper_cache_${currentUser && currentUser.id ? currentUser.id : 'guest'}`;
+}
+
+function storePaperCache(trades, stats) {
+  try {
+    const compactTrades = (trades || []).slice(0, 100).map(t => ({
+      id: t.id, ticker: t.ticker, direction: t.direction,
+      entry_price: t.entry_price, stop_price: t.stop_price, target_price: t.target_price,
+      size: t.size, status: t.status, opened_at: t.opened_at, closed_at: t.closed_at,
+      close_price: t.close_price, pnl: t.pnl, pnl_pct: t.pnl_pct,
+      setup_type: t.setup_type, quality_score: t.quality_score,
+      notes: (t.notes || '').slice(0, 160)
+    }));
+    localStorage.setItem(paperCacheKey(), JSON.stringify({ trades: compactTrades, stats: stats || {}, saved_at: Date.now() }));
+  } catch (_) {}
+}
+
+function loadPaperCache() {
+  try {
+    const raw = localStorage.getItem(paperCacheKey());
+    return raw ? JSON.parse(raw) : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+async function loadPaperTrades() {
+  try {
+    if (!currentUser) await refreshAuthState();
+    const [trades, stats] = await Promise.all([API.paper.getAll(), API.paper.stats()]);
+    storePaperCache(trades, stats);
+    renderPaperStats(stats);
+    renderPaperGrid(trades);
+  } catch (e) {
+    console.error('Paper trades load error:', e);
+    const cached = loadPaperCache();
+    if (cached && Array.isArray(cached.trades)) {
+      renderPaperStats(cached.stats || {});
+      renderPaperGrid(cached.trades);
+      const grid = document.getElementById('paperTradesGrid');
+      if (grid) grid.insertAdjacentHTML('afterbegin', '<div class="pt-empty">Showing cached paper trades. Sign in again if this does not update.</div>');
+      return;
+    }
+    const grid = document.getElementById('paperTradesGrid');
+    const stats = document.getElementById('paperStats');
+    if (stats) stats.innerHTML = '';
+    if (grid) grid.innerHTML = '<div class="pt-empty">Sign in to save and view your paper trades.</div>';
+  }
+}
+
+function renderPaperStats(stats) {
+  const container = document.getElementById('paperStats');
+  const chips = [
+    { label: 'TOTAL TRADES', val: stats.total_trades || 0, color: 'var(--text-primary)' },
+    { label: 'WIN RATE',     val: `${(stats.win_rate||0).toFixed(1)}%`, color: stats.win_rate >= 50 ? 'var(--bull)' : 'var(--bear)' },
+    { label: 'TOTAL P&L',    val: fmtPnl(stats.total_pnl || 0), color: (stats.total_pnl||0) >= 0 ? 'var(--bull)' : 'var(--bear)' },
+    { label: 'EXPECTANCY',   val: fmtPnl(stats.expectancy || 0), color: (stats.expectancy||0) >= 0 ? 'var(--bull)' : 'var(--bear)' },
+  ];
+  container.innerHTML = chips.map(c => `
+    <div class="stat-chip">
+      <div class="stat-chip-label">${c.label}</div>
+      <div class="stat-chip-val" style="color:${c.color}">${c.val}</div>
+    </div>`).join('');
+}
+
+
+function fmtPct(val) {
+  if (val == null || isNaN(Number(val))) return '—';
+  const n = Number(val);
+  return `${n >= 0 ? '+' : ''}${n.toFixed(2)}%`;
+}
+
+function fmtTradeDate(value) {
+  if (!value) return '—';
+  const d = new Date(String(value).replace(' ', 'T'));
+  if (isNaN(d.getTime())) return String(value).substring(0, 16);
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function buildTradeSparkline(points, fallbackValues = []) {
+  let vals = [];
+  if (Array.isArray(points)) vals = points.map(p => Number(p.close)).filter(Number.isFinite);
+  if (vals.length < 2) vals = fallbackValues.map(Number).filter(Number.isFinite);
+  if (vals.length < 2) return '<div class="pt-spark-empty">NO CHART</div>';
+
+  const w = 164;
+  const h = 46;
+  const min = Math.min(...vals);
+  const max = Math.max(...vals);
+  const span = Math.max(max - min, 0.0001);
+  const coords = vals.map((v, i) => {
+    const x = vals.length === 1 ? w / 2 : (i / (vals.length - 1)) * w;
+    const y = h - ((v - min) / span) * h;
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(' ');
+  const lastUp = vals[vals.length - 1] >= vals[0];
+  const cls = lastUp ? 'up' : 'down';
+  return `<svg class="pt-sparkline ${cls}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true">
+    <polyline points="${coords}" fill="none" stroke="currentColor" stroke-width="2" vector-effect="non-scaling-stroke" />
+  </svg>`;
+}
+
+
+function renderPaperGrid(trades) {
+  const grid = document.getElementById('paperTradesGrid');
+  if (!trades.length) {
+    grid.innerHTML = '<div class="pt-empty">No paper trades yet. Scan a ticker and click "Paper Trade This".</div>';
+    return;
+  }
+  grid.innerHTML = trades.map(t => {
+    const isOpen  = t.status === 'OPEN';
+    const currentPrice = t.current_price ?? t.close_price ?? null;
+    const livePnl = t.current_pnl ?? t.pnl ?? 0;
+    const livePnlPct = t.current_pnl_pct ?? t.pnl_pct ?? 0;
+    const pnl     = t.pnl || 0;
+    const pnlPct  = t.pnl_pct || 0;
+    const pnlClass = (isOpen ? livePnl : pnl) >= 0 ? 'win' : 'loss';
+    const dirClass = t.direction === 'LONG' ? 'long' : 'short';
+    const spark = buildTradeSparkline(t.mini_history, [t.entry_price, currentPrice, t.target_price]);
+    return `
+      <div class="pt-card pt-card-expanded">
+        <div class="pt-id-block">
+          <div class="pt-ticker">${escHtml(t.ticker)}</div>
+          <div class="pt-dir ${dirClass}">${escHtml(t.direction || '')}</div>
+          <div class="pt-setup-label">${escHtml(t.setup_type || '')}</div>
+        </div>
+
+        <div class="pt-info pt-trade-levels">
+          <div><span>Entry</span>${fmt$(t.entry_price)}</div>
+          <div><span>Stop</span>${fmt$(t.stop_price)}</div>
+          <div><span>Target</span>${fmt$(t.target_price)}</div>
+        </div>
+
+        <div class="pt-info pt-trade-meta">
+          <div><span>Date Purchased</span>${fmtTradeDate(t.opened_at)}</div>
+          <div><span>Current Stock Price</span>${fmt$(currentPrice)}</div>
+          <div><span>Data Source</span>${escHtml(t.snapshot_source || 'cached')}</div>
+        </div>
+
+        <div class="pt-mini-chart-wrap">
+          <div class="pt-mini-chart-head">
+            <span>MINI CHART</span>
+            <span>${t.current_price_at ? escHtml(String(t.current_price_at).substring(0, 10)) : ''}</span>
+          </div>
+          ${spark}
+        </div>
+
+        <div class="pt-info pt-notes-block">
+          <div><span>Notes</span>${escHtml(t.notes || '') || '—'}</div>
+          ${t.status !== 'OPEN' ? `<div><span>Closed</span>${fmtTradeDate(t.closed_at)} @ ${fmt$(t.close_price)}</div>` : ''}
+        </div>
+
+        <div class="pt-pnl ${isOpen ? pnlClass : pnlClass}">
+          ${isOpen
+            ? `<div class="pnl-val">${fmtPnl(livePnl)}</div>
+               <div class="pnl-pct">${fmtPct(livePnlPct)}</div>
+               <div class="pt-status-line">OPEN · Size $${Number(t.size || 0).toLocaleString()}</div>
+               <button class="pt-close-btn" type="button" onclick="closePaperTrade(${t.id}, ${t.ticker ? `'${escHtml(t.ticker)}'` : null})">CLOSE</button>`
+            : `<div class="pnl-val">${pnl >= 0 ? '+' : ''}$${Math.abs(pnl).toFixed(2)}</div>
+               <div class="pnl-pct">${pnlPct >= 0 ? '+' : ''}${pnlPct.toFixed(2)}%</div>
+               <div class="pt-status-line">${escHtml(t.status || 'CLOSED')}</div>`
+          }
+        </div>
+      </div>`;
+  }).join('');
+}
+
+
+window.closePaperTrade = async function(tradeId, ticker) {
+  const price = prompt(`Close price for trade #${tradeId}${ticker ? ` (${ticker})` : ''}:`);
+  if (!price || isNaN(parseFloat(price))) return;
+  try {
+    const result = await API.paper.close({trade_id: tradeId, close_price: parseFloat(price)});
+    alert(`Trade closed: ${result.outcome} | P&L: ${result.pnl >= 0 ? '+' : ''}$${result.pnl.toFixed(2)} (${result.pnl_pct.toFixed(2)}%)`);
+    loadPaperTrades();
+  } catch (e) {
+    alert('Failed to close trade.');
+  }
+};
+
+function initModal() {
+  document.getElementById('modalCancel').addEventListener('click', closeModal);
+  document.getElementById('modalConfirm').addEventListener('click', confirmPaperTrade);
+  document.getElementById('paperModal').addEventListener('click', e => {
+    if (e.target === document.getElementById('paperModal')) closeModal();
+  });
+}
+
+function openPaperModal(analysis) {
+  if (!currentUser) {
+    openAuthModal('login');
+    showError('Sign in to save paper trades to your account.');
+    return;
+  }
+  const tp  = analysis.trade_plan || {};
+  const dir = tp.direction || 'LONG';
+  document.getElementById('modalTicker').textContent = analysis.ticker;
+  document.getElementById('modalDir').value          = dir;
+  document.getElementById('modalEntry').value        = tp.entry_ideal || analysis.price || '';
+  document.getElementById('modalStop').value         = tp.stop  || '';
+  document.getElementById('modalTarget').value       = tp.target || '';
+  document.getElementById('modalNotes').value        = `${(analysis.setup||{}).setup_type||''} — Score: ${(tp.quality_score||0).toFixed(0)}`;
+  openAccessibleDialog(document.getElementById('paperModal'), document.getElementById('modalDir'));
+}
+
+function closeModal() {
+  closeAccessibleDialog(document.getElementById('paperModal'));
+}
+
+async function confirmPaperTrade() {
+  const ticker  = document.getElementById('modalTicker').textContent;
+  const setup   = currentAnalysis ? (currentAnalysis.setup || {}) : {};
+  const tp      = currentAnalysis ? (currentAnalysis.trade_plan || {}) : {};
+
+  const data = {
+    ticker:        ticker,
+    direction:     document.getElementById('modalDir').value,
+    entry_price:   parseFloat(document.getElementById('modalEntry').value),
+    stop_price:    parseFloat(document.getElementById('modalStop').value),
+    target_price:  parseFloat(document.getElementById('modalTarget').value),
+    size:          parseFloat(document.getElementById('modalSize').value) || 1000,
+    notes:         document.getElementById('modalNotes').value,
+    setup_type:    setup.setup_type || null,
+    quality_score: tp.quality_score || null,
+  };
+
+  if (!data.entry_price || !data.stop_price || !data.target_price) {
+    alert('Please fill in all price fields.');
+    return;
+  }
+
+  try {
+    await API.paper.open(data);
+    closeModal();
+    alert(`Paper trade opened: ${data.direction} ${ticker} @ $${data.entry_price}`);
+    loadPaperTrades().catch(() => {});
+  } catch (e) {
+    alert('Failed to open paper trade.');
+  }
+}
+
+
+function renderMARow(id, name, maPrice, price) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  if (!maPrice) { el.innerHTML = `<span class="ma-name">${name}</span><span>—</span>`; return; }
+  const above  = price > maPrice;
+  const distPct = ((price - maPrice) / maPrice * 100).toFixed(2);
+  el.className = `ma-row ${above ? 'above' : 'below'}`;
+  el.innerHTML = `
+    <span class="ma-name">${name}</span>
+    <span class="ma-price">${fmt$(maPrice)}</span>
+    <span class="ma-dist ${above ? 'dist-up' : 'dist-down'}">${distPct > 0 ? '+' : ''}${distPct}%</span>`;
+}
+
+function renderGauge(id, val, min=0, max=100) {
+  const el = document.getElementById(id);
+  if (!el || val == null) return;
+  const pct     = Math.max(0, Math.min(100, (val - min) / (max - min) * 100));
+  const color   = pct >= 80 ? 'var(--bear)' : pct <= 20 ? 'var(--bull)' : 'var(--neutral)';
+  el.style.background = `linear-gradient(to right, ${color} ${pct}%, var(--bg-elevated) ${pct}%)`;
+  el.style.position = 'relative';
+  const existing = el.querySelector('.gauge-needle');
+  const needle   = existing || document.createElement('div');
+  needle.className     = 'gauge-needle';
+  needle.style.cssText = `position:absolute;top:-3px;left:${pct}%;width:10px;height:10px;border-radius:50%;background:${color};border:2px solid var(--bg-card);transform:translateX(-50%);transition:left 0.5s ease;`;
+  if (!existing) el.appendChild(needle);
+}
+
+function renderOscSignal(id, text, cssClass) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = text;
+  el.className   = `osc-signal ${cssClass}`;
+}
+
+function renderPred(horizon, pred) {
+  if (!pred) return;
+  const pct    = pred.expected_pct || 0;
+  const signal = pred.signal || 'HOLD';
+  const conf   = pred.confidence || 0;
+
+  const pctEl  = document.getElementById(`pred${horizon}`);
+  const sigEl  = document.getElementById(`predSig${horizon}`);
+  const confEl = document.getElementById(`predConf${horizon}`);
+
+  if (!pctEl) return;
+
+  pctEl.textContent  = `${pct > 0 ? '+' : ''}${pct.toFixed(1)}%`;
+  pctEl.style.color  = signal.includes('BUY') ? 'var(--bull)' : signal.includes('SELL') ? 'var(--bear)' : 'var(--text-secondary)';
+
+  const signalDisplay = {
+    'STRONG_BUY':  '▲▲ STRONG BUY',
+    'BUY':         '▲ BUY',
+    'HOLD':        '◆ HOLD',
+    'SELL':        '▼ SELL',
+    'STRONG_SELL': '▼▼ STRONG SELL',
+  }[signal] || signal;
+
+  const signalClass = {
+    'STRONG_BUY':  'strong-buy',
+    'BUY':         'buy',
+    'HOLD':        'hold',
+    'SELL':        'sell',
+    'STRONG_SELL': 'strong-sell',
+  }[signal] || 'hold';
+
+  sigEl.textContent  = signalDisplay;
+  sigEl.className    = `pred-signal ${signalClass}`;
+  sigEl.style.padding      = '2px 7px';
+  sigEl.style.borderRadius = '3px';
+  sigEl.style.fontSize     = '9px';
+  sigEl.style.letterSpacing = '0.08em';
+  sigEl.style.display      = 'inline-block';
+
+  if (confEl) confEl.textContent = conf ? `${conf}% conf.` : '';
+}
+
+function renderMomentumBars(data) {
+  const container = document.getElementById('momentumBars');
+  if (!container) return;
+  container.innerHTML = Object.entries(data).map(([label, val]) => {
+    if (val == null) return '';
+    const color   = val >= 0 ? 'var(--bull)' : 'var(--bear)';
+    const barW    = Math.min(Math.abs(val) * 2, 100);
+    return `
+      <div class="momentum-bar-item">
+        <span class="mom-label">${label}</span>
+        <div class="mom-bar-wrap">
+          <div class="mom-bar" style="width:${barW}%;background:${color};"></div>
+        </div>
+        <span class="mom-pct" style="color:${color}">${val >= 0 ? '+' : ''}${val.toFixed(1)}%</span>
+      </div>`;
+  }).join('');
+}
+
+
+function rsiSignalText(rsi) {
+  if (!rsi) return '—';
+  if (rsi >= 70) return 'OVERBOUGHT';
+  if (rsi <= 30) return 'OVERSOLD';
+  if (rsi >= 55) return 'BULLISH';
+  if (rsi <= 45) return 'BEARISH';
+  return 'NEUTRAL';
+}
+
+function rsiSignalClass(rsi) {
+  if (!rsi) return 'neutral';
+  if (rsi >= 70) return 'bear';
+  if (rsi <= 30) return 'bull';
+  if (rsi >= 55) return 'bull';
+  if (rsi <= 45) return 'bear';
+  return 'neutral';
+}
+
+function oscClass(signal) {
+  if (!signal) return 'neutral';
+  const s = signal.toUpperCase();
+  if (s.includes('BULL') || s.includes('BUY')  || s.includes('OVER') && s.includes('SOLD')) return 'bull';
+  if (s.includes('BEAR') || s.includes('SELL') || s.includes('OVER') && s.includes('BOUGHT')) return 'bear';
+  return 'neutral';
+}
+
+function bbSignalText(pct) {
+  if (pct == null) return '—';
+  if (pct >= 90)  return 'UPPER BAND';
+  if (pct <= 10)  return 'LOWER BAND';
+  if (pct >= 60)  return 'UPPER HALF';
+  if (pct <= 40)  return 'LOWER HALF';
+  return 'MIDPOINT';
+}
+
+function bbSignalClass(pct) {
+  if (pct == null) return 'neutral';
+  if (pct >= 90)  return 'bear';
+  if (pct <= 10)  return 'bull';
+  return 'neutral';
+}
+
+function macdClass(cross) {
+  if (!cross) return 'neutral';
+  if (cross.includes('BULL')) return 'bull';
+  if (cross.includes('BEAR')) return 'bear';
+  return 'neutral';
+}
+
+function setupColorMap(type, direction) {
+  const map = {
+    BREAKOUT:           'var(--accent-primary)',
+    PULLBACK:           'var(--bull)',
+    TREND_CONTINUATION: 'var(--accent-cyan)',
+    REVERSAL_ATTEMPT:   'var(--accent-purple)',
+    OVEREXTENDED:       'var(--bear)',
+    NO_TRADE:           'var(--text-dim)',
+  };
+  return map[type] || 'var(--text-primary)';
+}
+
+
+function fmt$(val) {
+  if (val == null || val === 0) return '—';
+  return `$${Number(val).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})}`;
+}
+
+function fmtVol(val) {
+  if (!val) return '—';
+  if (val >= 1e9)  return `${(val/1e9).toFixed(2)}B`;
+  if (val >= 1e6)  return `${(val/1e6).toFixed(2)}M`;
+  if (val >= 1e3)  return `${(val/1e3).toFixed(1)}K`;
+  return val.toLocaleString();
+}
+
+function fmtPnl(val) {
+  const sign = val >= 0 ? '+' : '';
+  return `${sign}$${Math.abs(val).toFixed(2)}`;
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function setText(id, val) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = val ?? '—';
+}
+
+
+function showLoading(show) {
+  document.getElementById('loadingScreen').style.display = show ? 'flex' : 'none';
+}
+
+function hideResults() {
+  document.getElementById('resultsGrid').style.display = 'none';
+  const homeCounter = document.getElementById('homeSearchCounter');
+  if (homeCounter) homeCounter.style.display = '';
+  const welcome = document.getElementById('welcomeState');
+  if (welcome) welcome.style.display = '';
+  const bioBanner = document.getElementById('bioBanner');
+  if (bioBanner) bioBanner.classList.remove('bio-hidden');
+  const bioFooter = document.getElementById('bioFooter');
+  if (bioFooter) bioFooter.style.display = 'none';
+}
+
+function showResults() {
+  document.getElementById('resultsGrid').style.display = 'grid';
+  const homeCounter = document.getElementById('homeSearchCounter');
+  if (homeCounter) homeCounter.style.display = 'none';
+  const welcome = document.getElementById('welcomeState');
+  if (welcome) welcome.style.display = 'none';
+  const bioBanner = document.getElementById('bioBanner');
+  if (bioBanner) bioBanner.classList.add('bio-hidden');
+  const bioFooter = document.getElementById('bioFooter');
+  if (bioFooter) bioFooter.style.display = '';
+}
+
+function showError(msg) {
+  const banner = document.getElementById('errorBanner');
+  document.getElementById('errorText').textContent = msg;
+  banner.style.display = 'flex';
+}
+
+function hideError() {
+  document.getElementById('errorBanner').style.display = 'none';
+}
+
+let loadingStepIndex = 0;
+let loadingInterval  = null;
+function animateLoadingSteps() {
+  const steps = document.querySelectorAll('.l-step');
+  steps.forEach(s => s.className = 'l-step');
+  loadingStepIndex = 0;
+  clearInterval(loadingInterval);
+  loadingInterval = setInterval(() => {
+    if (loadingStepIndex < steps.length) {
+      if (loadingStepIndex > 0) steps[loadingStepIndex - 1].className = 'l-step done';
+      steps[loadingStepIndex].className = 'l-step active';
+      loadingStepIndex++;
+    } else {
+      clearInterval(loadingInterval);
+    }
+  }, 600);
+}
+
+
+document.addEventListener('DOMContentLoaded', () => {
+  initAuth();
+  const btRunBtn = document.getElementById('btRunBtn');
+  if (btRunBtn) {
+    btRunBtn.addEventListener('click', runBacktest);
+    document.getElementById('btTicker').addEventListener('keydown', e => {
+      if (e.key === 'Enter') runBacktest();
+    });
+  }
+});
+
+async function runBacktest() {
+  const ticker   = (document.getElementById('btTicker').value || '').trim().toUpperCase();
+  const period   = document.getElementById('btPeriod').value;
+  const minScore = parseFloat(document.getElementById('btMinScore').value) || 55;
+  const setupFil = document.getElementById('btSetup').value;
+
+  if (!ticker) { alert('Enter a ticker first.'); return; }
+
+  const btn = document.getElementById('btRunBtn');
+  btn.disabled    = true;
+  btn.textContent = '⟳ RUNNING...';
+  document.getElementById('btLoading').style.display  = 'flex';
+  document.getElementById('btResults').style.display  = 'none';
+
+  try {
+    const res = await apiFetch('/api/backtest/run', {
+      method:  'POST',
+      headers: {'Content-Type':'application/json'},
+      body:    JSON.stringify({
+        ticker,
+        period,
+        min_score:  minScore,
+        setups:     setupFil ? [setupFil] : [],
+      }),
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.detail || 'Backtest failed');
+    }
+    const data = await res.json();
+    renderBacktestResults(data);
+    document.getElementById('btResults').style.display = 'block';
+  } catch (e) {
+    alert(`Backtest error: ${e.message}`);
+  } finally {
+    document.getElementById('btLoading').style.display = 'none';
+    btn.disabled    = false;
+    btn.innerHTML   = '<span class="btn-icon">⬡</span> RUN BACKTEST';
+  }
+}
+
+function renderBacktestResults(data) {
+  const stats = data.stats || {};
+  const trades = data.trades || [];
+
+  const statCards = [
+    { label: 'TOTAL TRADES',    val: stats.total || 0,    color: 'var(--text-primary)', sub: `over ${data.candles_tested} days` },
+    { label: 'WIN RATE',        val: `${(stats.win_rate||0).toFixed(1)}%`, color: stats.win_rate >= 50 ? 'var(--bull)' : 'var(--bear)', sub: `${stats.wins}W / ${stats.losses}L` },
+    { label: 'AVG WIN',         val: `+${(stats.avg_win_pct||0).toFixed(2)}%`,  color: 'var(--bull)', sub: `max: +${(stats.max_win_pct||0).toFixed(2)}%` },
+    { label: 'AVG LOSS',        val: `${(stats.avg_loss_pct||0).toFixed(2)}%`, color: 'var(--bear)', sub: `max: ${(stats.max_loss_pct||0).toFixed(2)}%` },
+    { label: 'EXPECTANCY',      val: `${stats.expectancy >= 0 ? '+' : ''}${(stats.expectancy||0).toFixed(2)}%`, color: (stats.expectancy||0) >= 0 ? 'var(--bull)' : 'var(--bear)', sub: 'per trade avg' },
+    { label: 'PROFIT FACTOR',   val: (stats.profit_factor||0).toFixed(2), color: (stats.profit_factor||1) >= 1.5 ? 'var(--bull)' : (stats.profit_factor||1) >= 1 ? 'var(--neutral)' : 'var(--bear)', sub: '>1.5 = edge' },
+    { label: 'MIN SCORE USED',  val: data.min_score_used || '—', color: 'var(--accent-primary)', sub: 'quality threshold' },
+    { label: 'AVG HOLD',        val: `${(stats.avg_hold_candles||0).toFixed(1)}d`, color: 'var(--text-primary)', sub: 'trading days' },
+  ];
+
+  document.getElementById('btStatsGrid').innerHTML = statCards.map(c => `
+    <div class="bt-stat-card">
+      <div class="bt-stat-label">${c.label}</div>
+      <div class="bt-stat-val" style="color:${c.color}">${c.val}</div>
+      <div class="bt-stat-sub">${c.sub}</div>
+    </div>`).join('');
+
+  const breakdown = stats.setup_breakdown || {};
+  const bdGrid    = document.getElementById('btSetupBreakdown');
+  if (Object.keys(breakdown).length) {
+    bdGrid.innerHTML = Object.entries(breakdown)
+      .sort(([,a],[,b]) => b.total - a.total)
+      .map(([name, v]) => `
+        <div class="bt-breakdown-row">
+          <span class="bt-breakdown-name">${name.replace(/_/g,' ')}</span>
+          <div class="bt-breakdown-stats">
+            <div style="color:${v.win_rate >= 50 ? 'var(--bull)' : 'var(--bear)'};">${v.win_rate}% WR</div>
+            <div style="color:var(--text-dim);font-size:10px;">${v.wins}/${v.total} trades</div>
+          </div>
+        </div>`).join('');
+  } else {
+    bdGrid.innerHTML = '<div style="color:var(--text-dim);padding:10px;">No data.</div>';
+  }
+
+  const exits  = stats.by_exit_reason || {};
+  const colors = { TARGET_HIT: 'var(--bull)', STOP_HIT: 'var(--bear)', TIME_EXIT: 'var(--neutral)', END_OF_DATA: 'var(--text-dim)' };
+  document.getElementById('btExitReasons').innerHTML = Object.entries(exits).map(([reason, count]) => `
+    <div class="bt-exit-item">
+      <div class="bt-exit-reason">${reason.replace(/_/g,' ')}</div>
+      <div class="bt-exit-count" style="color:${colors[reason]||'var(--text-primary)'}">${count}</div>
+    </div>`).join('');
+
+  document.getElementById('btTradeCount').textContent = `${trades.length} trades`;
+  const logEl = document.getElementById('btTradeLog');
+  logEl.innerHTML = `
+    <div class="bt-trade-header">
+      <span>DATE IN</span><span>SETUP</span><span>DIR</span>
+      <span>ENTRY</span><span>STOP</span><span>TARGET</span><span>PNL%</span><span>EXIT</span>
+    </div>` + trades.map(t => {
+      const pnl   = t.pnl_pct || 0;
+      const color = pnl >= 0 ? 'var(--bull)' : 'var(--bear)';
+      return `
+        <div class="bt-trade-row ${t.winner ? 'win' : 'loss'}">
+          <span class="bt-col-dim">${t.date_in || '—'}</span>
+          <span style="font-size:10px;">${(t.setup_type||'—').replace(/_/g,' ')}</span>
+          <span style="color:${t.direction==='LONG'?'var(--bull)':'var(--bear)'}">${t.direction}</span>
+          <span>${fmt$(t.entry)}</span>
+          <span style="color:var(--bear)">${fmt$(t.stop)}</span>
+          <span style="color:var(--bull)">${fmt$(t.target)}</span>
+          <span style="color:${color};font-weight:700;">${pnl >= 0 ? '+' : ''}${pnl.toFixed(2)}%</span>
+          <span class="bt-col-dim" style="font-size:10px;">${(t.exit_reason||'—').replace(/_/g,' ')}</span>
+        </div>`;
+    }).join('');
+}
+
+document.addEventListener('DOMContentLoaded', () => { const b=document.getElementById('syncBetaCounterBtn'); if (b) b.addEventListener('click', syncDocumentedBetaCounter); });
