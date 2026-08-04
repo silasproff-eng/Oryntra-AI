@@ -1,137 +1,282 @@
 <div align="center">
-  <img src="brand-assets/oryntra-ai-master-logo.png" alt="Oryntra AI" width="520">
 
-  # Oryntra AI
+<img src="brand-assets/oryntra-ai-master-logo.png" width="500">
 
-  FastAPI and Flutter market-analysis platform with server-side data processing and TradingView-hosted charts.
+# Oryntra AI
+
+### Quantitative Market Intelligence Platform
+
+*A research platform for technical market analysis, quantitative signal generation, statistical pattern recognition, and AI-assisted trade interpretation.*
+
 </div>
 
-## Status
+---
 
-This repository is a development build. It is configured for private research by default.
+## Overview
 
-The backend can process market data, calculate indicators, detect patterns, rank setups, and return a reduced analysis payload. Raw candle history stays on the server. TradingView supplies the chart independently.
+Oryntra AI is a modular quantitative market research platform designed to transform historical market data into structured technical intelligence.
 
-Public or paid analysis must remain disabled until the market-data provider has approved the intended commercial and end-user use in writing.
+The system combines deterministic technical-analysis algorithms, statistical pattern-recognition pipelines, and machine-learning assisted interpretation to produce explainable market research rather than automated trading signals.
 
-## Main features
+The platform is intentionally architected as independent services to separate market-data ingestion, indicator computation, pattern detection, AI reasoning, persistence, and client presentation.
 
-- FastAPI backend
-- Browser dashboard
-- Flutter and iOS client
-- TradingView embedded chart
-- RSI, EMA, SMA, MACD, stochastic, Bollinger Bands, ATR, ADX, VWAP, and momentum analysis
-- Candlestick and chart-pattern detection
-- Fair-value-gap and liquidity-sweep detection
-- Market-structure analysis
-- Setup scoring and trade-plan generation
-- Watchlists and paper-trading records
-- Backtesting and Pattern Lab research tools
-- Per-user analysis quotas
-- Server-side response filtering
+---
 
-## Repository layout
+# High-Level Architecture
 
-```text
-brand-assets/   logos and app artwork
-ios-app/        Flutter and iOS project
-server/         FastAPI backend, browser client, tests, and research tools
+```
+                    Data Provider
+                         │
+                         ▼
+             Market Data Ingestion Layer
+                         │
+                         ▼
+               Data Validation Pipeline
+                         │
+                         ▼
+            Technical Indicator Engine
+                         │
+                         ▼
+              Pattern Recognition Layer
+                         │
+                         ▼
+              Quantitative Scoring Engine
+                         │
+                         ▼
+             AI Interpretation Pipeline
+                         │
+                         ▼
+           REST API / Mobile Application
 ```
 
-## Local setup
+Each layer has a single responsibility and can be replaced independently without affecting downstream systems.
 
-### Server
+---
 
-```bash
-cd server
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env
-python run.py
+# System Components
+
+## Backend
+
+Python
+
+FastAPI
+
+SQLite
+
+Asynchronous task execution
+
+REST architecture
+
+Repository pattern
+
+Dependency injection
+
+Layered service architecture
+
+Caching
+
+Configuration-driven behavior
+
+The backend is responsible for:
+
+- market data ingestion
+- technical indicator computation
+- pattern recognition
+- statistical scoring
+- watchlist processing
+- research persistence
+- API serialization
+- authentication
+- rate limiting
+
+---
+
+## Quantitative Analysis Engine
+
+Current research modules include:
+
+- Relative Strength Index
+- Moving Average Convergence Divergence
+- Exponential Moving Averages
+- Simple Moving Averages
+- VWAP analysis
+- Bollinger Bands
+- ATR
+- ADX
+- Support / Resistance detection
+- Fair Value Gap detection
+- Liquidity Sweep detection
+- Break of Structure
+- Change of Character
+- Multi-pattern recognition
+- Risk / Reward estimation
+- Confidence scoring
+
+Indicator calculations are deterministic and reproducible.
+
+Machine learning is used only for interpretation—not for numerical indicator generation.
+
+---
+
+## Pattern Recognition
+
+The Pattern Lab subsystem identifies higher-level market structures using deterministic algorithms.
+
+Examples include:
+
+- accumulation
+- distribution
+- liquidity sweeps
+- bullish continuation
+- bearish continuation
+- reversal structures
+- trend exhaustion
+- consolidation
+- volatility expansion
+
+Pattern confidence is calculated from multiple independent factors rather than a single indicator.
+
+---
+
+## AI Interpretation Layer
+
+The AI subsystem consumes structured quantitative output instead of raw market data.
+
+Input includes:
+
+- indicator states
+- trend metrics
+- pattern detections
+- volatility measures
+- momentum statistics
+- support/resistance relationships
+
+Output includes:
+
+- natural-language explanations
+- confidence summaries
+- risk observations
+- educational descriptions
+
+This separation allows deterministic market analysis while using language models solely as an explanation layer.
+
+---
+
+# Mobile Client
+
+Flutter
+
+Cross-platform architecture
+
+Material Design
+
+Responsive layouts
+
+State-driven UI
+
+REST client abstraction
+
+Offline cache
+
+The client intentionally contains no market-analysis logic.
+
+All computation occurs server-side.
+
+---
+
+# Engineering Goals
+
+Primary objectives:
+
+- deterministic analysis
+- modular architecture
+- reproducibility
+- explainable outputs
+- maintainability
+- testability
+- provider abstraction
+- scalable service boundaries
+
+---
+
+# Current Repository Structure
+
+```
+server/
+
+    backend/
+
+        analysis/
+
+        indicators/
+
+        patterns/
+
+        scoring/
+
+        api/
+
+        database/
+
+        services/
+
+ios-app/
+
+brand-assets/
+
+docs/
 ```
 
-The local dashboard runs at:
+---
 
-```text
-http://127.0.0.1:8001
-```
+# Design Philosophy
 
-### Flutter client
+Rather than attempting to predict markets using opaque machine-learning models, Oryntra emphasizes explainable quantitative analysis.
 
-```bash
-cd ios-app
-flutter pub get
-flutter run
-```
+Every conclusion produced by the system is traceable back to deterministic computations generated from technical indicators and statistical market structure.
 
-For an iOS build:
+The AI layer explains the quantitative output rather than replacing it.
 
-```bash
-cd ios-app
-./prepare_ios_project.sh
-open ios/Runner.xcworkspace
-```
+---
 
-## Configuration
+# Research Direction
 
-The server reads `server/.env`.
+Current areas of exploration include:
 
-Required for private provider-backed analysis:
+- multi-timeframe signal aggregation
 
-```env
-POLYGON_API_KEY=YOUR_PRIVATE_POLYGON_KEY
-ORYNTRA_MARKET_DATA_LICENSE_MODE=personal_research
-ORYNTRA_OWNER_EMAILS=your-email@example.com
-ORYNTRA_PUBLIC_DERIVED_ANALYSIS_ENABLED=false
-```
+- probabilistic confidence estimation
 
-Do not commit `.env`, API keys, signing files, databases, sessions, or generated build folders.
+- adaptive pattern scoring
 
-The public-analysis settings should only be enabled after the provider has approved the deployed use case:
+- volatility normalization
 
-```env
-ORYNTRA_MARKET_DATA_LICENSE_MODE=business_approved
-ORYNTRA_PUBLIC_DERIVED_ANALYSIS_ENABLED=true
-```
+- factor weighting
 
-Those settings are an application guard. They do not replace a data license.
+- ensemble signal generation
 
-## Public analysis API
+- walk-forward validation
 
-```text
-GET  /api/intelligence/status
-GET  /api/intelligence/quota
-POST /api/intelligence/scan
-POST /api/intelligence/scan-multiple
-```
+- strategy robustness testing
 
-The public response builder excludes raw candle arrays, OHLCV histories, provider payloads, downloadable bars, and server cache contents.
+- statistical edge discovery
 
-## Tests
+---
 
-```bash
-cd server
-source venv/bin/activate
-pytest -q
-```
+# Disclaimer
 
-Individual test files can be run while working on a subsystem:
+This repository represents an ongoing quantitative software engineering and market-research project.
 
-```bash
-pytest -q tests/test_public_payload_boundary.py
-pytest -q tests/test_analysis_access_policy.py
-pytest -q tests/test_intelligence_route.py
-```
+It is intended for educational, research, and software-development purposes.
 
-## Development notes
+It is not investment advice, does not execute trades, and should not be interpreted as a recommendation to buy or sell financial instruments.
 
-The production analysis path and the research tools are separate. Pattern Lab and backtesting code should not replace the public engine without review and testing.
-
-TradingView is used only for hosted visualization. The application does not read or scrape the TradingView iframe.
-
-Indicator values, confidence scores, entries, stops, and targets are analytical outputs. They are not brokerage quotes or guaranteed trading outcomes.
+---
 
 ## License
 
-This project is source-available under the terms in [LICENSE](LICENSE). No permission is granted beyond that license.
+Copyright © 2026 Oryntra AI
+
+All Rights Reserved.
+
+This repository is distributed under the accompanying proprietary source-available license.
