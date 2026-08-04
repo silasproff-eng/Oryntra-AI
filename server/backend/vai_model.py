@@ -1,12 +1,3 @@
-"""Oryntra VAI 1.0 Experimental trainable model layer.
-
-This is intentionally local and controlled:
-- It does not self-modify code.
-- It only trains when the developer starts a training job.
-- It saves a small JSON model into data/models/.
-- It is experimental and educational only.
-"""
-
 from __future__ import annotations
 
 import json
@@ -378,3 +369,4 @@ def predict_vai_setup(ind: dict[str, Any], setup: dict[str, Any], patterns: dict
         "regime": _regime_from_ind(ind or {}),
         "top_pattern": _top_pattern(patterns),
     }
+

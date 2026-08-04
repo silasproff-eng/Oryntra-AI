@@ -55,3 +55,4 @@ def main():
     print(f'DB size MB: {get_ohlcv_cache_size_bytes()/1024/1024:.2f}')
     return 0
 if __name__=='__main__': raise SystemExit(main())
+

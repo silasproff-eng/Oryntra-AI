@@ -1,9 +1,3 @@
-"""
-Enhanced Pattern Recognition & Divergence Detection
-Analyzes historical patterns, MACD/RSI divergences, volatility clustering, 
-and support/resistance strength for improved trade quality.
-"""
-
 import copy
 import pandas as pd
 import numpy as np
@@ -16,7 +10,6 @@ VALID_PATTERN_ENGINE_MODES = {"old", "new", "experimental", "risky", "selective"
 
 
 def normalize_pattern_engine_mode(mode: str | None = None) -> str:
-    """Return a safe pattern-engine mode name."""
     raw = (mode or "new").strip().lower()
     if raw in {"legacy", "classic", "v1"}:
         return "old"
@@ -42,11 +35,6 @@ def normalize_pattern_engine_mode(mode: str | None = None) -> str:
 
 
 def _legacy_advanced_patterns(hist: pd.DataFrame, ind: Dict[str, Any]) -> Dict[str, Any]:
-    """Old/simple pattern engine kept for A/B testing.
-
-    This intentionally uses only the original lightweight candle detector so the
-    Pattern Accuracy Lab can compare the old behavior against the expanded engine.
-    """
     candle = _identify_candle_patterns(hist)
     pattern_name = candle.get("pattern", "NONE")
     conf = float(candle.get("confidence", 0) or 0)
@@ -97,12 +85,6 @@ def _legacy_advanced_patterns(hist: pd.DataFrame, ind: Dict[str, Any]) -> Dict[s
 
 
 def _experimental_advanced_patterns(hist: pd.DataFrame, ind: Dict[str, Any]) -> Dict[str, Any]:
-    """Third/experimental engine: expanded detections, stricter scoring.
-
-    This keeps the expanded detector but downweights noisy/weak candle-only
-    patterns, boosts important FVG/structure/chart signals with volume/trend
-    alignment, and filters the display list to stronger evidence.
-    """
     advanced = detect_all_patterns(hist, ind, timeframe="1d")
     patterns_raw = advanced.get("patterns") or []
     scored = []
@@ -199,15 +181,7 @@ def _experimental_advanced_patterns(hist: pd.DataFrame, ind: Dict[str, Any]) -> 
     }
 
 
-
 def _risky_advanced_patterns(hist: pd.DataFrame, ind: Dict[str, Any]) -> Dict[str, Any]:
-    """Fourth/super-experimental engine: intentionally aggressive.
-
-    V4 is for stress testing only. It raises coverage by allowing more momentum,
-    reversal, and early-breakout evidence to become actionable. That can improve
-    test coverage, but it can also create false positives and overfit historical
-    periods. Keep it hidden/dev-only.
-    """
     advanced = detect_all_patterns(hist, ind, timeframe="1d")
     patterns_raw = advanced.get("patterns") or []
     scored = []
@@ -340,15 +314,7 @@ def _risky_advanced_patterns(hist: pd.DataFrame, ind: Dict[str, Any]) -> Dict[st
     }
 
 
-
-
 def _selective_advanced_patterns(hist: pd.DataFrame, ind: Dict[str, Any]) -> Dict[str, Any]:
-    """Fifth/selective engine: lower coverage, higher-quality setups.
-
-    V5 intentionally tries to say NO_TRADE more often. It only lets stronger
-    pattern evidence survive when it has trend, volume, and momentum context.
-    The goal is not more signals; the goal is better signal selection.
-    """
     advanced = detect_all_patterns(hist, ind, timeframe="1d")
     patterns_raw = advanced.get("patterns") or []
 
@@ -524,16 +490,7 @@ def _selective_advanced_patterns(hist: pd.DataFrame, ind: Dict[str, Any]) -> Dic
     }
 
 
-
-
 def _balanced_advanced_patterns(hist: pd.DataFrame, ind: Dict[str, Any], base: Dict[str, Any] | None = None) -> Dict[str, Any]:
-    """V6 Balanced / Short-Fix pattern layer.
-
-    Uses V5 Selective as the base, but patches the weak side found in testing:
-    shorts were losing because bearish patterns fired during bull/up-momentum
-    regimes. V6 keeps bearish patterns only when the broader context is
-    genuinely bearish; otherwise it downgrades or removes them.
-    """
     base = copy.deepcopy(base) if base is not None else _selective_advanced_patterns(hist, ind)
     patterns_raw = list(base.get("patterns") or [])
 
@@ -666,17 +623,7 @@ def _balanced_advanced_patterns(hist: pd.DataFrame, ind: Dict[str, Any], base: D
     }
 
 
-
-
 def _official_v7_advanced_patterns(hist: pd.DataFrame, ind: Dict[str, Any], base: Dict[str, Any] | None = None) -> Dict[str, Any]:
-    """V7 Official Beta / Momentum Long pattern layer.
-
-    V7 is intentionally not all-directional. The lab evidence showed bullish
-    momentum/bull-trend longs were the only close-to-release-quality edge, while
-    shorts and bearish FVGs caused concerning drawdown/stop-hit behavior. V7
-    therefore gives bullish momentum longs priority and converts bearish setups
-    into warnings/no-trade context rather than trade candidates.
-    """
     base = copy.deepcopy(base) if base is not None else _selective_advanced_patterns(hist, ind)
     raw_patterns = list(base.get("patterns") or [])
 
@@ -826,14 +773,7 @@ def _official_v7_advanced_patterns(hist: pd.DataFrame, ind: Dict[str, Any], base
     }
 
 
-
 def _v8_advanced_patterns(hist: pd.DataFrame, ind: Dict[str, Any], base: Dict[str, Any] | None = None) -> Dict[str, Any]:
-    """V8 analytics-evidence pattern layer built from V7-era candidates.
-
-    Unlike V7, the same evidence formula is applied to bullish and bearish
-    candidates.  Pattern confidence is only one low-weight input; the final
-    score also uses the complete analytics stack from Oryntra Pro.
-    """
     from .v8_engine import canonical_direction, v8_candidate_score, V8_VERSION
 
     base = copy.deepcopy(base) if base is not None else _balanced_advanced_patterns(hist, ind)
@@ -906,12 +846,6 @@ def _v8_advanced_patterns(hist: pd.DataFrame, ind: Dict[str, Any], base: Dict[st
 
 
 def _vai_1_0_advanced_patterns(hist: pd.DataFrame, ind: Dict[str, Any]) -> Dict[str, Any]:
-    """VAI 1.0 Experimental pattern layer.
-
-    VAI uses V7 as its candidate generator. The trainable model lives in
-    setup_detector/vai_model and decides whether the V7 candidate deserves a
-    trade or should be downgraded to no-trade.
-    """
     base = _official_v7_advanced_patterns(hist, ind)
     for p in base.get("patterns") or []:
         ctx = dict(p.get("context") or {})
@@ -932,9 +866,7 @@ def _vai_1_0_advanced_patterns(hist: pd.DataFrame, ind: Dict[str, Any]) -> Dict[
     return out
 
 
-
 def _vai_2_0_advanced_patterns(hist: pd.DataFrame, ind: Dict[str, Any]) -> Dict[str, Any]:
-    """VAI 2.1 Confidence-Weighted Experimental pattern layer."""
     base = _official_v7_advanced_patterns(hist, ind)
     for p in base.get("patterns") or []:
         ctx = dict(p.get("context") or {})
@@ -991,19 +923,15 @@ def _compose_pattern_report(
     patterns["pattern_summary"] = advanced.get("summary", {})
 
     patterns["momentum_confirmation"] = _confirm_momentum(ind)
-    
+
     return patterns
 
 
 def analyze_patterns_multi(
     hist: pd.DataFrame, ind: Dict[str, Any], modes: List[str]
 ) -> Dict[str, Dict[str, Any]]:
-    """Evaluate multiple engines while sharing expensive candidate detection.
 
-    Official V7 and V8 both originate from the selective candidate set. The
-    previous lab regenerated that set twice for every date. This path computes
-    it once, then applies each engine's independent filtering/scoring policy.
-    """
+
     normalized = []
     for mode in modes:
         clean = normalize_pattern_engine_mode(mode)
@@ -1055,17 +983,13 @@ def analyze_patterns(hist: pd.DataFrame, ind: Dict[str, Any], mode: str | None =
 
 
 def _detect_rsi_divergence(close: pd.Series, hist: pd.DataFrame) -> Dict[str, Any]:
-    """
-    Bullish divergence: price makes lower low but RSI makes higher low.
-    Bearish divergence: price makes higher high but RSI makes lower high.
-    """
     if len(close) < 50:
         return {"type": "NONE", "strength": 0}
-    
+
     recent = close.iloc[-40:]
     recent_high = hist["High"].iloc[-40:]
     recent_low = hist["Low"].iloc[-40:]
-    
+
     delta = recent.diff()
     gain = delta.clip(lower=0)
     loss = (-delta).clip(lower=0)
@@ -1073,92 +997,76 @@ def _detect_rsi_divergence(close: pd.Series, hist: pd.DataFrame) -> Dict[str, An
     avg_l = loss.rolling(14).mean()
     rs = avg_g / avg_l.replace(0, np.nan)
     rsi = 100 - (100 / (1 + rs))
-    
+
     if len(rsi) < 4:
         return {"type": "NONE", "strength": 0}
-    
+
     price_low_1 = recent_low.iloc[-15:].min()
     price_low_2 = recent_low.iloc[-30:-15].min() if len(hist) >= 30 else price_low_1
     rsi_low_1 = rsi.iloc[-15:].min()
     rsi_low_2 = rsi.iloc[-30:-15].min() if len(rsi) >= 30 else rsi_low_1
-    
+
     price_high_1 = recent_high.iloc[-15:].max()
     price_high_2 = recent_high.iloc[-30:-15].max() if len(hist) >= 30 else price_high_1
     rsi_high_1 = rsi.iloc[-15:].max()
     rsi_high_2 = rsi.iloc[-30:-15].max() if len(rsi) >= 30 else rsi_high_1
-    
+
     if price_low_1 < price_low_2 and rsi_low_1 > rsi_low_2 and rsi_low_1 < 50:
-        strength = (rsi_low_2 - rsi_low_1) * 1.5  # Stronger if gap is larger
+        strength = (rsi_low_2 - rsi_low_1) * 1.5
         return {"type": "BULLISH", "strength": min(strength, 30)}
-    
+
     if price_high_1 > price_high_2 and rsi_high_1 < rsi_high_2 and rsi_high_1 > 50:
         strength = (rsi_high_1 - rsi_high_2) * 1.5
         return {"type": "BEARISH", "strength": min(strength, 30)}
-    
+
     return {"type": "NONE", "strength": 0}
 
 
 def _detect_macd_divergence(ind: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    MACD divergence: histogram changes direction while price continues.
-    """
     macd_hist = ind.get("macd_hist", 0) or 0
     macd_cross = ind.get("macd_cross", "")
-    
+
     if "BULLISH" in macd_cross and macd_hist > 0:
         return {"type": "BULLISH_CROSS", "strength": 20}
     elif "BEARISH" in macd_cross and macd_hist < 0:
         return {"type": "BEARISH_CROSS", "strength": 20}
-    
+
     return {"type": "NONE", "strength": 0}
 
 
 def _detect_volume_divergence(close: pd.Series, volume: pd.Series) -> Dict[str, Any]:
-    """
-    Volume divergence: price moves but volume declines.
-    Suggests weak trend continuation.
-    """
     if len(close) < 10:
         return {"type": "NONE", "strength": 0}
-    
+
     recent_moves = abs(close.iloc[-10:].pct_change()).mean()
     recent_vol = volume.iloc[-10:].mean()
     prior_vol = volume.iloc[-20:-10].mean()
-    
+
     if recent_moves > 0.02 and recent_vol < prior_vol * 0.8:
         return {"type": "WEAK_MOVE", "strength": 15}
-    
+
     return {"type": "NONE", "strength": 0}
 
 
 def _analyze_sr_strength(high: pd.Series, low: pd.Series, close: pd.Series) -> float:
-    """
-    Measures how many times recent price touched support/resistance.
-    Higher = stronger levels = better risk/reward.
-    Returns 0-30 points.
-    """
     if len(close) < 20:
         return 0
-    
+
     recent = close.iloc[-40:]
     pivot_low = recent.min()
     pivot_high = recent.max()
-    
+
     touches_low = sum(1 for p in recent if abs(p - pivot_low) / pivot_low < 0.005)
     touches_high = sum(1 for p in recent if abs(p - pivot_high) / pivot_high < 0.005)
-    
+
     strength = min((touches_low + touches_high) * 3, 30)
     return round(strength, 1)
 
 
 def _analyze_volatility_regime(close: pd.Series, ind: Dict[str, Any]) -> Dict[str, str]:
-    """
-    Classifies current volatility: LOW | NORMAL | HIGH
-    Affects risk sizing and trade selection.
-    """
     atr_pct = ind.get("atr_pct", 2) or 2
     bb_width = ind.get("bb_width", 10) or 10
-    
+
     if atr_pct < 1.0 or bb_width < 5:
         return {"regime": "LOW", "advice": "Tight range - wait for breakout"}
     elif atr_pct > 4.0 or bb_width > 20:
@@ -1168,14 +1076,11 @@ def _analyze_volatility_regime(close: pd.Series, ind: Dict[str, Any]) -> Dict[st
 
 
 def _identify_candle_patterns(hist: pd.DataFrame) -> Dict[str, Any]:
-    """
-    Identifies common candlestick patterns: Hammer, Engulfing, Doji, etc.
-    """
     if len(hist) < 3:
         return {"pattern": "NONE", "confidence": 0}
-    
+
     recent = hist.iloc[-3:]
-    
+
     for i in range(len(recent) - 1):
         o = float(recent.iloc[i]["Open"])
         c = float(recent.iloc[i]["Close"])
@@ -1185,31 +1090,25 @@ def _identify_candle_patterns(hist: pd.DataFrame) -> Dict[str, Any]:
         wick_up = h - max(o, c)
         wick_down = min(o, c) - l
         range_ = h - l
-        
+
         if wick_down > body * 2 and wick_up < body:
             return {"pattern": "HAMMER", "confidence": 60}
-        
+
         if body / range_ < 0.1 if range_ > 0 else False:
             return {"pattern": "DOJI", "confidence": 50}
-    
+
     o1, c1 = float(recent.iloc[-2]["Open"]), float(recent.iloc[-2]["Close"])
     o2, c2 = float(recent.iloc[-1]["Open"]), float(recent.iloc[-1]["Close"])
     h2, l2 = float(recent.iloc[-1]["High"]), float(recent.iloc[-1]["Low"])
-    
+
     if (o2 < min(o1, c1) and c2 > max(o1, c1)) or \
        (c2 < min(o1, c1) and o2 > max(o1, c1)):
         return {"pattern": "ENGULFING", "confidence": 70}
-    
+
     return {"pattern": "NONE", "confidence": 0}
 
 
 def _confirm_momentum(ind: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Multi-factor momentum confluence check.
-    Tallies up to 7 independent signals (MACD, RSI, 20d momentum, ADX direction,
-    EMA cross, Ichimoku, OBV) and reports how many agree. More agreement = higher
-    conviction. Returns a 0-100 confluence_pct so the scorer can weight it.
-    """
     rsi       = ind.get("rsi14", 50) or 50
     macd_hist = ind.get("macd_hist", 0) or 0
     mom20     = ind.get("momentum_20d", 0) or 0
@@ -1268,3 +1167,4 @@ def _confirm_momentum(ind: Dict[str, Any]) -> Dict[str, Any]:
             "agreeing": max(bullish_signals, bearish_signals),
             "total": total_factors,
         }
+

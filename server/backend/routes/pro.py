@@ -1,10 +1,3 @@
-"""Private Oryntra Pro API.
-
-Adds a desktop market snapshot, cache/chart access, metric alerts, and a
-structured paper-trading journal without changing the public Oryntra routes.
-The module owns its additive SQLite tables so it can be installed safely over
-an existing Oryntra database.
-"""
 from __future__ import annotations
 
 import asyncio
@@ -367,7 +360,7 @@ def _candle_pattern_items(bars: list[dict[str, Any]]) -> list[dict[str, Any]]:
             if fc > fo and first_body > 0 and middle_body <= first_body * .45 and c < o and c <= (fo + fc) / 2:
                 add(index, "Evening Star", "BEARISH", 77, "Three-candle reversal: strong advance, indecision, then decline through the first candle midpoint.")
 
-    # Keep recent unique occurrences. This guarantees visible pattern context without pretending every candle is predictive.
+
     unique: dict[tuple[str, str], dict[str, Any]] = {}
     for item in detected:
         unique[(str(item.get("pattern_name")), str(item.get("timestamp")))] = item
@@ -1073,11 +1066,6 @@ async def pro_paper_stats(request: Request):
 
 @router.post("/alerts/evaluate-all")
 async def evaluate_all_alerts(request: Request, period: str = "6mo"):
-    """Evaluate every enabled alert ticker for the current private scope.
-
-    The market repository remains cache-first; provider fallback occurs only if
-    the existing repository considers the cache insufficient.
-    """
     import asyncio
     user_id = _scope(request)
     conn = get_connection()
@@ -1106,7 +1094,7 @@ async def evaluate_all_alerts(request: Request, period: str = "6mo"):
     errors = [{"ticker": ticker, "error": error} for ticker, _, error in rows if error]
     return {"evaluated": tickers, "events": all_events, "errors": errors, "evaluated_at": _utc_now()}
 
-# Optional private server worker. Enable with ORYNTRA_PRO_ALERTS_AUTO_START=true.
+
 def _env_bool(name: str, default: bool = False) -> bool:
     import os
     raw = os.getenv(name)
@@ -1153,3 +1141,4 @@ def _server_alert_worker() -> None:
 
 if _env_bool("ORYNTRA_PRO_ALERTS_AUTO_START", False):
     _server_alert_worker()
+

@@ -31,16 +31,16 @@ class AccountScreenState extends State<AccountScreen> with WidgetsBindingObserve
   bool _dailyReminderEnabled = false;
   String _notificationStatus = 'unknown';
   List<String> _marketAlerts = const [];
-  Map<String, dynamic>? _alpacaStatus;
-  bool _alpacaLoading = false;
-  String? _alpacaError;
+  Map<String, dynamic>? _analysisStatus;
+  bool _analysisLoading = false;
+  String? _analysisError;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _loadNotificationSettings();
-    _loadAlpacaStatus();
+    _loadAnalysisStatus();
   }
 
   @override
@@ -52,7 +52,7 @@ class AccountScreenState extends State<AccountScreen> with WidgetsBindingObserve
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed && widget.user != null) {
-      _loadAlpacaStatus();
+      _loadAnalysisStatus();
     }
   }
 
@@ -62,11 +62,11 @@ class AccountScreenState extends State<AccountScreen> with WidgetsBindingObserve
     if (oldWidget.user == null && widget.user != null) {
       _syncMarketAlertsFromServer();
       _syncPushRegistration();
-      _loadAlpacaStatus();
+      _loadAnalysisStatus();
     } else if (oldWidget.user != null && widget.user == null) {
       setState(() {
-        _alpacaStatus = null;
-        _alpacaError = null;
+        _analysisStatus = null;
+        _analysisError = null;
       });
     }
   }
@@ -86,84 +86,26 @@ class AccountScreenState extends State<AccountScreen> with WidgetsBindingObserve
     }
   }
 
-  Future<void> _loadAlpacaStatus() async {
+  Future<void> _loadAnalysisStatus() async {
     if (widget.user == null) {
-      if (mounted) setState(() => _alpacaStatus = null);
+      if (mounted) setState(() => _analysisStatus = null);
       return;
     }
     setState(() {
-      _alpacaLoading = true;
-      _alpacaError = null;
+      _analysisLoading = true;
+      _analysisError = null;
     });
     try {
-      final status = await widget.api.alpacaStatus();
-      if (mounted) setState(() => _alpacaStatus = status);
+      final status = await widget.api.intelligenceStatus();
+      if (mounted) setState(() => _analysisStatus = status);
     } catch (error) {
-      if (mounted) setState(() => _alpacaError = error.toString());
+      if (mounted) setState(() => _analysisError = error.toString());
     } finally {
-      if (mounted) setState(() => _alpacaLoading = false);
+      if (mounted) setState(() => _analysisLoading = false);
     }
   }
 
-  Future<void> refreshProviderStatus() => _loadAlpacaStatus();
-
-  Future<void> _connectAlpaca(String environment) async {
-    setState(() {
-      _alpacaLoading = true;
-      _alpacaError = null;
-    });
-    try {
-      final result = await widget.api.beginAlpacaConnect(
-        environment: environment,
-      );
-      if (AppConfig.previewMode) {
-        await _loadAlpacaStatus();
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Alpaca connection simulated in preview mode.')),
-          );
-        }
-        return;
-      }
-      final rawUrl = result['authorization_url']?.toString() ?? '';
-      final uri = Uri.tryParse(rawUrl);
-      if (uri == null || !uri.hasScheme) {
-        throw ApiException('The server did not return a valid Alpaca authorization URL.');
-      }
-      final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
-      if (!opened) {
-        throw ApiException('Could not open Alpaca authorization.');
-      }
-    } catch (error) {
-      if (mounted) setState(() => _alpacaError = error.toString());
-    } finally {
-      if (mounted) setState(() => _alpacaLoading = false);
-    }
-  }
-
-  Future<void> _disconnectAlpaca(String environment) async {
-    setState(() {
-      _alpacaLoading = true;
-      _alpacaError = null;
-    });
-    try {
-      await widget.api.disconnectAlpaca(environment);
-      await _loadAlpacaStatus();
-    } catch (error) {
-      if (mounted) setState(() => _alpacaError = error.toString());
-    } finally {
-      if (mounted) setState(() => _alpacaLoading = false);
-    }
-  }
-
-  List<Map<String, dynamic>> get _alpacaConnections {
-    final raw = _alpacaStatus?['connections'];
-    if (raw is! List) return const [];
-    return raw
-        .whereType<Map>()
-        .map((item) => Map<String, dynamic>.from(item))
-        .toList();
-  }
+  Future<void> refreshProviderStatus() => _loadAnalysisStatus();
 
   Future<void> _toggleNotifications(bool enabled) async {
     if (enabled) {
@@ -255,7 +197,7 @@ class AccountScreenState extends State<AccountScreen> with WidgetsBindingObserve
       try {
         await widget.api.removeStockAlertSubscription(ticker);
       } on ApiException {
-        // The on-device reminder is still removed if server sync is offline.
+        
       }
     }
     await _loadNotificationSettings();
@@ -277,7 +219,7 @@ class AccountScreenState extends State<AccountScreen> with WidgetsBindingObserve
         environment: registration['environment']!,
       );
     } on ApiException {
-      // Registration retries the next time the account or notification setting refreshes.
+      
     }
   }
 
@@ -295,127 +237,95 @@ class AccountScreenState extends State<AccountScreen> with WidgetsBindingObserve
       }
       await widget.notifications.replaceMarketAlerts(merged);
     } on ApiException {
-      // Keep the on-device selection when the optional push endpoint is offline.
+      
     }
     await _loadNotificationSettings();
   }
 
-  Widget _buildAlpacaCard(BuildContext context) {
-    final connections = _alpacaConnections;
-    final connected = connections.any(
-      (item) => item['status']?.toString().toUpperCase() == 'CONNECTED',
-    );
+  Widget _buildAnalysisCard(BuildContext context) {
+    final policyRaw = _analysisStatus?['policy'];
+    final quotaRaw = _analysisStatus?['quota'];
+    final policy = policyRaw is Map ? Map<String, dynamic>.from(policyRaw) : <String, dynamic>{};
+    final quota = quotaRaw is Map ? Map<String, dynamic>.from(quotaRaw) : <String, dynamic>{};
+    final permitted = policy['analysis_permitted'] == true;
+    final used = quota['used']?.toString() ?? '—';
+    final limit = quota['limit']?.toString() ?? '100';
+    final remaining = quota['remaining']?.toString() ?? '—';
+    final licenseMode = policy['license_mode']?.toString().replaceAll('_', ' ') ?? 'unknown';
     return AppCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
             children: [
-              const Icon(Icons.link_rounded, color: Color(0xFF38CFF3)),
+              const Icon(Icons.analytics_outlined, color: Color(0xFF38CFF3)),
               const SizedBox(width: 10),
               const Expanded(
                 child: Text(
-                  'Alpaca Connect',
+                  'Analysis access',
                   style: TextStyle(fontWeight: FontWeight.w900, fontSize: 17),
                 ),
               ),
-              if (_alpacaLoading)
+              if (_analysisLoading)
                 const SizedBox.square(
                   dimension: 18,
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
               else
                 Icon(
-                  connected ? Icons.check_circle : Icons.link_off_rounded,
-                  color: connected
-                      ? const Color(0xFF2DD4BF)
-                      : Colors.white54,
+                  permitted ? Icons.check_circle : Icons.lock_outline_rounded,
+                  color: permitted ? const Color(0xFF2DD4BF) : Colors.white54,
                 ),
             ],
           ),
           const SizedBox(height: 8),
           const Text(
-            'Authorize read-only market data from your own Alpaca account. Oryntra never receives your Alpaca password and does not request trading permission.',
+            'Oryntra processes licensed candle data on the server and returns derived indicators, pattern evidence, confidence, and educational trade-planning levels. Raw OHLCV history is not distributed to the app.',
             style: TextStyle(fontSize: 12, color: Colors.white70),
           ),
-          if (_alpacaError != null) ...[
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: .045),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: Colors.white.withValues(alpha: .08)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  permitted ? 'ANALYSIS ENABLED' : 'ANALYSIS RESTRICTED',
+                  style: TextStyle(
+                    color: permitted ? const Color(0xFF2DD4BF) : const Color(0xFFFBBF24),
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                Text('Usage today: $used / $limit · $remaining remaining'),
+                Text(
+                  'License mode: ${licenseMode.toUpperCase()} · Chart: TradingView',
+                  style: const TextStyle(fontSize: 11, color: Colors.white60),
+                ),
+              ],
+            ),
+          ),
+          if (_analysisError != null) ...[
             const SizedBox(height: 10),
             Text(
-              _alpacaError!,
+              _analysisError!,
               style: TextStyle(color: Theme.of(context).colorScheme.error),
             ),
           ],
-          if (connections.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            ...connections.map((connection) {
-              final environment = connection['environment']?.toString() ?? 'paper';
-              final status = connection['status']?.toString() ?? 'UNKNOWN';
-              final account = connection['account_last4']?.toString() ?? '';
-              final isConnected = status.toUpperCase() == 'CONNECTED';
-              return Container(
-                margin: const EdgeInsets.only(bottom: 8),
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: .045),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: Colors.white.withValues(alpha: .08)),
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            '${environment.toUpperCase()} ACCOUNT${account.isEmpty ? '' : ' ••••$account'}',
-                            style: const TextStyle(fontWeight: FontWeight.w800),
-                          ),
-                          Text(
-                            isConnected ? 'Connected for market-data analysis' : status,
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: isConnected
-                                  ? const Color(0xFF2DD4BF)
-                                  : Colors.white60,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    if (isConnected)
-                      TextButton(
-                        onPressed: _alpacaLoading
-                            ? null
-                            : () => _disconnectAlpaca(environment),
-                        child: const Text('Disconnect'),
-                      ),
-                  ],
-                ),
-              );
-            }),
-          ],
-          if (!connected) ...[
-            const SizedBox(height: 12),
-            FilledButton.icon(
-              onPressed: _alpacaLoading ? null : () => _connectAlpaca('paper'),
-              icon: const Icon(Icons.science_outlined),
-              label: const Text('Connect Alpaca Paper'),
-            ),
-            const SizedBox(height: 8),
-            OutlinedButton.icon(
-              onPressed: _alpacaLoading ? null : () => _connectAlpaca('live'),
-              icon: const Icon(Icons.account_balance_outlined),
-              label: const Text('Connect Alpaca Live'),
-            ),
-          ] else
-            OutlinedButton.icon(
-              onPressed: _alpacaLoading ? null : _loadAlpacaStatus,
-              icon: const Icon(Icons.refresh_rounded),
-              label: const Text('Refresh connection status'),
-            ),
+          const SizedBox(height: 10),
+          OutlinedButton.icon(
+            onPressed: _analysisLoading ? null : _loadAnalysisStatus,
+            icon: const Icon(Icons.refresh_rounded),
+            label: const Text('Refresh analysis access'),
+          ),
           const SizedBox(height: 7),
           const Text(
-            'The initial Oryntra release does not submit, modify, or cancel orders.',
+            'The individual market-data configuration is restricted to the account owner. Public subscriptions must remain disabled until the operator has written commercial data rights.',
             style: TextStyle(fontSize: 10, color: Colors.white54),
           ),
         ],
@@ -482,7 +392,7 @@ class AccountScreenState extends State<AccountScreen> with WidgetsBindingObserve
                 ),
         ),
         const SizedBox(height: 14),
-        if (user != null) _buildAlpacaCard(context),
+        if (user != null) _buildAnalysisCard(context),
         if (user != null) const SizedBox(height: 14),
         AppCard(
           padding: EdgeInsets.zero,
@@ -625,7 +535,7 @@ class AccountScreenState extends State<AccountScreen> with WidgetsBindingObserve
         Padding(
           padding: const EdgeInsets.all(20),
           child: Text(
-            'Educational analysis and simulated paper trading only. Alpaca Connect is read-only for user-authorized market data; Oryntra does not place trades or provide financial advice.\nOryntra AI v${AppConfig.appVersion}${AppConfig.previewMode ? ' · browser preview' : ''}',
+            'Oryntra provides educational market intelligence, not investment advice, brokerage services, or order execution. Charts are supplied independently by TradingView.\nOryntra AI v${AppConfig.appVersion}${AppConfig.previewMode ? ' · browser preview' : ''}',
             textAlign: TextAlign.center,
             style: const TextStyle(fontSize: 12, color: Colors.white60),
           ),
@@ -648,6 +558,7 @@ class _AuthSheetState extends State<_AuthSheet> {
   final _email = TextEditingController();
   final _password = TextEditingController();
   bool _loading = false;
+  bool _acceptLegal = false;
   String? _error;
 
   Future<void> _submit() async {
@@ -661,6 +572,7 @@ class _AuthSheetState extends State<_AuthSheet> {
           _email.text.trim(),
           _password.text,
           _name.text.trim(),
+          _acceptLegal,
         );
       } else {
         await widget.api.login(_email.text.trim(), _password.text);
@@ -724,6 +636,37 @@ class _AuthSheetState extends State<_AuthSheet> {
                     : 'Password',
               ),
             ),
+            if (widget.create) ...[
+              const SizedBox(height: 10),
+              CheckboxListTile(
+                contentPadding: EdgeInsets.zero,
+                value: _acceptLegal,
+                onChanged: _loading
+                    ? null
+                    : (value) => setState(() => _acceptLegal = value ?? false),
+                title: const Text(
+                  'I accept the Terms, Privacy Policy, and Trading Risk Disclaimer.',
+                  style: TextStyle(fontSize: 12),
+                ),
+              ),
+              Wrap(
+                spacing: 6,
+                children: [
+                  TextButton(
+                    onPressed: () => launchUrl(Uri.parse(AppConfig.termsUrl), mode: LaunchMode.externalApplication),
+                    child: const Text('Terms'),
+                  ),
+                  TextButton(
+                    onPressed: () => launchUrl(Uri.parse(AppConfig.privacyUrl), mode: LaunchMode.externalApplication),
+                    child: const Text('Privacy'),
+                  ),
+                  TextButton(
+                    onPressed: () => launchUrl(Uri.parse(AppConfig.riskUrl), mode: LaunchMode.externalApplication),
+                    child: const Text('Risk disclaimer'),
+                  ),
+                ],
+              ),
+            ],
             if (_error != null)
               Padding(
                 padding: const EdgeInsets.only(top: 10),

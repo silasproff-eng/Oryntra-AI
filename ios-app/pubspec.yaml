@@ -1,7 +1,7 @@
 name: oryntra_ai
 description: Oryntra AI market intelligence and simulated paper-trading client for iOS with a safe Flutter web preview.
 publish_to: none
-version: 0.7.0+15
+version: 0.8.0+17
 
 environment:
   sdk: '>=3.10.0 <4.0.0'

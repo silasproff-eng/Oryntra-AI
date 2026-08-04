@@ -1,8 +1,3 @@
-"""Developer-only cache, Pattern Lab Next, and VAI 1/2 endpoints.
-
-Pattern Lab Next delegates to one causal, cache-backed evaluator in
-``backend.pattern_lab``.
-"""
 from __future__ import annotations
 
 import asyncio
@@ -347,8 +342,6 @@ async def _run_vai_training_job(job_id: str, req: VAITrainRequest):
 
 @router.post("/pattern-lab/run")
 async def run_pattern_lab_route(req: PatternLabRequest):
-    # Compatibility endpoint: execute through the isolated worker, then wait
-    # asynchronously for the final result instead of blocking Uvicorn.
     started = await pattern_lab_start(req)
     job_id = started["job_id"]
     while True:

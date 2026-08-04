@@ -1,23 +1,3 @@
-"""Oryntra V8 evidence engine.
-
-V8 is a deterministic, ticker-agnostic extension of the V7 setup framework.
-It does not train on Pattern Lab output and it does not use ticker identity.
-Long and short candidates are judged by the same formula with the sign reversed.
-
-Directional evidence and risk are deliberately separated:
-
-* trend, moving averages, momentum, MACD, VWAP and price levels contribute
-  directional evidence;
-* relative volume confirms or weakens an existing move but is never a direction
-  by itself;
-* ATR is a risk/positioning input and never becomes bullish or bearish;
-* stochastic and RSI are timing/context inputs, not standalone reversal calls;
-* support/resistance and pivots are low-weight location inputs.
-
-The methodology references are documented in ``V8_METHODOLOGY.md``.  The
-weights are hypotheses to be validated out of sample, not claims of predictive
-certainty.
-"""
 from __future__ import annotations
 
 import math
@@ -61,7 +41,6 @@ def canonical_direction(value: Any) -> str:
 
 
 def _signed(candidate_direction: str, market_value: float) -> float:
-    """Convert an observed market direction to candidate-alignment space."""
     sign = 1.0 if canonical_direction(candidate_direction) == "LONG" else -1.0
     return clamp(sign * market_value)
 
@@ -264,7 +243,7 @@ def _stochastic(ind: dict[str, Any], direction: str) -> dict[str, Any]:
     k = finite(ind.get("stoch_k"), 50.0)
     d = finite(ind.get("stoch_d"), 50.0)
     observed = _squash(k - d, 18.0)
-    # Extremes are timing cautions, not automatic reversals.
+
     if k >= 90 and observed > 0:
         observed *= 0.45
     elif k <= 10 and observed < 0:
@@ -329,7 +308,7 @@ def _price_levels(ind: dict[str, Any], direction: str) -> dict[str, Any]:
 def _rsi_context(ind: dict[str, Any], direction: str) -> dict[str, Any]:
     rsi = finite(ind.get("rsi14"), 50.0)
     observed = _squash(rsi - 50.0, 18.0)
-    # Reduce the directional contribution at chase-risk extremes.
+
     if rsi > 78:
         observed = min(observed, 0.25)
     elif rsi < 22:
@@ -461,12 +440,8 @@ def v8_candidate_score(
     pattern_direction: str | None = None,
     pattern_confidence: float | None = None,
 ) -> dict[str, Any]:
-    """Blend the V7-derived setup score with the new evidence model.
 
-    The candidate setup contributes 35%; analytics evidence contributes 65%.
-    A candidate must also have enough independent positive factors to avoid a
-    high score from one duplicated family of indicators.
-    """
+
     alignment = directional_alignment(
         indicators,
         direction,
@@ -489,3 +464,4 @@ def v8_candidate_score(
         "alignment": alignment,
         "version": V8_VERSION,
     }
+

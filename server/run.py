@@ -1,4 +1,3 @@
-"""Start the Oryntra AI Alpaca-ready API."""
 import os
 import sys
 
@@ -22,27 +21,24 @@ def env_bool(name: str, default: bool = False) -> bool:
 
 
 if __name__ == "__main__":
-    port = int(os.getenv("PORT", "8000"))
-    configured = all(
-        os.getenv(name, "").strip()
-        for name in (
-            "ALPACA_OAUTH_CLIENT_ID",
-            "ALPACA_OAUTH_CLIENT_SECRET",
-            "ALPACA_OAUTH_REDIRECT_URI",
-            "ORYNTRA_TOKEN_ENCRYPTION_KEY",
-        )
-    )
+    port = int(os.getenv("PORT", "8001"))
+    polygon_ready = bool(os.getenv("POLYGON_API_KEY", "").strip())
     private = env_bool("ORYNTRA_PRIVATE_RESEARCH_ROUTES", False)
+    public_ui = env_bool("ORYNTRA_PUBLIC_SCANNER_WEBSITE", private)
+    license_mode = os.getenv("ORYNTRA_MARKET_DATA_LICENSE_MODE", "personal_research")
+    public_analysis = env_bool("ORYNTRA_PUBLIC_DERIVED_ANALYSIS_ENABLED", False)
     print(
         f"""
 ╔══════════════════════════════════════════════════╗
-║          O R Y N T R A  A I  v0.7.0             ║
-║           Alpaca Connect API                     ║
+║          O R Y N T R A  A I  v0.9.1             ║
+║           Market Intelligence API                ║
 ╠══════════════════════════════════════════════════╣
 ║  API        →  http://localhost:{port:<5}              ║
 ║  Health     →  http://localhost:{port}/health       ║
-║  Alpaca     →  {'configured' if configured else 'credentials required':<27}║
-║  Public UI  →  {'private research enabled' if private else 'scanner disabled':<27}║
+║  Polygon    →  {'configured' if polygon_ready else 'API key required':<27}║
+║  License    →  {license_mode:<27}║
+║  Public AI  →  {'enabled' if public_analysis else 'owner/private only':<27}║
+║  Public UI  →  {'enabled' if public_ui else 'disabled':<27}║
 ╚══════════════════════════════════════════════════╝
 """
     )
@@ -54,3 +50,4 @@ if __name__ == "__main__":
         reload_dirs=["backend"] if env_bool("ORYNTRA_RELOAD", False) else None,
         log_level=os.getenv("ORYNTRA_LOG_LEVEL", "info"),
     )
+

@@ -1,4 +1,3 @@
-"""Reproducibility helpers and experiment storage for Pattern Lab."""
 from __future__ import annotations
 
 import hashlib
@@ -102,11 +101,8 @@ def chronological_split(
     validation_pct: float = 0.15,
     purge_days: int = 0,
 ) -> dict[str, list[int]]:
-    """Split rows by dates, never randomly across time.
 
-    Every observation from a date belongs to the same split.  Optional purge
-    gaps remove boundary dates to reduce label overlap leakage.
-    """
+
     dates = sorted({str(row.get("date") or "") for row in rows if row.get("date")})
     if len(dates) < 3:
         return {"train": list(range(len(rows))), "validation": [], "test": []}
@@ -338,3 +334,4 @@ def record_experiment(
     finally:
         conn.close()
     return identifier
+

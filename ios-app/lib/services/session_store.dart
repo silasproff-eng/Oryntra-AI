@@ -1,8 +1,7 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// Stores only the Oryntra application session token on the device.
-/// Alpaca OAuth tokens and the Alpaca client secret remain on the backend.
+
 class SessionStore {
   static const _tokenKey = 'oryntra_session_token';
   static const _storage = FlutterSecureStorage();
@@ -11,7 +10,7 @@ class SessionStore {
     final secureToken = await _storage.read(key: _tokenKey);
     if (secureToken != null && secureToken.isNotEmpty) return secureToken;
 
-    // One-time migration from releases that used SharedPreferences.
+    
     final prefs = await SharedPreferences.getInstance();
     final legacyToken = prefs.getString(_tokenKey);
     if (legacyToken != null && legacyToken.isNotEmpty) {

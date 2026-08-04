@@ -9,7 +9,6 @@ from .utils import near, pattern
 
 
 def detect_chart_patterns(hist: pd.DataFrame, indicators: dict[str, Any] | None = None) -> list[dict[str, Any]]:
-    """Detect simplified chart patterns using recent swing points."""
     if hist is None or len(hist) < 30:
         return []
     out: list[dict[str, Any]] = []
@@ -150,13 +149,7 @@ def _flags(hist: pd.DataFrame) -> list[dict[str, Any]]:
     return out
 
 
-
 def _cup_and_rounding(hist: pd.DataFrame) -> list[dict[str, Any]]:
-    """Approximate cup/handle and rounded top/bottom patterns.
-
-    These are deliberately conservative shape checks inspired by common chart-pattern
-    references: a left rim, rounded middle, right rim, and optional smaller handle.
-    """
     out: list[dict[str, Any]] = []
     if len(hist) < 70:
         return out
@@ -208,7 +201,6 @@ def _cup_and_rounding(hist: pd.DataFrame) -> list[dict[str, Any]]:
 
 
 def _breakout_retest_patterns(hist: pd.DataFrame, highs: list[int], lows: list[int]) -> list[dict[str, Any]]:
-    """Detect simple horizontal breakout/retest patterns around recent swing levels."""
     out: list[dict[str, Any]] = []
     if len(hist) < 25:
         return out
@@ -238,7 +230,6 @@ def _breakout_retest_patterns(hist: pd.DataFrame, highs: list[int], lows: list[i
 
 
 def _broadening_patterns(hist: pd.DataFrame, highs: list[int], lows: list[int]) -> list[dict[str, Any]]:
-    """Detect broadening formations/megaphone-like expanding volatility patterns."""
     out: list[dict[str, Any]] = []
     if len(highs) < 3 or len(lows) < 3:
         return out
@@ -254,3 +245,4 @@ def _broadening_patterns(hist: pd.DataFrame, highs: list[int], lows: list[int]) 
     if low_vals[-1] < low_vals[0] and max(high_vals[-2:]) < max(high_vals[:2]):
         out.append(pattern(hist, idx, "DESCENDING_BROADENING_WEDGE", "CHART", "BULLISH", 53, zone_low=min(low_vals), zone_high=max(high_vals), context={"high_swings": hs, "low_swings": ls}))
     return out
+

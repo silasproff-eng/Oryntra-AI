@@ -1,10 +1,3 @@
-"""
-Oryntra AI Analysis Layer
-Uses live AI only when an API key is configured. Otherwise, it returns the
-built-in rule-based analysis so the dashboard still has an AI Analysis section
-without requiring paid API usage.
-"""
-
 import os
 import json
 import httpx
@@ -17,8 +10,8 @@ router = APIRouter()
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
 OPENAI_API_KEY    = os.getenv("OPENAI_API_KEY", "")
 
-CLAUDE_MODEL  = "claude-haiku-4-5"          # fast, cheap, great for analysis
-OPENAI_MODEL  = "gpt-4o-mini"               # fast, cheap, great for analysis
+CLAUDE_MODEL  = "claude-haiku-4-5"
+OPENAI_MODEL  = "gpt-4o-mini"
 
 
 class ExplainRequest(BaseModel):
@@ -29,10 +22,6 @@ class ExplainRequest(BaseModel):
 
 @router.post("/explain")
 async def explain_trade(req: ExplainRequest):
-    """
-    Generate a plain-English AI Analysis response.
-    Uses paid AI only when configured; otherwise returns a free built-in analysis.
-    """
     prompt = _build_prompt(req.ticker, req.analysis, req.question)
 
     if ANTHROPIC_API_KEY:
@@ -57,7 +46,6 @@ async def explain_trade(req: ExplainRequest):
 
 @router.post("/explain-indicator")
 async def explain_indicator(payload: dict):
-    """Explain what a specific indicator means in context."""
     indicator_name = payload.get("indicator", "")
     value          = payload.get("value", "")
     context        = payload.get("context", "")
@@ -79,7 +67,6 @@ async def explain_indicator(payload: dict):
             return {"indicator": indicator_name, "explanation": val}
 
     return {"indicator": indicator_name, "explanation": f"{indicator_name} measures price momentum and trend strength."}
-
 
 
 def _build_prompt(ticker: str, analysis: dict, question: Optional[str]) -> str:
@@ -118,9 +105,7 @@ Provide a concise, professional explanation (3-5 sentences) that:
 Be direct and specific. Use trader language. Do not add generic disclaimers.{user_q}"""
 
 
-
 async def _call_claude(prompt: str) -> str:
-    """Call Anthropic Claude API."""
     async with httpx.AsyncClient(timeout=30.0) as client:
         response = await client.post(
             "https://api.anthropic.com/v1/messages",
@@ -140,7 +125,6 @@ async def _call_claude(prompt: str) -> str:
 
 
 async def _call_openai(prompt: str) -> str:
-    """Call OpenAI ChatGPT API."""
     async with httpx.AsyncClient(timeout=30.0) as client:
         response = await client.post(
             "https://api.openai.com/v1/chat/completions",
@@ -167,9 +151,7 @@ async def _call_openai(prompt: str) -> str:
         return response.json()["choices"][0]["message"]["content"]
 
 
-
 def _rule_based_explanation(analysis: dict) -> str:
-    """Fallback when no AI API key is configured."""
     setup      = analysis.get("setup", {})
     plan       = analysis.get("trade_plan", {})
     ticker     = analysis.get("ticker", "")
@@ -230,7 +212,6 @@ def _rule_based_explanation(analysis: dict) -> str:
     return "\n".join(lines)
 
 
-
 def _explain_rsi(val: float) -> str:
     if val >= 80:   return f"RSI at {val:.0f} is severely overbought. The stock has moved far above its average — mean reversion or stall is likely. Avoid new longs."
     if val >= 70:   return f"RSI at {val:.0f} is overbought. Price is extended. Can remain overbought in strong trends but chasing here is risky."
@@ -251,3 +232,4 @@ def _explain_volume(ratio: float) -> str:
     if ratio >= 1.5:  return f"Volume is elevated at {ratio:.1f}x average — above-normal participation backing the price action."
     if ratio >= 0.8:  return f"Volume is normal ({ratio:.1f}x average) — no unusual conviction in either direction."
     return f"Volume is low at {ratio:.1f}x average — weak participation. Be cautious; moves on low volume are less reliable."
+

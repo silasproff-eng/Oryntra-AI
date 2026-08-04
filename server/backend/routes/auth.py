@@ -1,16 +1,10 @@
-"""
-Oryntra lightweight account/session routes.
-No external auth dependencies: passwords use PBKDF2-HMAC-SHA256 with per-user salt.
-This is suitable for beta/private testing. Add email verification, password reset,
-rate limiting, HTTPS-only cookies, and Stripe before a real paid launch.
-"""
 from __future__ import annotations
 
 import hashlib
 import hmac
 import os
 import secrets
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Request, Response
@@ -25,11 +19,11 @@ SESSION_HINT_COOKIE_NAME = "oryntra_logged_in"
 SESSION_MAX_AGE = SESSION_DAYS * 24 * 60 * 60
 
 
-
 class SignupRequest(BaseModel):
     email: str
     password: str
     display_name: str = ""
+    accept_legal: bool = False
 
     @field_validator("email")
     @classmethod
@@ -69,14 +63,13 @@ class DeleteAccountRequest(BaseModel):
 
 
 def _utc_now() -> str:
-    return datetime.utcnow().isoformat(timespec="seconds")
+    return datetime.now(timezone.utc).replace(tzinfo=None).isoformat(timespec="seconds")
 
 
 def _expires_at() -> str:
-    return (datetime.utcnow() + timedelta(days=SESSION_DAYS)).isoformat(timespec="seconds")
+    return (datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(days=SESSION_DAYS)).isoformat(timespec="seconds")
 
 def _cookie_is_secure(request: Request) -> bool:
-    """Use Secure cookies automatically behind HTTPS/Cloudflare, but allow localhost HTTP."""
     forwarded = (request.headers.get("x-forwarded-proto") or "").split(",")[0].strip().lower()
     return request.url.scheme == "https" or forwarded == "https"
 
@@ -191,6 +184,11 @@ async def signup(req: SignupRequest, request: Request, response: Response):
     init_db()
     email = req.email.lower().strip()
     display_name = (req.display_name or email.split("@", 1)[0])[:80]
+    if not req.accept_legal:
+        raise HTTPException(
+            status_code=422,
+            detail="You must accept the Terms of Service, Privacy Policy, and Market Analysis Risk Disclaimer to create an account.",
+        )
     salt, password_hash = _hash_password(req.password)
     token = secrets.token_urlsafe(32)
     conn = get_connection()
@@ -198,8 +196,9 @@ async def signup(req: SignupRequest, request: Request, response: Response):
         try:
             cur = conn.execute(
                 """
-                INSERT INTO users (email, display_name, password_salt, password_hash)
-                VALUES (?, ?, ?, ?)
+                INSERT INTO users
+                    (email, display_name, password_salt, password_hash, legal_version, legal_accepted_at)
+                VALUES (?, ?, ?, ?, '0.9', datetime('now'))
                 """,
                 (email, display_name, salt, password_hash),
             )
@@ -260,11 +259,6 @@ async def logout(request: Request, response: Response):
 
 @router.get("/me")
 async def me(request: Request, response: Response):
-    """Return current user and renew the browser session if valid.
-
-    This makes login persistence much more reliable across refreshes and ZIP
-    updates, as long as data/oryntra.db is preserved.
-    """
     token = get_auth_token(request)
     user = get_current_user_optional(request)
     if user and token:
@@ -286,11 +280,10 @@ async def delete_account(req: DeleteAccountRequest, request: Request, response: 
         row = conn.execute("SELECT * FROM users WHERE id=?", (user["id"],)).fetchone()
         if not row or not _verify_password(req.password, row["password_salt"], row["password_hash"]):
             raise HTTPException(status_code=401, detail="Password confirmation failed.")
-        conn.execute("DELETE FROM alpaca_oauth_states WHERE user_id=?", (user["id"],))
-        conn.execute("DELETE FROM alpaca_connections WHERE user_id=?", (user["id"],))
         conn.execute("DELETE FROM paper_trades WHERE user_id=?", (user["id"],))
         conn.execute("DELETE FROM user_watchlist WHERE user_id=?", (user["id"],))
         conn.execute("DELETE FROM subscriptions WHERE user_id=?", (user["id"],))
+        conn.execute("DELETE FROM analysis_usage WHERE user_id=?", (user["id"],))
         conn.execute("DELETE FROM user_sessions WHERE user_id=?", (user["id"],))
         conn.execute("DELETE FROM users WHERE id=?", (user["id"],))
         conn.commit()
@@ -302,9 +295,22 @@ async def delete_account(req: DeleteAccountRequest, request: Request, response: 
 
 @router.post("/subscribe")
 async def subscribe(request: Request, req: SubscribeRequest):
-    """Private-Pro placeholder subscription activator.
-    Replace this with Stripe Checkout/webhooks before charging real users.
-    """
+    if os.getenv("ORYNTRA_ALLOW_MANUAL_BETA_SUBSCRIPTIONS", "false").strip().lower() not in {"1", "true", "yes", "on"}:
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "code": "BILLING_NOT_CONFIGURED",
+                "message": "Subscription activation is unavailable until verified billing is configured.",
+            },
+        )
+    if os.getenv("ORYNTRA_MARKET_DATA_LICENSE_MODE", "personal_research").strip().lower() != "business_approved":
+        raise HTTPException(
+            status_code=451,
+            detail={
+                "code": "MARKET_DATA_LICENSE_REQUIRED",
+                "message": "Paid public analysis cannot be activated under the personal market-data configuration.",
+            },
+        )
     user = require_current_user(request)
     plan = req.plan_code.lower().strip()
     allowed = {
@@ -327,3 +333,4 @@ async def subscribe(request: Request, req: SubscribeRequest):
     finally:
         conn.close()
     return await me(request)
+

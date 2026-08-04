@@ -1,8 +1,3 @@
-"""
-Oryntra Backtest Route
-Endpoint: POST /api/backtest/run
-"""
-
 from fastapi import APIRouter, HTTPException
 from ..backtest import BacktestRequest, run_backtest
 
@@ -21,9 +16,9 @@ async def backtest_endpoint(req: BacktestRequest):
 
 @router.get("/quick/{ticker}")
 async def quick_backtest(ticker: str, period: str = "1y", min_score: float = 55):
-    """Quick GET backtest with defaults."""
     req = BacktestRequest(ticker=ticker.upper(), period=period, min_score=min_score)
     try:
         return await run_backtest(req)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+

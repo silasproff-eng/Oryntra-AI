@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -13,27 +13,27 @@
 
   <title>Oryntra AI — Market Intelligence Dashboard</title>
 
-  <link rel="stylesheet" href="/static/css/main.css?v=050-optimized-worker" />
-  <link rel="stylesheet" href="/static/css/refined.css?v=061-blue" />
+  <link rel="stylesheet" href="/static/css/main.css?v=090-market-intelligence" />
+  <link rel="stylesheet" href="/static/css/refined.css?v=090-market-intelligence" />
 
   <style>
-    /* Ensure period buttons are visible and styled */
+    
     .tv-period-btn {
-      display: inline-block !important;
-      visibility: visible !important;
-      opacity: 1 !important;
+      display: inline-block ;
+      visibility: visible ;
+      opacity: 1 ;
     }
 
-    /* Critical avatar sizing: prevents desktop duplicate/giant profile image if CSS loads late/cached */
+    
     .header-github-avatar {
-      width: 18px !important;
-      height: 18px !important;
-      max-width: 18px !important;
-      max-height: 18px !important;
-      object-fit: cover !important;
-      border-radius: 50% !important;
-      flex: 0 0 18px !important;
-      display: inline-block !important;
+      width: 18px ;
+      height: 18px ;
+      max-width: 18px ;
+      max-height: 18px ;
+      object-fit: cover ;
+      border-radius: 50% ;
+      flex: 0 0 18px ;
+      display: inline-block ;
     }
   </style>
 
@@ -59,16 +59,16 @@
 
       <span class="beta-badge beta-version-badge" role="button" tabindex="0" aria-controls="devLabPanel" aria-expanded="false" aria-label="Open developer Pattern Lab">
         BETA
-        <span class="beta-version-text">V0.5.1</span>
+        <span class="beta-version-text">V0.9.1</span>
       </span>
 
       <div class="market-status" aria-label="Market data status">
         <span class="status-dot" aria-hidden="true"></span>
-        MARKET DATA LIVE
+        SERVER ANALYSIS READY
       </div>
     </div>
 
-    <div class="header-version-display" aria-hidden="true">V0.5.1</div>
+    <div class="header-version-display" aria-hidden="true">V0.9.1</div>
 
     <div class="header-right">
       <div class="auth-header">
@@ -297,7 +297,6 @@
     </section>
 
 
-
     
     <section class="tab-panel" id="tab-settings" role="tabpanel" aria-labelledby="nav-settings" aria-hidden="true" tabindex="0">
       <div class="settings-page">
@@ -305,7 +304,7 @@
           <div>
             <div class="settings-kicker">ORYNTRA AI SETTINGS</div>
             <h2>App settings</h2>
-            <p>Temporary publish release. Public scanner is locked to V7 Official so old experimental engine settings cannot leak into the website.</p>
+            <p>Oryntra processes market data on the server and publishes only derived technical analysis. Chart visualization is supplied independently by an embedded TradingView widget.</p>
           </div>
           <div class="settings-current-engine" id="settingsCurrentEngine">ENGINE: V7 OFFICIAL</div>
         </div>
@@ -316,15 +315,27 @@
             <label class="settings-field">
               <span>Engine used for stock analysis</span>
               <select id="settingsEngineSelect">
-                <option value="official" selected>V7 Official Momentum — Temporary Publish Engine</option>
+                <option value="official" selected>V7 Official Momentum — Market Intelligence</option>
               </select>
             </label>
-            <p class="settings-note">Oryntra AI V0.5.1 release is locked to V7 Official for public scans. VAI2.1 remains hidden/dev-only until validated.</p>
+            <p class="settings-note">Oryntra AI v0.9.1 uses the validated V7 Official engine. Raw candles remain server-side; the public client receives only derived indicators, pattern findings, confidence, and engine-generated trade-planning levels.</p>
           </section>
 
-          <section class="settings-category card muted-settings-category">
-            <div class="settings-category-title">Account</div>
-            <p class="settings-note">More account controls will be added later.</p>
+          <section class="settings-category card analysis-settings-card" id="analysisAccessCard">
+            <div class="analysis-settings-heading">
+              <div>
+                <div class="settings-category-title">Analysis access and daily usage</div>
+                <p class="settings-note">Oryntra performs candle processing privately on the server. Public responses exclude raw OHLCV, downloadable history, and provider payloads. The chart is hosted by TradingView.</p>
+              </div>
+              <span class="analysis-status-badge is-offline" id="analysisAccessBadge">CHECKING</span>
+            </div>
+            <div class="analysis-connection-list" id="analysisAccessList">
+              <div class="analysis-empty-state">Sign in to view your market-intelligence entitlement and daily request balance.</div>
+            </div>
+            <div class="analysis-settings-actions">
+              <button class="analysis-action-btn quiet" id="analysisAccessRefreshBtn" type="button">REFRESH STATUS</button>
+            </div>
+            <div class="analysis-inline-error" id="analysisAccessError" role="alert" aria-live="polite"></div>
           </section>
 
           <section class="settings-category card settings-appearance">
@@ -397,7 +408,18 @@
         </button>
       </div>
 
-      <p class="search-legal-note">By searching a stock, you agree to the <a href="/legal/terms" target="_blank" rel="noopener">Terms of Service</a> and <a href="/legal/privacy" target="_blank" rel="noopener">Privacy Policy</a>. Oryntra AI Beta is educational software only and not financial advice.</p>
+      <p class="search-legal-note">By searching a stock, you agree to the <a href="/legal/terms" target="_blank" rel="noopener">Terms of Service</a> and <a href="/legal/privacy" target="_blank" rel="noopener">Privacy Policy</a>. Oryntra AI is educational research software only and not financial advice. Raw market history is not provided by Oryntra.</p>
+
+      <section class="analysis-scanner-banner" id="analysisScannerBanner" aria-live="polite">
+        <div class="analysis-scanner-status-copy">
+          <span class="analysis-status-dot is-offline" id="analysisScannerDot" aria-hidden="true"></span>
+          <div>
+            <strong id="analysisScannerTitle">Sign in to analyze</strong>
+            <span id="analysisScannerMessage">Oryntra returns derived analysis only. TradingView independently supplies the embedded chart.</span>
+          </div>
+        </div>
+        <button class="analysis-banner-btn" id="analysisScannerManageBtn" type="button">SIGN IN</button>
+      </section>
 
       <section class="ad-zone ad-zone-scanner" data-ad-slot="scanner_top" data-ad-format="horizontal" aria-label="Advertisement area">
         <div class="ad-zone-kicker">ADVERTISEMENT</div>
@@ -481,11 +503,11 @@
           </div>
           <div class="price-meta-row">
             <div class="meta-chip">
-              <span class="meta-label">52W HIGH</span>
+              <span class="meta-label">RESISTANCE</span>
               <span class="meta-val" id="r52wHigh">—</span>
             </div>
             <div class="meta-chip">
-              <span class="meta-label">52W LOW</span>
+              <span class="meta-label">SUPPORT</span>
               <span class="meta-val" id="r52wLow">—</span>
             </div>
             <div class="meta-chip">
@@ -727,11 +749,11 @@
           </div>
           <div class="vol-details">
             <div class="vol-row">
-              <span>Current</span>
+              <span>Participation</span>
               <span id="volCurrent">—</span>
             </div>
             <div class="vol-row">
-              <span>20D Avg</span>
+              <span>Divergence</span>
               <span id="volAvg">—</span>
             </div>
             <div class="vol-row">
@@ -771,9 +793,11 @@
             <span class="pos-value" id="posSizeVal">—</span>
             <span class="pos-note" id="posSizeNote"></span>
           </div>
-          <button class="paper-trade-btn" id="paperTradeBtn" type="button" style="display:none">
-            ▶ PAPER TRADE THIS
-          </button>
+          <div class="trade-action-row" id="tradeActionRow" style="display:none">
+            <button class="paper-trade-btn" id="paperTradeBtn" type="button">
+              SAVE SIMULATED PLAN
+            </button>
+          </div>
         </div>
 
         <section class="ad-zone ad-zone-results-inline" data-ad-slot="results_inline" data-ad-format="horizontal" aria-label="Advertisement area">
@@ -915,7 +939,7 @@
     <section class="tab-panel" id="tab-backtest" role="tabpanel" aria-labelledby="nav-backtest" aria-hidden="true" tabindex="0">
       <div class="backtest-header">
         <h2 class="panel-title">BACKTESTER</h2>
-        <p class="panel-subtitle">Walk-forward simulation on historical data. Signals generated by the same rule engine used for live scans.</p>
+        <p class="panel-subtitle">Walk-forward simulation on historical data. Signals generated by the same rule engine used for current analysis.</p>
       </div>
 
       <div class="backtest-controls card">
@@ -995,7 +1019,7 @@
       <span class="legal-inline-sep">•</span>
       <a href="/legal/contact" target="_blank" rel="noopener">Contact</a>
       <span class="legal-inline-sep">•</span>
-      <span>Free beta educational software only — not financial advice.</span>
+      <span>Educational market intelligence only — not financial advice or a market-data feed.</span>
     </footer>
 
   </main>
@@ -1020,6 +1044,10 @@
           <label for="authName">DISPLAY NAME</label>
           <input type="text" id="authName" name="display_name" class="modal-input" placeholder="Silas" autocomplete="name" />
         </div>
+        <label class="legal-consent-check" id="authLegalField" style="display:none">
+          <input type="checkbox" id="authLegalAccept" />
+          <span>I have read and accept the <a href="/legal/terms" target="_blank" rel="noopener">Terms of Service</a>, <a href="/legal/privacy" target="_blank" rel="noopener">Privacy Policy</a>, and <a href="/legal/risk-disclaimer" target="_blank" rel="noopener">Market Analysis Risk Disclaimer</a>.</span>
+        </label>
         <div class="modal-field modal-field-full">
           <label for="authEmail">EMAIL</label>
           <input type="email" id="authEmail" name="email" class="modal-input" placeholder="you@example.com" autocomplete="username email" />
@@ -1030,7 +1058,7 @@
         </div>
       </div>
       <div class="auth-error" id="authError" role="alert" aria-live="assertive"></div>
-      <p class="search-legal-note auth-legal-note">By creating an account or logging in, you agree to the <a href="/legal/terms" target="_blank" rel="noopener">Terms</a> and <a href="/legal/privacy" target="_blank" rel="noopener">Privacy Policy</a>.</p>
+      <p class="search-legal-note auth-legal-note">Logging in confirms continued use under the current <a href="/legal/terms" target="_blank" rel="noopener">Terms</a> and <a href="/legal/privacy" target="_blank" rel="noopener">Privacy Policy</a>. New accounts must explicitly accept the legal documents above.</p>
       <div class="modal-actions">
         <button class="modal-cancel" id="authCancel" type="button">CANCEL</button>
         <button class="modal-confirm" id="authSubmit" type="button">LOGIN</button>
@@ -1039,6 +1067,7 @@
   </div>
 
   
+
   <div class="modal-overlay" id="paperModal" style="display:none" role="dialog" aria-modal="true" aria-labelledby="paperModalTitle">
     <div class="modal-box" tabindex="-1">
       <div class="modal-title" id="paperModalTitle">OPEN PAPER TRADE</div>
@@ -1080,8 +1109,7 @@
   </div>
 
   
-  <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
-  <script src="/static/js/app.js?v=050-optimized-worker"></script>
+    <script src="/static/js/app.js?v=090-market-intelligence"></script>
   <script>
   document.addEventListener("DOMContentLoaded", function () {
     const psaBanner = document.getElementById("psaBanner");

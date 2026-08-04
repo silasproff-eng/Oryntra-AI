@@ -8,7 +8,6 @@ from .utils import candle, pattern, volume_ratio
 
 
 def detect_fair_value_gaps(hist: pd.DataFrame, indicators: dict[str, Any] | None = None) -> list[dict[str, Any]]:
-    """Detect bullish/bearish fair value gaps and fill status."""
     if hist is None or len(hist) < 3:
         return []
 
@@ -144,3 +143,4 @@ def _atr_proxy(hist: pd.DataFrame, period: int = 14) -> float:
     prev_close = close.shift(1)
     tr = pd.concat([high - low, (high - prev_close).abs(), (low - prev_close).abs()], axis=1).max(axis=1)
     return float(tr.tail(period).mean())
+

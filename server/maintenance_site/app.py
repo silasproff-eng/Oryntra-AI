@@ -1,16 +1,5 @@
 #!/usr/bin/env python3
-"""Standalone Oryntra maintenance server.
 
-This server intentionally does not import the Oryntra backend, market-data
-providers, scanner routes, account routes, or research tools. It exposes only:
-
-- / and /index.html
-- /legal/methodology and /methodology
-- /static/*
-- /health
-
-Everything else returns 404.
-"""
 
 from __future__ import annotations
 
@@ -45,7 +34,7 @@ class MaintenanceHandler(SimpleHTTPRequestHandler):
         self.send_header("Cache-Control", "no-store, max-age=0")
         super().end_headers()
 
-    def do_GET(self) -> None:  # noqa: N802 - standard-library handler API
+    def do_GET(self) -> None:
         path = unquote(urlsplit(self.path).path)
 
         if path in {"/", "/index.html"}:
@@ -87,16 +76,16 @@ class MaintenanceHandler(SimpleHTTPRequestHandler):
 
         self.send_error(HTTPStatus.NOT_FOUND, "This service is in maintenance mode")
 
-    def do_HEAD(self) -> None:  # noqa: N802
+    def do_HEAD(self) -> None:
         self.do_GET()
 
-    def do_POST(self) -> None:  # noqa: N802
+    def do_POST(self) -> None:
         self.send_error(HTTPStatus.METHOD_NOT_ALLOWED)
 
-    def do_PUT(self) -> None:  # noqa: N802
+    def do_PUT(self) -> None:
         self.send_error(HTTPStatus.METHOD_NOT_ALLOWED)
 
-    def do_DELETE(self) -> None:  # noqa: N802
+    def do_DELETE(self) -> None:
         self.send_error(HTTPStatus.METHOD_NOT_ALLOWED)
 
     def _serve_file(self, path: Path, content_type: str) -> None:
@@ -143,3 +132,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+

@@ -1,10 +1,3 @@
-"""Causal Oryntra backtesting engine.
-
-The engine uses the canonical market repository, generates signals using only
-information available through a session close, and enters at the next session
-open.  It supports a single ticker for the existing API and multiple tickers
-for research/CLI use.
-"""
 from __future__ import annotations
 
 import asyncio
@@ -33,7 +26,7 @@ class BacktestRequest(BaseModel):
     min_score: float = 55.0
     setups: list[str] = Field(default_factory=list)
     engine_mode: str = "official"
-    data_source: str = "cache_first"  # cache_only or cache_first
+    data_source: str = "cache_first"
     min_history: int = 220
     max_hold_candles: int = 20
     commission_bps: float = 2.0
@@ -293,7 +286,6 @@ def _run_one(
 
 
 def _enforce_portfolio_capacity(trades: list[dict[str, Any]], max_concurrent: int) -> tuple[list[dict[str, Any]], int]:
-    """Reject entries that would exceed the configured portfolio capacity."""
     capacity = max(1, int(max_concurrent))
     accepted: list[dict[str, Any]] = []
     active_exit_dates: list[str] = []
@@ -517,8 +509,6 @@ def _run_backtest_sync(req: BacktestRequest) -> dict[str, Any]:
 
 @router.post("/run")
 async def run_backtest(req: BacktestRequest) -> dict[str, Any]:
-    # Keep long historical simulations off the Uvicorn event loop so live
-    # scans, authentication, and static requests remain responsive.
     return await asyncio.to_thread(_run_backtest_sync, req)
 
 
@@ -531,3 +521,4 @@ if __name__ == "__main__":
     period = sys.argv[2] if len(sys.argv) > 2 else "2y"
     result = asyncio.run(run_backtest(BacktestRequest(ticker=ticker, period=period)))
     print(json.dumps({"stats": result["stats"], "errors": result["errors"]}, indent=2))
+

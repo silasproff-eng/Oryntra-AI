@@ -1,10 +1,3 @@
-"""Validated training orchestration for Oryntra research models.
-
-Pattern Lab is responsible for causal observations.  This module audits those
-observations, records reproducibility metadata, and only then invokes the
-existing model learners.  It keeps model code isolated from data-loading and
-prevents training on malformed, duplicated, or future-leaking rows.
-"""
 from __future__ import annotations
 
 import math
@@ -178,3 +171,4 @@ def train_vai2_research(
         experiment_id=experiment_id,
     )
     return result
+

@@ -1,9 +1,3 @@
-"""Market-wide Polygon/Massive cache for Oryntra.
-
-One grouped-daily request stores thousands of U.S. stock bars. The importer is
-resumable, idempotent, rate-limited across processes, and never deletes valid
-existing data when a request fails.
-"""
 from __future__ import annotations
 
 import json
@@ -45,7 +39,7 @@ from .polygon_client import PolygonAPIError, polygon_get, rate_limit_info
 
 try:
     import fcntl
-except Exception:  # pragma: no cover - Windows fallback
+except Exception:
     fcntl = None
 
 APP_DIR = Path(__file__).resolve().parents[1]
@@ -55,8 +49,6 @@ EASTERN = ZoneInfo("America/New_York")
 
 
 class NyseHolidayCalendar(AbstractHolidayCalendar):
-    """Regular full-day U.S. equity-market holidays for current history."""
-
     rules = [
         Holiday("New Year's Day", month=1, day=1, observance=nearest_workday),
         USMartinLutherKingJr,
@@ -77,9 +69,8 @@ class NyseHolidayCalendar(AbstractHolidayCalendar):
     ]
 
 
-# Known one-off full-session closure inside the free plan's current two-year window.
 SPECIAL_CLOSURES = {
-    date(2025, 1, 9),  # National Day of Mourning for President Jimmy Carter.
+    date(2025, 1, 9),
 }
 
 
@@ -138,7 +129,6 @@ class MarketCacheConfig:
 
 
 def trading_days(start: date, end: date) -> list[date]:
-    """Return regular NYSE/Nasdaq trading dates, excluding known closures."""
     if end < start:
         return []
     weekdays = pd.date_range(start=start, end=end, freq="B")
@@ -165,7 +155,7 @@ def latest_completed_trading_day(
     *,
     ready_hour_et: int | None = None,
 ) -> date:
-    """Choose the newest session likely finalized on the free end-of-day plan."""
+
     config = MarketCacheConfig.from_env()
     ready_hour = ready_hour_et if ready_hour_et is not None else config.end_of_day_ready_hour_et
     current = now or datetime.now(timezone.utc)
@@ -210,7 +200,7 @@ def import_grouped_day(
     minimum_rows: int | None = None,
     dry_run: bool = False,
 ) -> dict[str, Any]:
-    """Download and atomically store one full-market daily summary."""
+
     config = MarketCacheConfig.from_env()
     day = date.fromisoformat(str(trading_date)) if not isinstance(trading_date, date) else trading_date
     min_rows = minimum_rows or config.minimum_rows_per_day
@@ -273,7 +263,7 @@ def backfill_market_cache(
     dry_run: bool = False,
     stop_event: threading.Event | None = None,
 ) -> dict[str, Any]:
-    """Resume a market-wide backfill without re-requesting completed dates."""
+
     init_db()
     pending = planned_backfill_dates(
         lookback_calendar_days=lookback_calendar_days,
@@ -340,7 +330,7 @@ def update_recent_market_cache(
     max_dates: int | None = None,
     stop_event: threading.Event | None = None,
 ) -> dict[str, Any]:
-    """Catch up recent missing sessions before a long historical backfill."""
+
     end = latest_completed_trading_day()
     start = end - timedelta(days=max(20, lookback_sessions * 3))
     successful = get_successful_market_dates()
@@ -402,7 +392,7 @@ def sync_ticker_reference(
     max_pages: int | None = None,
     stop_event: threading.Event | None = None,
 ) -> dict[str, Any]:
-    """Store active ticker names/types in batches of up to 1,000 per call."""
+
     init_db()
     page_limit = max_pages or max(1, int(os.getenv("ORYNTRA_MARKET_CACHE_REFERENCE_MAX_PAGES", "50")))
     next_url: str | None = "/v3/reference/tickers"
@@ -431,7 +421,7 @@ def sync_ticker_reference(
             pages += 1
             print(f"[MarketCache] reference page {pages}: stored {stored:,} symbols.")
             next_url = payload.get("next_url")
-            params = None  # next_url contains pagination state; polygon_get adds apiKey.
+            params = None
     except Exception as exc:
         failed = {
             "status": "FAILED",
@@ -515,8 +505,7 @@ class MarketCacheWorker:
             if self.stop_event.is_set():
                 return
 
-            # Prioritize grouped full-market bars because each call stores thousands
-            # of rows. Reference metadata is useful but must never block the backfill.
+
             if initial and self.config.auto_backfill:
                 backfill_market_cache(
                     lookback_calendar_days=self.config.lookback_calendar_days,
@@ -566,3 +555,4 @@ def status() -> dict[str, Any]:
     state["reference_sync"] = get_market_cache_meta("reference_sync", {})
     state["config"] = MarketCacheConfig.from_env().__dict__
     return state
+

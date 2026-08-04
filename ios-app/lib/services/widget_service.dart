@@ -20,7 +20,7 @@ class WidgetService {
         'updatedAt': DateTime.now().toIso8601String(),
       });
     } on MissingPluginException {
-      // WidgetKit is unavailable in browser and non-iOS previews.
+      
     }
   }
 }

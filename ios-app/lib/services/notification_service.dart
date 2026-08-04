@@ -86,7 +86,7 @@ class NotificationService {
         try {
           await _channel.invokeMethod<void>('cancelAll');
         } on MissingPluginException {
-          // Native notifications are unavailable in non-iOS previews.
+          
         }
       }
       await prefs.setBool(_dailyKey, false);
@@ -117,7 +117,7 @@ class NotificationService {
       try {
         await _channel.invokeMethod<void>('cancelDaily');
       } on MissingPluginException {
-        // Native notifications are unavailable in non-iOS previews.
+        
       }
     }
     await prefs.setBool(_dailyKey, enabled);
@@ -177,7 +177,7 @@ class NotificationService {
           'minute': 30,
         });
       } on MissingPluginException {
-        // Native notifications are unavailable in non-iOS previews.
+        
       }
     }
     await _syncMarketAlertReminders(await marketAlertTickers());
@@ -192,7 +192,7 @@ class NotificationService {
         'tickers': enabled ? tickers : const <String>[],
       });
     } on MissingPluginException {
-      // Native notifications are unavailable in non-iOS previews.
+      
     }
   }
 
@@ -209,7 +209,7 @@ class NotificationService {
         'quality': quality,
       });
     } on MissingPluginException {
-      // Native notifications are unavailable in non-iOS previews.
+      
     }
   }
 }

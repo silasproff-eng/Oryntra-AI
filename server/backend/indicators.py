@@ -1,20 +1,9 @@
-"""
-Oryntra Indicator Calculator — v2
-Adds: ADX/DI, Williams %R, OBV, VWAP, Ichimoku Cloud, EMA cross signals,
-      enhanced trend classification, volume-price divergence.
-All existing field names preserved — only new keys added.
-"""
-
 import pandas as pd
 import numpy as np
 from typing import Dict, Any
 
 
 def calculate_all_indicators(hist: pd.DataFrame) -> Dict[str, Any]:
-    """
-    Master indicator calculation. Returns a flat dict of all computed values.
-    hist: DataFrame with Open, High, Low, Close, Volume columns.
-    """
     close  = hist["Close"]
     high   = hist["High"]
     low    = hist["Low"]
@@ -43,7 +32,7 @@ def calculate_all_indicators(hist: pd.DataFrame) -> Dict[str, Any]:
     indicators["daily_range_pct"] = round((float(high.iloc[-1]) - float(low.iloc[-1])) / float(close.iloc[-1]) * 100, 2)
 
     indicators["rsi14"] = _rsi(close, 14)
-    indicators["rsi7"]  = _rsi(close, 7)   # short-term RSI for divergence
+    indicators["rsi7"]  = _rsi(close, 7)
 
     macd_result = _macd(close)
     indicators.update(macd_result)
@@ -118,7 +107,6 @@ def calculate_all_indicators(hist: pd.DataFrame) -> Dict[str, Any]:
     indicators["volume_price_divergence"] = _volume_price_divergence(close, volume)
 
     return indicators
-
 
 
 def _sma(series: pd.Series, period: int) -> float | None:
@@ -199,7 +187,6 @@ def _atr(high: pd.Series, low: pd.Series, close: pd.Series, period: int = 14) ->
 
 
 def _atr_percentile(high: pd.Series, low: pd.Series, close: pd.Series, period: int = 14, lookback: int = 252) -> float:
-    """Percentile rank of current ATR% within the available trailing window."""
     if len(close) < period + 2:
         return 50.0
     prev_close = close.shift(1)
@@ -228,7 +215,6 @@ def _distance_pct(price: float | None, level: float | None) -> float | None:
 
 
 def _adx(high: pd.Series, low: pd.Series, close: pd.Series, period: int = 14) -> dict:
-    """ADX + +DI/-DI using Wilder smoothing. ADX > 25 = trending, > 40 = strong trend."""
     if len(close) < period * 2:
         return {"adx14": None, "di_plus": None, "di_minus": None, "adx_signal": "WEAK"}
 
@@ -270,7 +256,6 @@ def _adx(high: pd.Series, low: pd.Series, close: pd.Series, period: int = 14) ->
 
 
 def _williams_r(high: pd.Series, low: pd.Series, close: pd.Series, period: int = 14) -> float | None:
-    """Williams %R: 0 to -100. -80 to -100 = oversold, 0 to -20 = overbought."""
     if len(close) < period:
         return None
     h = high.iloc[-period:].max()
@@ -282,7 +267,6 @@ def _williams_r(high: pd.Series, low: pd.Series, close: pd.Series, period: int =
 
 
 def _obv(close: pd.Series, volume: pd.Series) -> dict:
-    """On-Balance Volume. Rising OBV with rising price = healthy; divergence = warning."""
     if len(close) < 5:
         return {"obv": None, "obv_signal": "UNKNOWN", "obv_trend": "UNKNOWN"}
 
@@ -297,16 +281,15 @@ def _obv(close: pd.Series, volume: pd.Series) -> dict:
     price_up  = float(close.iloc[-1]) > float(close.iloc[-5])
     obv_up    = obv_now > float(obv.iloc[-6]) if len(obv) > 6 else True
 
-    if price_up and obv_up:     sig = "CONFIRMING"   # healthy
-    elif price_up and not obv_up: sig = "DIVERGING"  # bearish divergence — warning
-    elif not price_up and obv_up: sig = "DIVERGING"  # bullish divergence — opportunity
+    if price_up and obv_up:     sig = "CONFIRMING"
+    elif price_up and not obv_up: sig = "DIVERGING"
+    elif not price_up and obv_up: sig = "DIVERGING"
     else:                         sig = "CONFIRMING"
 
     return {"obv": round(obv_now, 0), "obv_signal": sig, "obv_trend": obv_trend}
 
 
 def _vwap(high: pd.Series, low: pd.Series, close: pd.Series, volume: pd.Series, period: int = 20) -> float | None:
-    """Rolling VWAP over `period` days. Price > VWAP = bullish bias."""
     if len(close) < period:
         return None
     typical  = (high + low + close) / 3
@@ -316,7 +299,6 @@ def _vwap(high: pd.Series, low: pd.Series, close: pd.Series, volume: pd.Series, 
 
 
 def _ichimoku(high: pd.Series, low: pd.Series, close: pd.Series) -> dict:
-    """Ichimoku Cloud — standard 9/26/52 settings."""
     n = len(close)
     result = {
         "ichi_tenkan": None, "ichi_kijun": None,
@@ -352,13 +334,12 @@ def _ichimoku(high: pd.Series, low: pd.Series, close: pd.Series) -> dict:
     elif price < cloud_bot:
         result["ichi_signal"] = "BEAR"
     else:
-        result["ichi_signal"] = "NEUTRAL"  # inside cloud
+        result["ichi_signal"] = "NEUTRAL"
 
     return result
 
 
 def _ema_cross_signal(ind: dict) -> str:
-    """9/21 EMA cross: fast signal for momentum shifts."""
     e9  = ind.get("ema9")
     e21 = ind.get("ema21")
     if e9 is None or e21 is None:
@@ -406,7 +387,6 @@ def _adx_trend_label(adx: float | None) -> str:
 
 
 def _classify_trend(ind: dict) -> str:
-    """Enhanced trend classifier using ADX confirmation and EMA cross."""
     price   = ind.get("price", 0)
     ma20    = ind.get("ma20")
     ma50    = ind.get("ma50")
@@ -448,7 +428,6 @@ def _classify_trend(ind: dict) -> str:
 
 
 def _trend_strength(close: pd.Series, period: int = 20) -> float:
-    """R² of linear regression over last `period` candles. 0–100 scale."""
     if len(close) < period:
         return 0.0
     y = close.iloc[-period:].values
@@ -472,7 +451,6 @@ def _pct_change(close: pd.Series, periods: int) -> float | None:
 
 
 def _pivot_points(hist: pd.DataFrame) -> dict:
-    """Classic pivot points from the last session."""
     prev = hist.iloc[-2] if len(hist) >= 2 else hist.iloc[-1]
     H, L, C = float(prev["High"]), float(prev["Low"]), float(prev["Close"])
     pivot  = (H + L + C) / 3
@@ -490,11 +468,6 @@ def _pivot_points(hist: pd.DataFrame) -> dict:
 
 
 def _volume_price_divergence(close: pd.Series, volume: pd.Series, lookback: int = 10) -> str:
-    """
-    Detect simple volume-price divergence over last `lookback` bars.
-    Bullish: price falling but volume increasing (accumulation).
-    Bearish: price rising but volume falling (distribution).
-    """
     if len(close) < lookback + 1:
         return "UNKNOWN"
     price_change  = float(close.iloc[-1]) - float(close.iloc[-lookback])
@@ -503,3 +476,4 @@ def _volume_price_divergence(close: pd.Series, volume: pd.Series, lookback: int 
     if price_change < 0 and vol_change > 0:   return "BULLISH_DIVERGENCE"
     if price_change > 0 and vol_change < 0:   return "BEARISH_DIVERGENCE"
     return "NONE"
+

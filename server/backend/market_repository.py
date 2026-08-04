@@ -1,18 +1,3 @@
-"""Canonical market-data repository for Oryntra.
-
-Every feature that needs daily candles should use this module.  It provides:
-
-* SQLite-first reads from the grouped all-market cache.
-* Transparent ticker-specific Massive/Polygon fallback when local history is
-  absent or too short.
-* One shared provider limiter through :mod:`backend.polygon_client`.
-* Successful fallback persistence into the same ``ohlcv_bars`` table used by
-  the scanner, Pattern Lab, training, and backtesting.
-* Expiring negative-cache entries for invalid/unavailable symbols.
-* Reproducible dataset fingerprints and explicit source/freshness metadata.
-
-The repository never deletes existing candles while satisfying a read.
-"""
 from __future__ import annotations
 
 import hashlib
@@ -31,7 +16,7 @@ from .polygon_client import PolygonAPIError, polygon_get
 
 try:
     import yfinance as yf
-except Exception:  # pragma: no cover - optional emergency fallback
+except Exception:
     yf = None
 
 _TICKER_RE = re.compile(r"^[A-Z0-9][A-Z0-9.\-]{0,19}$")
@@ -43,7 +28,7 @@ _PERIOD_CALENDAR_DAYS: dict[str, int | None] = {
     "6mo": 210,
     "1y": 400,
     "2y": 730,
-    "5y": 730,  # current free entitlement is approximately two years
+    "5y": 730,
     "all": 730,
 }
 
@@ -76,12 +61,6 @@ def period_calendar_days(period: str | None) -> int:
 
 
 def _latest_reasonable_session_date(now: datetime | None = None) -> date:
-    """Return the latest date that can reasonably have completed EOD data.
-
-    This intentionally avoids pretending to be a full exchange calendar.  The
-    grouped importer owns precise holiday handling.  For read freshness, a
-    weekend-safe weekday approximation plus a grace window is sufficient.
-    """
     current = (now or _utc_now()).date()
     candidate = current - timedelta(days=1)
     while candidate.weekday() >= 5:
@@ -216,8 +195,6 @@ class HistoryResult:
 
 
 class MarketDataRepository:
-    """Read/write facade for all Oryntra daily market data."""
-
     def __init__(self) -> None:
         self._ensure_schema()
 
@@ -591,12 +568,8 @@ class MarketDataRepository:
         max_stale_days: int | None = None,
         allow_stale_on_error: bool = True,
     ) -> HistoryResult:
-        """Return daily history, using one ticker API call only when necessary.
 
-        ``allow_api=False`` is the strict cache-only mode used by reproducible
-        research.  ``allow_api=True`` is cache-first and persists any successful
-        fallback before returning it.
-        """
+
         symbol = normalize_ticker(ticker)
         clean_period = normalize_period(period)
         stale_days = max(
@@ -738,7 +711,7 @@ class MarketDataRepository:
         minimum_bars: int = 20,
         allow_api: bool = False,
     ) -> Iterator[tuple[str, HistoryResult | None, str | None]]:
-        """Yield deterministic per-ticker results without concurrent API bursts."""
+
         seen: set[str] = set()
         for raw in tickers:
             try:
@@ -807,3 +780,4 @@ def get_history(
         allow_api=allow_api,
         force_refresh=force_refresh,
     )
+

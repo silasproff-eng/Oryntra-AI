@@ -8,7 +8,6 @@ from .utils import candle, near, pattern, volume_ratio
 
 
 def detect_structure_patterns(hist: pd.DataFrame, indicators: dict[str, Any] | None = None) -> list[dict[str, Any]]:
-    """Detect liquidity sweeps, equal highs/lows, BOS/CHOCH, displacement, and simple order blocks."""
     if hist is None or len(hist) < 12:
         return []
     out: list[dict[str, Any]] = []
@@ -125,3 +124,4 @@ def _trend(hist: pd.DataFrame, lookback: int = 20) -> str:
     if change < -3:
         return "DOWN"
     return "SIDEWAYS"
+

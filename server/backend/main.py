@@ -1,8 +1,3 @@
-"""
-Oryntra - AI-Powered Stock Analysis Dashboard
-Main FastAPI Application
-"""
-
 import sqlite3
 import json
 import os
@@ -15,17 +10,17 @@ from fastapi.responses import FileResponse, JSONResponse, HTMLResponse, PlainTex
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 
-from .database import init_db
+from .database import init_db, get_app_counter
 from .market_cache import start_market_cache_worker, status as market_cache_status
-from .routes import analysis, watchlist, paper_trading, ai_explain, backtest, patterns, auth, dev_tools, pro, alpaca
+from .routes import analysis, watchlist, paper_trading, ai_explain, backtest, patterns, auth, dev_tools, pro, intelligence
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FRONTEND_DIR = os.path.join(BASE_DIR, "frontend")
 LEGAL_DIR = os.path.join(FRONTEND_DIR, "legal")
 
-APP_VERSION = "0.7.0-alpaca-ready"
+APP_VERSION = "0.9.1-market-intelligence"
 PUBLIC_ENGINE = "official"
-PUBLIC_ENGINE_LABEL = "V7 Official Momentum via user-authorized Alpaca data"
+PUBLIC_ENGINE_LABEL = "V7 Official Momentum with server-side derived analysis"
 
 NO_CACHE_HEADERS = {
     "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
@@ -115,7 +110,6 @@ def ads_diagnostics() -> dict:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Initialize database on startup."""
     init_db()
     print("✅ Oryntra DB initialized")
     market_worker = start_market_cache_worker() if env_bool("ORYNTRA_PRIVATE_RESEARCH_ROUTES", False) else None
@@ -128,10 +122,14 @@ async def lifespan(app: FastAPI):
 
 
 _private_research = env_bool("ORYNTRA_PRIVATE_RESEARCH_ROUTES", False)
+_public_scanner_website = env_bool(
+    "ORYNTRA_PUBLIC_SCANNER_WEBSITE",
+    _private_research,
+)
 
 app = FastAPI(
     title="Oryntra AI API",
-    description="User-authorized Alpaca market analysis API",
+    description="Oryntra derived market-intelligence API with a strict raw-data boundary",
     version=APP_VERSION,
     lifespan=lifespan,
     docs_url="/docs" if _private_research else None,
@@ -168,13 +166,12 @@ async def oryntra_release_headers(request, call_next):
     return response
 
 app.include_router(auth.router, prefix="/api/auth", tags=["Auth"])
-app.include_router(alpaca.router, prefix="/api/alpaca", tags=["Alpaca Connect"])
+app.include_router(intelligence.router, prefix="/api/intelligence", tags=["Market Intelligence"])
 app.include_router(watchlist.router, prefix="/api/watchlist", tags=["Watchlist"])
 app.include_router(paper_trading.router, prefix="/api/paper", tags=["Paper Trading"])
 app.include_router(ai_explain.router, prefix="/api/ai", tags=["AI Explanation"])
 
-# Legacy Polygon/Twelve Data research routes are disabled on public deployments
-# unless the operator explicitly enables them for a private/Tailscale-only host.
+
 if _private_research:
     app.include_router(analysis.router, prefix="/api/analysis", tags=["Private Analysis"])
     app.include_router(backtest.router, prefix="/api/backtest", tags=["Private Backtesting"])
@@ -191,13 +188,13 @@ app.mount(
 
 @app.get("/", include_in_schema=False)
 async def serve_frontend():
-    if not _private_research:
+    if not _public_scanner_website:
         return JSONResponse(
             {
                 "service": "oryntra-ai-api",
                 "status": "online",
                 "version": APP_VERSION,
-                "market_data": "user-authorized Alpaca Connect",
+                "market_data": "server-side analysis; public raw market data disabled",
                 "public_scanner_website": "offline",
             },
             headers=NO_CACHE_HEADERS,
@@ -236,12 +233,25 @@ async def health_check():
 
 @app.get("/api/app/version")
 async def app_version():
-    return {"version": APP_VERSION, "public_engine": PUBLIC_ENGINE, "public_engine_label": PUBLIC_ENGINE_LABEL}
+    return {
+        "version": APP_VERSION,
+        "public_engine": PUBLIC_ENGINE,
+        "public_engine_label": PUBLIC_ENGINE_LABEL,
+        "public_scanner_website": _public_scanner_website,
+        "private_research_routes": _private_research,
+        "market_data_provider": "server_side_configured_provider",
+        "public_raw_market_data": False,
+        "chart_provider": "TradingView",
+    }
+
+
+@app.get("/api/app/stats")
+async def app_public_stats():
+    return {"total_stock_searches": get_app_counter("stock_searches")}
 
 
 @app.get("/api/app/market-cache")
 async def app_market_cache_status():
-    """Private research cache status; disabled on the public Alpaca API."""
     if not env_bool("ORYNTRA_PRIVATE_RESEARCH_ROUTES", False):
         raise HTTPException(status_code=404, detail="Not found")
     return market_cache_status()
@@ -303,3 +313,4 @@ async def sitemap_xml():
     urls = "".join(f"<url><loc>{escape(site + path)}</loc></url>" for path in paths)
     xml = f'<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">{urls}</urlset>'
     return Response(content=xml, media_type="application/xml")
+

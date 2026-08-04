@@ -1,10 +1,3 @@
-"""Twelve Data live/intraday adapter for private Oryntra Pro use.
-
-The adapter keeps API credentials on the Ubuntu server, uses Twelve Data REST
-endpoints, caches aggressively for the free credit limits, and derives the
-VWAP analytics locally from returned OHLCV bars. Massive remains Oryntra's
-source for broad daily history and 52-week analysis.
-"""
 from __future__ import annotations
 
 import asyncio
@@ -295,7 +288,7 @@ def _fetch_live_sync(ticker: str, timeframe: str, limit: int) -> dict[str, Any]:
             "available": False,
             "status": "not_configured",
             "ticker": clean,
-            "message": "Add TWELVE_DATA_API_KEY to the server .env. A Twelve Data key is not interchangeable with Alpaca credentials.",
+            "message": "Add TWELVE_DATA_API_KEY to the private research server .env. Provider credentials are not interchangeable.",
             "bars": [],
         }
 
@@ -346,7 +339,7 @@ def _fetch_live_sync(ticker: str, timeframe: str, limit: int) -> dict[str, Any]:
             ]
 
     vwap_stats = _apply_cumulative_vwap(session_bars)
-    # Copy computed session VWAP values back into the matching chart bars.
+
     session_by_time = {bar.get("time"): bar for bar in session_bars}
     for bar in bars:
         enriched = session_by_time.get(bar.get("time"))
@@ -458,8 +451,6 @@ def _fetch_live_sync(ticker: str, timeframe: str, limit: int) -> dict[str, Any]:
 
 
 def _locked_fetch(ticker: str, timeframe: str, limit: int) -> dict[str, Any]:
-    # Prevent simultaneous snapshot and timer refreshes from spending duplicate
-    # API credits for the same private workstation.
     with _FETCH_LOCK:
         return _fetch_live_sync(ticker, timeframe, limit)
 
@@ -476,3 +467,4 @@ async def fetch_live(ticker: str, timeframe: str = "5Min", limit: int = 420) -> 
             "message": str(exc),
             "bars": [],
         }
+

@@ -105,8 +105,6 @@ async def scan_ticker(req: ScanRequest):
 
 
 def _compute_scan_artifacts(hist, ticker: str, pattern_mode: str):
-    # All current indicators need at most 260 daily bars. Keeping a small
-    # buffer avoids repeatedly sending multi-year frames through every detector.
     analysis_hist = hist.tail(_ANALYSIS_LOOKBACK_BARS) if len(hist) > _ANALYSIS_LOOKBACK_BARS else hist
     ind = calculate_all_indicators(analysis_hist)
     ind["ticker"] = ticker
@@ -180,8 +178,7 @@ async def _run_scan_pipeline(req: ScanRequest) -> dict:
             result["response_cache"] = False
             await _attach_counter(result)
 
-            # Cache before persistence so simultaneous requests can reuse the
-            # expensive calculation immediately. DB writes finish in background.
+
             if len(_ANALYSIS_RESULT_CACHE) >= _ANALYSIS_CACHE_MAX_ITEMS and key not in _ANALYSIS_RESULT_CACHE:
                 oldest_key = min(_ANALYSIS_RESULT_CACHE, key=lambda item: _ANALYSIS_RESULT_CACHE[item][0])
                 _ANALYSIS_RESULT_CACHE.pop(oldest_key, None)
@@ -202,7 +199,7 @@ async def _run_scan_pipeline(req: ScanRequest) -> dict:
             traceback.print_exc()
             raise HTTPException(status_code=500, detail=f"Analysis error: {type(exc).__name__}: {exc}")
         finally:
-            # Avoid an unbounded lock registry while retaining locks for active callers.
+
             if not lock.locked():
                 _ANALYSIS_KEY_LOCKS.pop(key, None)
 
@@ -314,7 +311,6 @@ async def get_analysis_history(ticker: str, limit: int = 10):
     return [{"analyzed_at": r["analyzed_at"], "data": json.loads(r["data_json"])} for r in rows]
 
 
-
 def _price_history(hist, max_points: int = 140) -> list[dict]:
     if hist is None or len(hist) == 0:
         return []
@@ -403,3 +399,4 @@ def _cache_result(ticker: str, result: dict):
         conn.close()
     except Exception as exc:
         print(f"[Oryntra] nonfatal cache failed: {exc}")
+

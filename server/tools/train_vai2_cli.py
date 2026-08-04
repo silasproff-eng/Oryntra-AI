@@ -10,7 +10,6 @@ from tools.cache_guard import backup_db, cache_counts, assert_not_shrunk
 from tools.warm_cache_cli import DEFAULT_150
 
 
-
 def _ascii_bar(pct: float, width: int = 34) -> str:
     pct = max(0.0, min(100.0, float(pct or 0)))
     filled = int(round((pct / 100.0) * width))
@@ -117,3 +116,4 @@ def main():
     args=ap.parse_args()
     return asyncio.run(main_async(args))
 if __name__=='__main__': raise SystemExit(main())
+

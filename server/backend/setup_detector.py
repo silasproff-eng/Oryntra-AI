@@ -1,9 +1,3 @@
-"""
-Oryntra Setup Detector — v2
-Uses ADX, OBV, Williams %R, VWAP, Ichimoku to increase scoring accuracy.
-All existing setup names and return shapes are preserved.
-"""
-
 from typing import Dict, Any
 from .pattern_analyzer import analyze_patterns, normalize_pattern_engine_mode
 import pandas as pd
@@ -98,7 +92,6 @@ def detect_setup(ind: Dict[str, Any], hist: pd.DataFrame = None, pattern_mode: s
         "all_scores":   {k: v["score"] for k, v in results.items()},
         "patterns":     patterns,
     }
-
 
 
 def _score_breakout(ind: dict, patterns: dict = None) -> dict:
@@ -631,11 +624,6 @@ def _pattern_direction_bonus(patterns: dict, desired_direction: str) -> tuple[in
 
 
 def _apply_risky_engine_adjustments(results: dict, ind: dict, patterns: dict) -> dict:
-    """V4 hidden-lab scoring: intentionally raises coverage and risk.
-
-    This makes V4 meaningfully different from V3 in the Pattern Accuracy Lab.
-    It should remain hidden/dev-only because it can overfit and chase weak setups.
-    """
     adjusted = {k: dict(v) for k, v in (results or {}).items()}
     for v in adjusted.values():
         v["rules"] = list(v.get("rules") or [])
@@ -694,11 +682,6 @@ def _apply_risky_engine_adjustments(results: dict, ind: dict, patterns: dict) ->
 
 
 def _apply_selective_engine_adjustments(results: dict, ind: dict, patterns: dict) -> dict:
-    """V5 hidden-lab scoring: reduce coverage and force higher-quality setups.
-
-    Previous test runs showed ~80–96% coverage and ~50% win rate. V5 deliberately
-    tries the opposite: more NO_TRADE decisions and fewer weak signals.
-    """
     adjusted = {k: dict(v) for k, v in (results or {}).items()}
     for v in adjusted.values():
         v["rules"] = list(v.get("rules") or [])
@@ -842,12 +825,6 @@ def _apply_selective_engine_adjustments(results: dict, ind: dict, patterns: dict
 
 
 def _apply_balanced_shortfix_engine_adjustments(results: dict, ind: dict, patterns: dict) -> dict:
-    """V6 Balanced / Short-Fix setup scoring.
-
-    The lab showed long signals were near 59% while shorts were ~42%.
-    V6 keeps long quality filtering from V5, but treats shorts as guilty
-    until proven by trend, momentum, ADX, and bearish pattern confirmation.
-    """
     adjusted = _apply_selective_engine_adjustments(results, ind, patterns)
 
     adv = (patterns or {}).get("advanced_patterns") or {}
@@ -958,13 +935,6 @@ def _apply_balanced_shortfix_engine_adjustments(results: dict, ind: dict, patter
 
 
 def _apply_official_v7_engine_adjustments(results: dict, ind: dict, patterns: dict) -> dict:
-    """V7 Official Beta setup scoring.
-
-    Optimized for release: high-conviction bullish momentum longs only. Shorts
-    and bearish FVG setups are not considered release-quality after the lab runs,
-    so they are converted into no-trade unless the code is explicitly changed in
-    a future research version.
-    """
     adjusted = _apply_balanced_shortfix_engine_adjustments(results, ind, patterns)
 
     adv = (patterns or {}).get("advanced_patterns") or {}
@@ -1074,12 +1044,6 @@ def _apply_official_v7_engine_adjustments(results: dict, ind: dict, patterns: di
 
 
 def _apply_v7_symmetric_candidate_foundation(results: dict, ind: dict, patterns: dict) -> dict:
-    """Create V7-style candidate scores without V7's release-only long bias.
-
-    V7's production policy intentionally zeroes shorts. V8 needs the V7
-    momentum-quality foundation while judging both sides with the same rules,
-    so every bullish condition below has an exact bearish mirror.
-    """
     adjusted = {
         key: {**value, "rules": list(value.get("rules") or [])}
         for key, value in results.items()
@@ -1150,7 +1114,7 @@ def _apply_v7_symmetric_candidate_foundation(results: dict, ind: dict, patterns:
             score -= 8
             rules.append("V8 V7-foundation: pattern confirmation is unclear.")
 
-        # Risk controls are direction-neutral.
+
         if atr_pct > 7.5:
             score -= 24
         elif atr_pct > 5.5:
@@ -1223,12 +1187,6 @@ def _apply_v8_engine_adjustments(results: dict, ind: dict, patterns: dict) -> di
 
 
 def _apply_vai_1_0_engine_adjustments(results: dict, ind: dict, patterns: dict) -> dict:
-    """VAI 1.0 Experimental setup scoring.
-
-    Starts with V7 Official Momentum candidates, then uses a locally trained
-    VAI model to accept or reject the candidate. If no model exists, it falls
-    back to V7 and clearly says the model is untrained.
-    """
     from .vai_model import predict_vai_setup
 
     adjusted = _apply_official_v7_engine_adjustments(results, ind, patterns)
@@ -1280,15 +1238,7 @@ def _apply_vai_1_0_engine_adjustments(results: dict, ind: dict, patterns: dict) 
     return adjusted
 
 
-
 def _apply_vai_2_0_engine_adjustments(results: dict, ind: dict, patterns: dict) -> dict:
-    """VAI 2.1 Confidence-Weighted Experimental setup scoring.
-
-    Uses V7 Official as the candidate generator, then asks the promoted VAI2.1
-    model whether each candidate is worth taking. Instead of only accepting or
-    rejecting, it also carries a suggested_position_size_pct so high-confidence
-    setups can score higher than barely-passing setups.
-    """
     from .vai2_model import predict_vai2_setup
 
     adjusted = _apply_official_v7_engine_adjustments(results, ind, patterns)
@@ -1359,3 +1309,4 @@ def _apply_vai_2_0_engine_adjustments(results: dict, ind: dict, patterns: dict) 
     else:
         adjusted["NO_TRADE"].setdefault("rules", []).append("VAI 2.1 untrained: V7 fallback active. Train VAI2.1 headless for real model filtering.")
     return adjusted
+

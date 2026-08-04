@@ -1,4 +1,3 @@
-"""Display grading backed by the current V8 analytics evidence model."""
 from __future__ import annotations
 
 from typing import Any
@@ -27,11 +26,8 @@ def lab_based_stock_grade(
     setup: dict[str, Any] | None = None,
     pattern_report: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Return a transparent grade using the same V8 evidence factors.
 
-    The public engine may remain V7, but the grade no longer reads historical
-    any prior Pattern Lab result tables.
-    """
+
     ind = indicators or {}
     setup = setup or {}
     direction = canonical_direction(setup.get("direction") or setup.get("signal"))
@@ -64,3 +60,4 @@ def lab_based_stock_grade(
         "risk": alignment.get("risk") or {},
         "legend": {"A+": "Strongest evidence alignment.", "A": "Strong evidence alignment.", "B": "Useful but incomplete alignment.", "C": "Mixed evidence.", "D": "Weak evidence.", "F": "Evidence conflicts with the setup."},
     }
+

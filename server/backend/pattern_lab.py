@@ -1,18 +1,3 @@
-"""Pattern Lab Next — purged walk-forward engine evaluation on the canonical market cache.
-
-The previous implementation mixed several cache paths and evaluated signals at
-prices that were not consistently tradable.  This rewrite guarantees that:
-
-* every engine sees the exact same ticker/date observations;
-* indicators use candles available through the signal close only;
-* entries occur at the next session open;
-* future labels begin after the signal date;
-* grouped all-market candles and ticker-fallback candles share one repository;
-* cache-only runs never call a provider;
-* full-universe runs can summarize millions of checks without returning every
-  raw row to the browser;
-* experiment configuration and dataset fingerprints are persisted.
-"""
 from __future__ import annotations
 
 import asyncio
@@ -154,13 +139,7 @@ def _clean_modes(values: Iterable[str] | None) -> list[str]:
     return ordered or ["official", "v8"]
 
 
-
 async def _load_history(ticker: str, period: str, data_source: str):
-    """Backward-compatible loader used by tests and the job runner.
-
-    It still delegates to the canonical repository, so there is only one real
-    cache/fallback implementation.
-    """
     repository = get_market_repository()
     result = await asyncio.to_thread(
         repository.get_history,
@@ -189,8 +168,8 @@ def _candidate_indexes(
     end_date: str,
 ) -> tuple[list[int], dict[str, Any]]:
     horizon_days = int(horizon_days if horizon_days is not None else (horizon if horizon is not None else 10))
-    # i is the signal-close index.  Entry is i+1 and the final outcome bar is
-    # i+horizon_days, so len(history)-horizon_days must remain available.
+
+
     last_signal_index = len(history) - horizon_days - 1
     candidates = list(range(max(2, min_history - 1), last_signal_index + 1, max(1, step)))
     if start_date:
@@ -222,8 +201,8 @@ def _candidate_indexes(
         candidates = [candidates[int(position)] for position in positions]
 
     allow_overlap = bool(False)
-    # One signal per holding window prevents the same ticker from contributing
-    # several highly correlated overlapping trades to the headline metrics.
+
+
     if not allow_overlap and candidates:
         non_overlapping: list[int] = []
         next_allowed = -1
@@ -345,9 +324,8 @@ def _base_observation(
     window: dict[str, Any],
     lookback_bars: int = 280,
 ) -> tuple[dict[str, Any], dict[str, Any], pd.DataFrame] | None:
-    # Every current indicator needs at most 260 daily bars and the pattern
-    # detectors use substantially less.  Capping the causal slice avoids
-    # rescanning years of irrelevant history for every observation.
+
+
     start = max(0, index + 1 - max(280, int(lookback_bars)))
     signal_history = history.iloc[start : index + 1]
     future = history.iloc[index + 1 : index + 1 + horizon_days]
@@ -747,7 +725,7 @@ async def run_pattern_lab(
     lookback_bars = max(280, min(int(_get(request, "lookback_bars", 280) or 280), 1000))
     pattern_lookback_bars = max(90, min(int(_get(request, "pattern_lookback_bars", 180) or 180), lookback_bars))
 
-    # Avoid retaining an unnecessarily large browser payload in memory.
+
     max_returned_rows = min(
         max_returned_rows,
         max(1000, int(os.getenv("ORYNTRA_PATTERN_LAB_MAX_RETURNED_ROWS", "20000"))),
@@ -1117,3 +1095,4 @@ async def run_pattern_lab(
             }
         )
     return result_payload
+

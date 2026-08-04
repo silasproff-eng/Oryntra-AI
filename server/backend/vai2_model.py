@@ -1,17 +1,3 @@
-"""Oryntra VAI 2.1 Confidence-Weighted Experimental trainable model layer.
-
-VAI 2.1 is intentionally local and controlled:
-- It trains only when the developer starts a job or runs the CLI.
-- It never rewrites code.
-- Every run is saved under data/models/vai2/runs/.
-- A candidate model is promoted only when its validation score beats the current
-  promoted model. Rejected models are kept for comparison.
-
-The model is deliberately simple and inspectable: numpy-only linear/logistic
-models plus validation/promotion gates. This avoids adding a large ML dependency
-and makes the training output easy to audit.
-"""
-
 from __future__ import annotations
 
 import json
@@ -631,3 +617,4 @@ def predict_vai2_setup(ind: dict[str, Any], setup: dict[str, Any], patterns: dic
         "model_created_at": model.get("created_at"), "run_id": model.get("run_id"), "samples": model.get("samples"),
         "regime": _regime_from_ind(ind or {}), "top_pattern": _top_pattern(patterns),
     }
+

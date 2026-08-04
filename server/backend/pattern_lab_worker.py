@@ -1,4 +1,3 @@
-"""Standalone low-priority Pattern Lab worker."""
 from __future__ import annotations
 
 import argparse
@@ -36,7 +35,7 @@ def _configure_resources() -> dict[str, Any]:
         total = max(1, len(available))
         share = max(0.05, min(float(os.getenv("ORYNTRA_PATTERN_LAB_CPU_SHARE", "0.30")), 1.0))
         allowed_count = max(1, min(total, int(round(total * share))))
-        # Prefer higher-numbered available cores, leaving the first core for Uvicorn when possible.
+
         allowed = set(available[-allowed_count:])
         if hasattr(os, "sched_setaffinity"):
             os.sched_setaffinity(0, allowed)
@@ -50,8 +49,7 @@ async def _run(job_id: str) -> int:
     from .database import init_db
     from .pattern_lab import run_pattern_lab
 
-    # A worker can outlive/restart independently from Uvicorn, so verify the
-    # shared database schema before reading cached candles.
+
     init_db()
     from .pattern_lab_jobs import (
         FileStopEvent,
@@ -148,3 +146,4 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+

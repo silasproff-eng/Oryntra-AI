@@ -1,16 +1,6 @@
-"""
-Oryntra Trade Scorer & Risk/Reward Engine — v2
-Changes:
-  - Quality score now uses ADX, OBV trend, Ichimoku signal, Williams %R
-  - Predictions use momentum_60d as a regime multiplier
-  - Stop placement uses ATR + nearest S/R level for tighter, smarter stops
-  - Added position sizing suggestion (% risk model)
-  - Five-level signal thresholds tightened (needed higher RR to get STRONG)
-"""
-
 from typing import Dict, Any, Optional
 
-ACCOUNT_RISK_PCT = 1.0   # default: risk 1% of account per trade
+ACCOUNT_RISK_PCT = 1.0
 
 
 def calculate_trade_plan(ind: Dict[str, Any], setup: Dict[str, Any]) -> Dict[str, Any]:
@@ -35,7 +25,6 @@ def calculate_trade_plan(ind: Dict[str, Any], setup: Dict[str, Any]) -> Dict[str
     plan["predictions"]   = _generate_predictions(ind, setup, plan)
 
     return plan
-
 
 
 def _long_plan(ind: dict, setup: dict) -> dict:
@@ -96,7 +85,6 @@ def _long_plan(ind: dict, setup: dict) -> dict:
         "reward_pct":  round(reward / entry_mid * 100, 2) if entry_mid > 0 else 0,
         "risk_reward": round(rr, 2),
     }
-
 
 
 def _short_plan(ind: dict, setup: dict) -> dict:
@@ -169,12 +157,7 @@ def _no_trade_plan(price: float, atr: float, ind: dict, setup: dict) -> dict:
     return plan
 
 
-
 def _calculate_quality_score(ind: dict, setup: dict, plan: dict) -> float:
-    """
-    0–100 composite score.
-    Weights: setup confidence 28 | R:R 22 | trend alignment 18 | ADX 12 | volume 10 | RSI 5 | extras 5
-    """
     score     = 0.0
     rr        = plan.get("risk_reward", 0) or 0
     conf      = setup.get("confidence", 0) or 0
@@ -230,7 +213,7 @@ def _calculate_quality_score(ind: dict, setup: dict, plan: dict) -> float:
         if ichi_sig in ("STRONG_BULL", "BULL"):     score += 2
         if ema_cross == "BULLISH":                   score += 1
         if obv_trend == "RISING":                    score += 1
-        if vol_divg == "BEARISH_DIVERGENCE":         score -= 3  # warning
+        if vol_divg == "BEARISH_DIVERGENCE":         score -= 3
     elif direction == "SHORT":
         if ichi_sig in ("STRONG_BEAR", "BEAR"):     score += 2
         if ema_cross == "BEARISH":                   score += 1
@@ -262,12 +245,7 @@ def _conviction_label(score: float) -> str:
     return "AVOID"
 
 
-
 def _position_size_suggestion(plan: dict, price: float) -> dict | None:
-    """
-    Suggest share count and dollar size for a $10,000 account risking 1%.
-    Risk = entry - stop (per share). Shares = (account * risk%) / per-share risk.
-    """
     risk_amt = plan.get("risk_amt")
     entry    = plan.get("entry_ideal")
     if not risk_amt or not entry or risk_amt <= 0 or entry <= 0:
@@ -286,7 +264,6 @@ def _position_size_suggestion(plan: dict, price: float) -> dict | None:
         "risk_pct_used":  ACCOUNT_RISK_PCT,
         "note":           f"Sizing for ${account:,} account at {ACCOUNT_RISK_PCT}% risk — adjust to your actual account size"
     }
-
 
 
 def _five_level_signal(ind: dict, setup: dict, plan: dict) -> str:
@@ -325,7 +302,6 @@ def _five_level_signal(ind: dict, setup: dict, plan: dict) -> str:
             return "HOLD"
 
     return "HOLD"
-
 
 
 def _generate_predictions(ind: dict, setup: dict, plan: dict) -> dict:
@@ -383,7 +359,6 @@ def _generate_predictions(ind: dict, setup: dict, plan: dict) -> dict:
         "pattern_adjustment": pattern_adjustment,
         "disclaimer": "Rule-based estimate using setup, ATR, trend, ADX, 60d momentum, and pattern alignment. Not financial advice."
     }
-
 
 
 def _pattern_projection_modifier(setup: dict, direction: str) -> dict:
@@ -536,3 +511,4 @@ def _no_trade_predictions() -> dict:
         "20d": {"expected_pct": 0, "signal": "HOLD", "confidence": 0},
         "disclaimer": "No setup detected. Predictions unavailable."
     }
+

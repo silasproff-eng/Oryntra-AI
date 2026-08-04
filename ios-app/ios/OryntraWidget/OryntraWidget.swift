@@ -1,5 +1,5 @@
-import WidgetKit
 import SwiftUI
+import WidgetKit
 
 private let appGroup = "group.com.oryntraai.shared"
 
@@ -22,7 +22,9 @@ struct OryntraProvider: TimelineProvider {
 
   func getTimeline(in context: Context, completion: @escaping (Timeline<OryntraEntry>) -> Void) {
     let entry = readEntry()
-    let nextRefresh = Calendar.current.date(byAdding: .minute, value: 30, to: Date()) ?? Date().addingTimeInterval(1800)
+    let nextRefresh =
+      Calendar.current.date(byAdding: .minute, value: 30, to: Date())
+      ?? Date().addingTimeInterval(1800)
     completion(Timeline(entries: [entry], policy: .after(nextRefresh)))
   }
 
@@ -44,7 +46,10 @@ struct OryntraWidgetView: View {
   var body: some View {
     ZStack {
       LinearGradient(
-        colors: [Color.black, Color(red: 0.02, green: 0.10, blue: 0.18), Color(red: 0.06, green: 0.16, blue: 0.27)],
+        colors: [
+          Color.black, Color(red: 0.02, green: 0.10, blue: 0.18),
+          Color(red: 0.06, green: 0.16, blue: 0.27),
+        ],
         startPoint: .topLeading,
         endPoint: .bottomTrailing
       )
@@ -83,7 +88,7 @@ struct OryntraWidget: Widget {
 
   var body: some WidgetConfiguration {
     StaticConfiguration(kind: kind, provider: OryntraProvider()) { entry in
-      if #available(iOS 17.0, *) {
+      if (17.0, *) {
         OryntraWidgetView(entry: entry)
           .containerBackground(.clear, for: .widget)
       } else {

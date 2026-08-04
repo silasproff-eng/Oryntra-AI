@@ -5,9 +5,10 @@ import '../app_config.dart';
 import 'session_store.dart';
 
 class ApiException implements Exception {
-  ApiException(this.message, {this.statusCode});
+  ApiException(this.message, {this.statusCode, this.code});
   final String message;
   final int? statusCode;
+  final String? code;
 
   @override
   String toString() => message;
@@ -20,7 +21,6 @@ class ApiService {
   final SessionStore _sessionStore;
   bool _previewSignedIn = true;
   int _previewScanCount = 20383;
-  bool _previewAlpacaConnected = true;
 
   final List<Map<String, dynamic>> _previewWatchlist = [
     {'ticker': 'AAPL', 'notes': 'Quality momentum setup'},
@@ -89,13 +89,17 @@ class ApiService {
     }
     if (response.statusCode < 200 || response.statusCode >= 300) {
       var message = 'Request failed (${response.statusCode}).';
+      String? code;
       if (data is Map && data['detail'] != null) {
         final detail = data['detail'];
-        message = detail is Map
-            ? (detail['message']?.toString() ?? detail.toString())
-            : detail.toString();
+        if (detail is Map) {
+          message = detail['message']?.toString() ?? detail.toString();
+          code = detail['code']?.toString();
+        } else {
+          message = detail.toString();
+        }
       }
-      throw ApiException(message, statusCode: response.statusCode);
+      throw ApiException(message, statusCode: response.statusCode, code: code);
     }
     return data;
   }
@@ -114,6 +118,7 @@ class ApiService {
     String email,
     String password,
     String displayName,
+    bool acceptLegal,
   ) async {
     if (AppConfig.previewMode) {
       await _previewPause();
@@ -129,6 +134,7 @@ class ApiService {
             'email': email,
             'password': password,
             'display_name': displayName,
+            'accept_legal': acceptLegal,
           }),
         )
         .timeout(const Duration(seconds: 20));
@@ -202,66 +208,33 @@ class ApiService {
     }
   }
 
-  Future<Map<String, dynamic>> alpacaStatus() async {
+  Future<Map<String, dynamic>> intelligenceStatus() async {
     if (AppConfig.previewMode) {
       await _previewPause(160);
       return {
-        'connected': _previewAlpacaConnected,
-        'preferred_environment': _previewAlpacaConnected ? 'paper' : null,
-        'connections': _previewAlpacaConnected
-            ? [
-                {
-                  'environment': 'paper',
-                  'account_status': 'ACTIVE',
-                  'status': 'CONNECTED',
-                  'account_last4': '1234',
-                  'connected_at': DateTime.now().toIso8601String(),
-                },
-              ]
-            : const [],
+        'service': 'oryntra_market_intelligence',
+        'status': 'ready',
+        'policy': {
+          'analysis_permitted': true,
+          'owner_access': true,
+          'license_mode': 'preview',
+          'public_derived_analysis_enabled': false,
+          'daily_limit': 100,
+          'market_history_included': false,
+          'chart_provider': 'TradingView',
+        },
+        'quota': {
+          'used': 12,
+          'limit': 100,
+          'remaining': 88,
+        },
+        'chart_provider': 'TradingView',
       };
     }
     final response = await http
-        .get(_uri('/api/alpaca/status'), headers: await _headers())
+        .get(_uri('/api/intelligence/status'), headers: await _headers())
         .timeout(const Duration(seconds: 20));
     return Map<String, dynamic>.from(_decode(response) as Map);
-  }
-
-  Future<Map<String, dynamic>> beginAlpacaConnect({
-    String environment = 'paper',
-  }) async {
-    if (AppConfig.previewMode) {
-      await _previewPause(220);
-      _previewAlpacaConnected = true;
-      return {
-        'authorization_url': 'https://app.alpaca.markets',
-        'environment': environment,
-        'preview': true,
-      };
-    }
-    final response = await http
-        .post(
-          _uri('/api/alpaca/connect/start'),
-          headers: await _headers(jsonBody: true),
-          body: jsonEncode({'environment': environment}),
-        )
-        .timeout(const Duration(seconds: 20));
-    return Map<String, dynamic>.from(_decode(response) as Map);
-  }
-
-  Future<void> disconnectAlpaca(String environment) async {
-    if (AppConfig.previewMode) {
-      await _previewPause(180);
-      _previewAlpacaConnected = false;
-      return;
-    }
-    final response = await http
-        .delete(
-          _uri('/api/alpaca/disconnect/${Uri.encodeComponent(environment)}'),
-          headers: await _headers(),
-        )
-        .timeout(const Duration(seconds: 20));
-    _decode(response);
   }
 
   List<Map<String, dynamic>> _previewPatterns(String ticker, int quality) {
@@ -316,12 +289,6 @@ class ApiService {
   }) async {
     if (AppConfig.previewMode) {
       await _previewPause(650);
-      if (!_previewAlpacaConnected) {
-        throw ApiException(
-          'Connect an Alpaca account from the Account tab before scanning.',
-          statusCode: 409,
-        );
-      }
       final normalized = ticker.trim().toUpperCase();
       final seed = normalized.codeUnits.fold<int>(
         0,
@@ -339,10 +306,6 @@ class ApiService {
         'company_name': '$normalized Holdings',
         'period': period,
         'signal': bullish ? 'BULLISH' : 'BEARISH',
-        'price': double.parse(price.toStringAsFixed(2)),
-        'day_change': double.parse(
-          ((bullish ? 1.84 : -1.37)).toStringAsFixed(2),
-        ),
         'quality_score': quality,
         'setup': {
           'setup_type': bullish ? 'TREND_CONTINUATION' : 'REVERSAL_ATTEMPT',
@@ -366,32 +329,34 @@ class ApiService {
         'rsi14': double.parse((38 + (seed.abs() % 34) + .4).toStringAsFixed(1)),
         'trend': bullish ? 'UPTREND' : 'DOWNTREND',
         'trend_strength': 40 + seed.abs() % 58,
-        'volume': {
-          'ratio': double.parse(
+        'volume_context': {
+          'relative_ratio': double.parse(
             (.72 + (seed.abs() % 105) / 100).toStringAsFixed(2),
           ),
           'trend': seed.isEven ? 'RISING' : 'MIXED',
+          'price_divergence': 'NONE',
         },
         'levels': {
-          'support_1': double.parse((price * .965).toStringAsFixed(2)),
-          'resist_1': double.parse((price * 1.052).toStringAsFixed(2)),
+          'support': double.parse((price * .965).toStringAsFixed(2)),
+          'resistance': double.parse((price * 1.052).toStringAsFixed(2)),
         },
         'chart': {
           'provider': 'tradingview',
           'symbol': 'NASDAQ:$normalized',
           'interval': 'D',
         },
-        'alpaca_environment': 'paper',
+        'quota': {'used': 13, 'limit': 100, 'remaining': 87},
         'data_policy': {
-          'user_authorized_provider': 'alpaca',
-          'raw_bars_returned': false,
-          'chart_provider': 'tradingview',
+          'analysis_location': 'server_side',
+          'market_history_included': false,
+          'ohlcv_arrays_included': false,
+          'chart_provider': 'TradingView',
         },
       };
     }
     final response = await http
         .post(
-          _uri('/api/alpaca/scan'),
+          _uri('/api/intelligence/scan'),
           headers: await _headers(jsonBody: true),
           body: jsonEncode({'ticker': ticker, 'period': period}),
         )

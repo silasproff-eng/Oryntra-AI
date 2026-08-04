@@ -1,5 +1,3 @@
-"""Pattern database and statistics API routes."""
-
 from __future__ import annotations
 
 from fastapi import APIRouter, Query
@@ -11,7 +9,6 @@ router = APIRouter()
 
 @router.get("/events")
 async def pattern_events(ticker: str | None = None, limit: int = Query(50, ge=1, le=500)):
-    """Return recent detected pattern events."""
     return {
         "events": get_recent_pattern_events(ticker=ticker, limit=limit),
         "count": limit,
@@ -25,8 +22,9 @@ async def pattern_stats(
     timeframe: str | None = None,
     limit: int = Query(100, ge=1, le=500),
 ):
-    """Return historical pattern outcome statistics."""
+
     return {
         "stats": get_pattern_stats(pattern_name=pattern_name, ticker=ticker, timeframe=timeframe, limit=limit),
         "disclaimer": "Historical pattern stats are educational and are not financial advice.",
     }
+

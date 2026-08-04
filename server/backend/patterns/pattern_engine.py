@@ -18,12 +18,8 @@ def detect_all_patterns(
     timeframe: str = "1d",
     max_events: int = 250,
 ) -> dict[str, Any]:
-    """
-    Run all pattern detectors and return a consistent response shape.
 
-    Detectors are intentionally rule-based. They should be treated as setup/context
-    signals, not as standalone buy/sell instructions.
-    """
+
     indicators = indicators or {}
     if hist is None or hist.empty:
         return {
@@ -81,15 +77,6 @@ def detect_all_patterns(
 
 
 def _select_display_patterns(patterns: list[dict[str, Any]], candle_count: int) -> list[dict[str, Any]]:
-    """Choose the patterns worth showing in the main UI.
-
-    Display policy:
-    1. Keep every pattern from the most recent trading day, regardless of confidence.
-    2. Also keep important high-confidence patterns from the last 30 calendar days.
-
-    The database can still store the full raw event set for statistics/outcome
-    tracking. This function only controls what the main UI card displays.
-    """
     if not patterns:
         return []
 
@@ -213,7 +200,7 @@ def _is_important_display_pattern(pattern: dict[str, Any]) -> bool:
         "DARK_CLOUD",
         "TWEEZER",
         "KICKER",
-        "HARSKI",  # harmless typo guard for fuzzy user searches
+        "HARSKI",
         "HARAMI",
         "TRI_STAR",
         "THREE_STARS_IN_THE_SOUTH",
@@ -294,12 +281,6 @@ def summarize_patterns(patterns: list[dict[str, Any]]) -> dict[str, Any]:
 
 
 def _clean_pattern(p: dict[str, Any]) -> dict[str, Any]:
-    """Normalize detector output so frontend/database code can safely use it.
-
-    The first upgraded build referenced this helper but did not include it, which
-    caused the advanced pattern engine to crash and silently fall back to zero
-    patterns in the scanner response.
-    """
     if not isinstance(p, dict):
         p = {}
 
@@ -363,3 +344,4 @@ def _dedupe_patterns(patterns: list[dict[str, Any]]) -> list[dict[str, Any]]:
         if key not in best or float(p.get("confidence") or 0) > float(best[key].get("confidence") or 0):
             best[key] = p
     return list(best.values())
+

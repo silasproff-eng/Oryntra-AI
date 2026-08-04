@@ -126,7 +126,7 @@ class ResearchPipelineTests(unittest.TestCase):
         self.assertFalse(set(validation_dates) & set(test_dates))
 
     def test_backtest_is_deterministic_and_enters_after_signal(self) -> None:
-        history = _history()
+        history = _history(120)
         request = BacktestRequest(
             ticker="TEST",
             period="all",
@@ -146,3 +146,4 @@ class ResearchPipelineTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+

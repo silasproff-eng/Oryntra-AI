@@ -1,10 +1,3 @@
-"""Persistent Pattern Lab job files and worker process helpers.
-
-Pattern Lab is deliberately run outside the Uvicorn process.  Status, partial
-checkpoints, logs, and final results live under ``data/pattern_lab_jobs`` so a
-closed browser never loses the job and a stopped run can still expose partial
-results or be resumed.
-"""
 from __future__ import annotations
 
 import json
@@ -135,7 +128,6 @@ def read_checkpoint(job_id: str) -> dict[str, Any] | None:
         return None
 
 
-
 def summarize_checkpoint(checkpoint: dict[str, Any] | None) -> list[dict[str, Any]]:
     if not checkpoint:
         return []
@@ -185,9 +177,8 @@ def _iso_now() -> str:
 
 
 def launch_worker(job_id: str) -> int:
-    """Launch a low-priority Pattern Lab worker and return its PID."""
     env = os.environ.copy()
-    # Prevent BLAS libraries from silently using every core.
+
     env.setdefault("OMP_NUM_THREADS", "1")
     env.setdefault("OPENBLAS_NUM_THREADS", "1")
     env.setdefault("MKL_NUM_THREADS", "1")
@@ -274,13 +265,6 @@ def list_jobs(limit: int = 20) -> list[dict[str, Any]]:
 
 
 class PersistentJob(dict):
-    """Dict-compatible status sink used by the worker.
-
-    ``run_pattern_lab`` writes to a normal dict very frequently.  This wrapper
-    batches those writes so status polling remains cheap while still surviving
-    browser closure and web-process restarts.
-    """
-
     def __init__(self, job_id: str, initial: dict[str, Any] | None = None, flush_interval: float = 0.35):
         super().__init__(initial or {})
         self.job_id = job_id
@@ -324,3 +308,4 @@ class FileStopEvent:
             self._cached = bool(status.get("stop_requested"))
             self._last_check = now
         return self._cached
+

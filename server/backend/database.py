@@ -1,9 +1,3 @@
-"""
-Oryntra Database Layer
-SQLite with auto-migration for persistent app data, market data, pattern events,
-outcomes, and pattern statistics.
-"""
-
 from __future__ import annotations
 
 import json
@@ -22,7 +16,6 @@ DB_PATH = os.path.abspath(os.path.expanduser(os.getenv("ORYNTRA_DB_PATH", _DEFAU
 
 
 def get_connection() -> sqlite3.Connection:
-    """Return a thread-safe SQLite connection with row factory."""
     os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
     conn = sqlite3.connect(DB_PATH, timeout=30, check_same_thread=False)
     conn.row_factory = sqlite3.Row
@@ -37,7 +30,6 @@ def get_connection() -> sqlite3.Connection:
 
 
 def init_db():
-    """Create all tables and indexes if they do not exist."""
     conn = get_connection()
     cursor = conn.cursor()
 
@@ -49,9 +41,19 @@ def init_db():
             password_salt   TEXT NOT NULL,
             password_hash   TEXT NOT NULL,
             created_at      TEXT DEFAULT (datetime('now')),
-            last_login_at   TEXT
+            last_login_at   TEXT,
+            legal_version   TEXT,
+            legal_accepted_at TEXT
         )
     """)
+
+    user_columns = {
+        row[1] for row in cursor.execute("PRAGMA table_info(users)").fetchall()
+    }
+    if "legal_version" not in user_columns:
+        cursor.execute("ALTER TABLE users ADD COLUMN legal_version TEXT")
+    if "legal_accepted_at" not in user_columns:
+        cursor.execute("ALTER TABLE users ADD COLUMN legal_accepted_at TEXT")
 
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS user_sessions (
@@ -59,36 +61,6 @@ def init_db():
             user_id     INTEGER NOT NULL,
             created_at  TEXT DEFAULT (datetime('now')),
             expires_at  TEXT NOT NULL,
-            FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
-        )
-    """)
-
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS alpaca_connections (
-            user_id                 INTEGER NOT NULL,
-            environment             TEXT NOT NULL CHECK(environment IN ('paper','live')),
-            encrypted_access_token  TEXT NOT NULL,
-            scope                   TEXT DEFAULT 'data',
-            account_id              TEXT,
-            account_status          TEXT,
-            status                  TEXT NOT NULL DEFAULT 'CONNECTED',
-            connected_at            TEXT DEFAULT (datetime('now')),
-            updated_at              TEXT DEFAULT (datetime('now')),
-            last_validated_at       TEXT,
-            last_error              TEXT,
-            PRIMARY KEY(user_id, environment),
-            FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
-        )
-    """)
-
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS alpaca_oauth_states (
-            state_hash   TEXT PRIMARY KEY,
-            user_id      INTEGER NOT NULL,
-            environment  TEXT NOT NULL CHECK(environment IN ('paper','live')),
-            created_at   TEXT NOT NULL,
-            expires_at   TEXT NOT NULL,
-            consumed_at  TEXT,
             FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
         )
     """)
@@ -104,6 +76,17 @@ def init_db():
             current_period_end TEXT,
             provider        TEXT DEFAULT 'manual_beta',
             provider_ref    TEXT,
+            FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+        )
+    """)
+
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS analysis_usage (
+            user_id         INTEGER NOT NULL,
+            usage_date      TEXT NOT NULL,
+            request_count   INTEGER NOT NULL DEFAULT 0,
+            updated_at      TEXT DEFAULT (datetime('now')),
+            PRIMARY KEY(user_id, usage_date),
             FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
         )
     """)
@@ -210,8 +193,7 @@ def init_db():
         )
     """)
 
-    # Safe in-place migration for databases created before the market-wide
-    # grouped-daily cache was added.
+
     ohlcv_columns = {
         str(row[1]) for row in cursor.execute("PRAGMA table_info(ohlcv_bars)").fetchall()
     }
@@ -326,8 +308,7 @@ def init_db():
         )
     """)
 
-    # Pattern Lab Next never feeds results back into production.
-    # Remove the retired self-adjusting edge-profile table from existing databases.
+
     cursor.execute("DROP TABLE IF EXISTS edge_profiles")
 
     cursor.execute("""
@@ -343,10 +324,6 @@ def init_db():
         )
     """)
 
-    cursor.execute(
-        "CREATE INDEX IF NOT EXISTS idx_alpaca_connections_user ON alpaca_connections(user_id, status)")
-    cursor.execute(
-        "CREATE INDEX IF NOT EXISTS idx_alpaca_oauth_states_expiry ON alpaca_oauth_states(expires_at, consumed_at)")
     cursor.execute(
         "CREATE INDEX IF NOT EXISTS idx_user_sessions_user ON user_sessions(user_id, expires_at)")
     cursor.execute(
@@ -378,7 +355,6 @@ def init_db():
 
 
 def get_app_counter(key: str = "stock_searches") -> int:
-    """Read a persistent integer counter from SQLite."""
     conn = get_connection()
     try:
         conn.execute(
@@ -392,7 +368,6 @@ def get_app_counter(key: str = "stock_searches") -> int:
 
 
 def increment_app_counter(key: str = "stock_searches", amount: int = 1) -> int:
-    """Increment a persistent counter and return the new value."""
     conn = get_connection()
     try:
         conn.execute(
@@ -414,7 +389,6 @@ def increment_app_counter(key: str = "stock_searches", amount: int = 1) -> int:
 
 
 def set_app_counter_min(key: str, minimum: int) -> int:
-    """Raise a counter to a minimum value without double-counting existing activity."""
     conn = get_connection()
     try:
         minimum = int(minimum)
@@ -442,7 +416,7 @@ def store_ohlcv_bars(
     provider: str | None = None,
     adjusted: bool = True,
 ) -> int:
-    """Upsert raw OHLCV candles for repeatable pattern analysis."""
+
     if hist is None or hist.empty:
         return 0
 
@@ -497,7 +471,6 @@ def store_ohlcv_bars(
 
 
 def _period_cutoff_days(period: str) -> int | None:
-    """Translate UI period labels into an approximate candle lookback."""
     period = (period or "5y").strip().lower()
     mapping = {
         "5m": 14,
@@ -512,11 +485,6 @@ def _period_cutoff_days(period: str) -> int | None:
 
 
 def load_ohlcv_bars(ticker: str, timeframe: str = "1d", period: str = "5y") -> pd.DataFrame:
-    """Load cached OHLCV candles from SQLite for offline/local testing.
-
-    Returns a DataFrame shaped like provider history: Open, High, Low, Close, Volume
-    with a DatetimeIndex. No API calls are made here.
-    """
     ticker = ticker.upper().strip()
     timeframe = timeframe or "1d"
     conn = get_connection()
@@ -563,7 +531,6 @@ def load_ohlcv_bars(ticker: str, timeframe: str = "1d", period: str = "5y") -> p
 
 
 def get_ohlcv_cache_summary(tickers: Iterable[str] | None = None, timeframe: str = "1d") -> list[dict[str, Any]]:
-    """Return cached-bar counts/date ranges for the hidden Pattern Lab."""
     conn = get_connection()
     try:
         params: list[Any] = [timeframe or "1d"]
@@ -594,7 +561,6 @@ def get_ohlcv_cache_summary(tickers: Iterable[str] | None = None, timeframe: str
 
 
 def get_ohlcv_cache_size_bytes() -> int:
-    """Best-effort SQLite file size for the local market-data cache."""
     try:
         return int(os.path.getsize(DB_PATH))
     except Exception:
@@ -611,7 +577,6 @@ def _maybe_int(value: Any) -> int | None:
 
 
 def set_market_cache_meta(key: str, value: Any) -> None:
-    """Persist lightweight cache-worker state without exposing secrets."""
     conn = get_connection()
     try:
         conn.execute(
@@ -646,7 +611,6 @@ def get_market_cache_meta(key: str, default: Any = None) -> Any:
 
 
 def get_successful_market_dates() -> set[str]:
-    """Return trading dates already validated as complete grouped imports."""
     conn = get_connection()
     try:
         rows = conn.execute(
@@ -728,11 +692,8 @@ def store_grouped_daily_bars(
     request_id: str | None = None,
     minimum_rows: int = 1000,
 ) -> dict[str, Any]:
-    """Atomically validate and upsert one full-market grouped daily response.
 
-    The existing cache is never deleted or replaced. A date is marked SUCCESS
-    only after every valid row has committed in the same transaction.
-    """
+
     trading_date = str(trading_date)
     input_rows = list(results or [])
     normalized: list[tuple[Any, ...]] = []
@@ -914,7 +875,6 @@ def get_market_symbol(ticker: str) -> dict[str, Any] | None:
 
 
 def prune_ohlcv_before(cutoff_date: str) -> int:
-    """Delete only raw daily bars older than a configured retention cutoff."""
     cutoff = str(cutoff_date)
     conn = get_connection()
     try:
@@ -986,7 +946,7 @@ def store_pattern_events(
     timeframe: str,
     patterns: Iterable[dict[str, Any]],
 ) -> list[int]:
-    """Upsert pattern events and return their database ids."""
+
     ticker = ticker.upper().strip()
     timeframe = timeframe or "1d"
     ids: list[int] = []
@@ -1052,13 +1012,8 @@ def evaluate_and_store_pattern_outcomes(
     patterns: Iterable[dict[str, Any]],
     horizons: tuple[int, ...] = (1, 3, 5, 10, 20),
 ) -> int:
-    """
-    Evaluate detected historical patterns against future bars already present in hist.
 
-    This does not predict the future. It only evaluates older patterns that have enough
-    subsequent bars in the current history window. Those outcomes are later aggregated
-    into pattern_stats.
-    """
+
     if hist is None or hist.empty:
         return 0
 
@@ -1163,7 +1118,6 @@ def evaluate_and_store_pattern_outcomes(
 
 
 def rebuild_pattern_stats(ticker: str | None = None, timeframe: str = "1d") -> int:
-    """Aggregate outcomes into pattern_stats for a specific ticker or all tickers."""
     conn = get_connection()
     params: list[Any] = [timeframe]
     where = "pe.timeframe = ?"
@@ -1371,3 +1325,4 @@ def get_recent_vai_training_runs(limit: int = 10) -> list[dict[str, Any]]:
         return out
     finally:
         conn.close()
+

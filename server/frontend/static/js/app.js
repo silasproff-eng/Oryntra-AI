@@ -1,7 +1,5 @@
-/**
- * Oryntra Frontend — Complete Dashboard Logic
- * TradingView widget integration + full API communication
- */
+
+
 
 'use strict';
 
@@ -97,7 +95,7 @@ function applyTheme(preference, options = {}) {
   updateThemeControls(nextPreference);
 
   if (options.refreshChart && previousTheme !== resolvedTheme && currentTicker) {
-    loadTradingView(currentTicker, currentInterval);
+    loadTradingView(currentTicker, currentInterval, currentAnalysis?.exchange);
   }
 }
 
@@ -130,7 +128,7 @@ function initThemeSettings() {
   }
 }
 
-const APP_VERSION = '0.5.1';
+const APP_VERSION = '0.9.1';
 const APP_RELEASE_KEY = 'oryntra_client_release';
 const PUBLIC_ANALYSIS_ENGINE = 'official';
 
@@ -161,6 +159,13 @@ applyReleaseClientReset();
 let authToken = safeStorageGet(AUTH_TOKEN_KEY) || getCookie(AUTH_TOKEN_COOKIE) || '';
 let currentUser = null;
 let authMode = 'login';
+let analysisAccessState = {
+  ready: false,
+  policy: null,
+  quota: null,
+};
+let analysisAccessPromise = null;
+let pendingAnalysisIntent = null;
 
 function authHeaders(json=true) {
   const headers = json ? {'Content-Type':'application/json'} : {};
@@ -175,7 +180,7 @@ function apiJson(response) {
     const detail = payload.detail || payload;
     if (response.status === 402 || (detail && detail.code === 'SUBSCRIPTION_REQUIRED')) {
       showSubscriptionModal();
-      throw new Error('Subscription required to analyze tickers in Oryntra AI Pro.');
+      throw new Error('An active Oryntra AI Pro subscription is required for analysis.');
     }
     if (response.status === 401) {
       openAuthModal('login');
@@ -190,22 +195,26 @@ function apiJson(response) {
     const message = typeof detail === 'string'
       ? detail
       : validationMessage || detail?.message || detail?.error || payload?.message || payload?.error;
-    throw new Error(message || `Request failed with HTTP ${response.status}.`);
+    const error = new Error(message || `Request failed with HTTP ${response.status}.`);
+    error.statusCode = response.status;
+    error.code = detail && typeof detail === 'object' ? detail.code : payload?.code;
+    error.detail = detail;
+    throw error;
   });
 }
 
 
 const API = {
-  scan:       (ticker, period='6mo') => apiFetch(`/api/analysis/scan`, {
+  scan: (ticker, period='6mo') => apiFetch('/api/intelligence/scan', {
     method: 'POST',
     headers: authHeaders(true),
-    body: JSON.stringify({ticker, period, pattern_mode: PUBLIC_ANALYSIS_ENGINE})
+    body: JSON.stringify({ticker, period})
   }).then(apiJson),
 
-  scanMultiple: (tickers) => apiFetch(`/api/analysis/scan-multiple`, {
+  scanMultiple: (tickers, period='6mo') => apiFetch('/api/intelligence/scan-multiple', {
     method: 'POST',
     headers: authHeaders(true),
-    body: JSON.stringify({tickers})
+    body: JSON.stringify({tickers, period})
   }).then(apiJson),
 
   explain: (ticker, analysis, question=null) => apiFetch(`/api/ai/explain`, {
@@ -214,8 +223,13 @@ const API = {
     body: JSON.stringify({ticker, analysis, question})
   }).then(r => r.json()),
 
-  stats: () => apiFetch('/api/analysis/stats', {cache: 'no-store'}).then(r => r.ok ? r.json() : Promise.reject(new Error('Stats endpoint failed'))),
+  stats: () => apiFetch('/api/app/stats', {cache: 'no-store'}).then(apiJson),
+  runtime: () => apiFetch('/api/app/version', {cache:'no-store'}).then(apiJson),
 
+  intelligence: {
+    status: () => apiFetch('/api/intelligence/status', {headers:authHeaders(false), cache:'no-store'}).then(apiJson),
+    quota: () => apiFetch('/api/intelligence/quota', {headers:authHeaders(false), cache:'no-store'}).then(apiJson),
+  },
 
   auth: {
     signup: (data) => apiFetch('/api/auth/signup', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(data)}).then(apiJson),
@@ -226,12 +240,12 @@ const API = {
   },
 
   watchlist: {
-    get:    () => apiFetch('/api/watchlist/').then(r => r.json()),
+    get:    () => apiFetch('/api/watchlist/', {headers:authHeaders(false)}).then(apiJson),
     add:    (ticker) => apiFetch('/api/watchlist/add', {
       method:'POST', headers: authHeaders(true),
       body: JSON.stringify({ticker})
     }).then(r => r.json()),
-    remove: (ticker) => apiFetch(`/api/watchlist/${ticker}`, {method:'DELETE'}).then(r => r.json()),
+    remove: (ticker) => apiFetch(`/api/watchlist/${ticker}`, {method:'DELETE', headers:authHeaders(false)}).then(apiJson),
   },
 
   dev: {
@@ -388,6 +402,8 @@ async function initAdSlots() {
 
 document.addEventListener('DOMContentLoaded', () => {
   initAuth();
+  initAnalysisAccess();
+  initRuntimeCapabilities();
   initTabs();
   initScanner();
   initWatchlist();
@@ -530,6 +546,7 @@ async function refreshAuthState() {
       currentUser = res.user;
       storeCachedAuthUser(currentUser);
       setAuthUI(currentUser);
+      refreshAnalysisAccess({silent:true}).catch(() => {});
       return;
     }
     authToken = '';
@@ -548,15 +565,17 @@ function setAuthUI(user) {
   currentUser = user || null;
   const state = document.getElementById('authStateText');
   const btn = document.getElementById('authOpenBtn');
-  if (!state || !btn) return;
   if (!user) {
-    state.textContent = 'SIGNED OUT';
-    btn.textContent = 'LOGIN';
+    if (state) state.textContent = 'SIGNED OUT';
+    if (btn) btn.textContent = 'LOGIN';
+    analysisAccessState = {ready:false, policy:null, quota:null};
+    renderAnalysisAccess();
     return;
   }
   const plan = user.subscription ? (user.subscription.plan_name || user.subscription.plan_code || 'ACTIVE') : 'FREE';
-  state.textContent = `${user.email} · ${plan}`;
-  btn.textContent = 'LOGOUT';
+  if (state) state.textContent = `${user.email} · ${plan}`;
+  if (btn) btn.textContent = 'LOGOUT';
+  renderAnalysisAccess();
 }
 
 function openAuthModal(mode='login') {
@@ -569,7 +588,11 @@ function openAuthModal(mode='login') {
     b.setAttribute('aria-selected', String(selected));
   });
   const nameField = document.getElementById('authNameField');
+  const legalField = document.getElementById('authLegalField');
   if (nameField) nameField.style.display = mode === 'signup' ? '' : 'none';
+  if (legalField) legalField.style.display = mode === 'signup' ? '' : 'none';
+  const legalAccept = document.getElementById('authLegalAccept');
+  if (legalAccept && mode !== 'signup') legalAccept.checked = false;
   const submit = document.getElementById('authSubmit');
   if (submit) submit.textContent = mode === 'signup' ? 'CREATE ACCOUNT' : 'LOGIN';
   const err = document.getElementById('authError');
@@ -591,9 +614,10 @@ async function submitAuth() {
   const email = (document.getElementById('authEmail')?.value || '').trim();
   const password = document.getElementById('authPassword')?.value || '';
   const display_name = (document.getElementById('authName')?.value || '').trim();
+  const accept_legal = Boolean(document.getElementById('authLegalAccept')?.checked);
   try {
     const res = authMode === 'signup'
-      ? await API.auth.signup({email, password, display_name})
+      ? await API.auth.signup({email, password, display_name, accept_legal})
       : await API.auth.login({email, password});
     applyAuthResponse(res);
     closeAuthModal();
@@ -617,6 +641,9 @@ function applyAuthResponse(res) {
   if (document.querySelector('#tab-paper.active')) {
     loadPaperTrades().catch(() => {});
   }
+  refreshAnalysisAccess({silent:true})
+    .then(() => resumePendingAnalysisIntent())
+    .catch(() => resumePendingAnalysisIntent());
 }
 
 async function logoutUser() {
@@ -626,6 +653,7 @@ async function logoutUser() {
   safeStorageRemove(AUTH_USER_KEY);
   deleteClientCookie(AUTH_TOKEN_COOKIE);
   deleteClientCookie(AUTH_USER_COOKIE);
+  pendingAnalysisIntent = null;
   setAuthUI(null);
   loadPaperTrades().catch(() => {});
 }
@@ -657,6 +685,7 @@ function initTabs() {
     });
     if (tab === 'watchlist') loadWatchlist();
     if (tab === 'paper') loadPaperTrades();
+    if (tab === 'settings' && currentUser) refreshAnalysisAccess({silent:true}).catch(() => {});
   };
   tabs.forEach((btn, index) => {
     btn.addEventListener('click', () => {
@@ -674,6 +703,149 @@ function initTabs() {
       activate(tabs[nextIndex]);
     });
   });
+}
+
+async function initRuntimeCapabilities() {
+  try {
+    const runtime = await API.runtime();
+    const privateResearch = Boolean(runtime?.private_research_routes);
+    const backtestNav = document.getElementById('nav-backtest');
+    const backtestPanel = document.getElementById('tab-backtest');
+    const devPanel = document.getElementById('devLabPanel');
+    const betaBadge = document.querySelector('.beta-version-badge');
+    if (!privateResearch) {
+      if (backtestNav) backtestNav.hidden = true;
+      if (backtestPanel) backtestPanel.hidden = true;
+      if (devPanel) devPanel.hidden = true;
+      if (betaBadge) {
+        betaBadge.removeAttribute('role');
+        betaBadge.removeAttribute('tabindex');
+        betaBadge.removeAttribute('aria-controls');
+        betaBadge.setAttribute('aria-label', 'Oryntra AI beta version');
+      }
+    }
+  } catch (_) {}
+}
+
+function normalizeAnalysisAccess(payload) {
+  return {
+    ready: payload?.status === 'ready' || payload?.policy?.analysis_permitted === true,
+    policy: payload?.policy || null,
+    quota: payload?.quota || null,
+  };
+}
+
+function renderAnalysisAccess() {
+  const ready = Boolean(currentUser && analysisAccessState.ready);
+  const policy = analysisAccessState.policy || {};
+  const quota = analysisAccessState.quota || {};
+  const scannerDot = document.getElementById('analysisScannerDot');
+  const scannerTitle = document.getElementById('analysisScannerTitle');
+  const scannerMessage = document.getElementById('analysisScannerMessage');
+  const scannerButton = document.getElementById('analysisScannerManageBtn');
+  const badge = document.getElementById('analysisAccessBadge');
+  const list = document.getElementById('analysisAccessList');
+  const error = document.getElementById('analysisAccessError');
+
+  [scannerDot, badge].forEach(el => {
+    if (!el) return;
+    el.classList.remove('is-connected', 'is-error', 'is-offline');
+    el.classList.add(ready ? 'is-connected' : 'is-offline');
+  });
+
+  if (!currentUser) {
+    if (scannerTitle) scannerTitle.textContent = 'Sign in to analyze';
+    if (scannerMessage) scannerMessage.textContent = 'Oryntra returns derived analysis only. TradingView independently supplies the embedded chart.';
+    if (scannerButton) scannerButton.textContent = 'SIGN IN';
+    if (badge) badge.textContent = 'SIGNED OUT';
+    if (list) list.innerHTML = '<div class="analysis-empty-state">Sign in to view your daily analysis allowance.</div>';
+    if (error) error.textContent = '';
+    return;
+  }
+
+  if (ready) {
+    const remaining = Number.isFinite(Number(quota.remaining)) ? Number(quota.remaining) : '—';
+    const limit = Number.isFinite(Number(quota.limit)) ? Number(quota.limit) : '—';
+    if (scannerTitle) scannerTitle.textContent = 'Market intelligence ready';
+    if (scannerMessage) scannerMessage.textContent = `${remaining} of ${limit} ticker requests remain today. Raw OHLCV is never returned.`;
+    if (scannerButton) scannerButton.textContent = 'VIEW USAGE';
+    if (badge) badge.textContent = 'READY';
+    if (list) list.innerHTML = `<div class="analysis-empty-state"><strong>${escapeHtml(String(remaining))} / ${escapeHtml(String(limit))}</strong> requests remaining today (UTC).<br>Chart: TradingView · Analysis: server-side derived output · Raw bars: not returned.</div>`;
+    if (error) error.textContent = '';
+    return;
+  }
+
+  const mode = policy.license_mode || 'personal_research';
+  if (scannerTitle) scannerTitle.textContent = mode === 'personal_research' ? 'Owner research mode' : 'Analysis temporarily unavailable';
+  if (scannerMessage) scannerMessage.textContent = mode === 'personal_research'
+    ? 'This data license is restricted to the configured owner account.'
+    : 'Public analysis remains disabled until the approved market-data agreement is activated.';
+  if (scannerButton) scannerButton.textContent = 'ACCOUNT';
+  if (badge) badge.textContent = 'RESTRICTED';
+  if (list) list.innerHTML = '<div class="analysis-empty-state">The server license gate is preventing public analysis. This is intentional.</div>';
+}
+
+async function refreshAnalysisAccess(options = {}) {
+  const {silent = false, force = false} = options;
+  if (!currentUser) {
+    analysisAccessState = {ready:false, policy:null, quota:null};
+    renderAnalysisAccess();
+    return analysisAccessState;
+  }
+  if (analysisAccessPromise && !force) return analysisAccessPromise;
+  analysisAccessPromise = API.intelligence.status()
+    .then(payload => {
+      analysisAccessState = normalizeAnalysisAccess(payload);
+      renderAnalysisAccess();
+      return analysisAccessState;
+    })
+    .catch(err => {
+      analysisAccessState = {ready:false, policy:null, quota:null};
+      renderAnalysisAccess();
+      if (!silent) {
+        const target = document.getElementById('analysisAccessError');
+        if (target) target.textContent = err.message || String(err);
+      }
+      throw err;
+    })
+    .finally(() => { analysisAccessPromise = null; });
+  return analysisAccessPromise;
+}
+
+async function requireAnalysisAccess(intent = null) {
+  if (!currentUser) {
+    pendingAnalysisIntent = intent;
+    openAuthModal('login');
+    return false;
+  }
+  try {
+    const status = await refreshAnalysisAccess({silent:true});
+    if (status.ready) return true;
+  } catch (error) {
+    showError(error.message || String(error));
+    return false;
+  }
+  showError('Analysis is not enabled for this account or server license mode.');
+  return false;
+}
+
+async function resumePendingAnalysisIntent() {
+  if (!pendingAnalysisIntent || !currentUser) return;
+  const intent = pendingAnalysisIntent;
+  pendingAnalysisIntent = null;
+  const status = await refreshAnalysisAccess({silent:true}).catch(() => analysisAccessState);
+  if (!status.ready) return;
+  if (intent.type === 'scan') runScan(intent.ticker, intent.period);
+  if (intent.type === 'scan-all') scanAllWatchlist();
+}
+
+function initAnalysisAccess() {
+  document.getElementById('analysisScannerManageBtn')?.addEventListener('click', () => {
+    if (!currentUser) openAuthModal('login');
+    else document.querySelector('[data-tab="settings"]')?.click();
+  });
+  document.getElementById('analysisAccessRefreshBtn')?.addEventListener('click', () => refreshAnalysisAccess({force:true}));
+  renderAnalysisAccess();
 }
 
 function initScanner() {
@@ -702,7 +874,7 @@ function initScanner() {
     console.log('✅ Period group found - attaching delegated listener');
     periodGroup.addEventListener('click', (e) => {
       const btn = e.target.closest('.tv-period-btn');
-      if (!btn) return; // Click wasn't on a period button
+      if (!btn) return; 
       
       console.log('🎯 PERIOD BUTTON CLICKED:', btn.dataset.period, '(' + btn.textContent + ')');
       
@@ -734,7 +906,7 @@ function initScanner() {
     console.log('✅ Interval group found - attaching delegated listener');
     intervalGroup.addEventListener('click', (e) => {
       const btn = e.target.closest('.tv-interval-btn');
-      if (!btn) return; // Click wasn't on an interval button
+      if (!btn) return; 
       
       console.log('🎯 INTERVAL BUTTON CLICKED:', btn.dataset.interval, '(' + btn.textContent + ')');
       
@@ -752,7 +924,7 @@ function initScanner() {
       
       if (currentTicker) {
         console.log('✅ LOADING TRADINGVIEW - Ticker:', currentTicker, 'Interval:', currentInterval);
-        loadTradingView(currentTicker, currentInterval);
+        loadTradingView(currentTicker, currentInterval, currentAnalysis?.exchange);
       } else {
         console.log('⚠️ No ticker yet - search first');
       }
@@ -787,6 +959,8 @@ async function runScan(ticker = null, period = null) {
 
   currentTicker = raw;
   currentPeriod = period || currentPeriod;
+  const allowed = await requireAnalysisAccess({type:'scan', ticker:raw, period:currentPeriod});
+  if (!allowed) return;
   showLoading(true);
   hideError();
   hideResults();
@@ -803,12 +977,17 @@ async function runScan(ticker = null, period = null) {
       loadSearchCounter();
     }
     renderResults(data);
-    loadTradingView(raw, currentInterval);
+    loadTradingView(raw, currentInterval, data.exchange);
     generateAI(data);
     document.getElementById('addToWatchlistBtn').style.display = '';
     showResults();
   } catch (err) {
     console.error('Oryntra scan failed:', err);
+    if (['MARKET_DATA_LICENSE_REQUIRED','PUBLIC_ANALYSIS_DISABLED','SUBSCRIPTION_REQUIRED','DAILY_ANALYSIS_LIMIT_REACHED'].includes(err?.code)) {
+      await refreshAnalysisAccess({silent:true, force:true}).catch(() => {});
+      showError(err.message || 'Analysis is not available for this account.');
+      return;
+    }
     let msg = typeof err === 'string' ? err : (err && err.message ? err.message : 'Couldn\'t analyze that ticker.');
     if (/not found|check the symbol|no .*data/i.test(msg)) {
       msg = `"${raw}" didn't return data. Double-check the symbol — try a major US ticker like AAPL, MSFT, or SPY.`;
@@ -892,28 +1071,28 @@ function renderResults(d) {
   window.plan = tp;
   const setup = d.setup || {};
   const preds = d.predictions || {};
-  const vol   = d.volume || {};
+  const vol   = d.volume_context || {};
   const mom   = d.momentum || {};
   const levels = d.levels || {};
   const bb    = d.bollinger || {};
   const macd  = d.macd || {};
   const stoch = d.stochastic || {};
+  const referencePrice = Number(tp.entry_ideal ?? tp.entry_low ?? tp.entry_high);
 
   setText('rTicker',  d.ticker);
   setText('rCompany', d.company_name || '');
-  setText('rPrice',   fmt$(d.price));
+  setText('rPrice', Number.isFinite(referencePrice) ? fmt$(referencePrice) : '—');
   const chEl = document.getElementById('rChange');
-  chEl.textContent = `${d.day_change > 0 ? '+' : ''}${d.day_change}%`;
-  chEl.className = `price-change ${d.day_change >= 0 ? 'up' : 'down'}`;
-  setText('r52wHigh', fmt$(d.high_52w));
-  setText('r52wLow',  fmt$(d.low_52w));
+  chEl.textContent = Number.isFinite(referencePrice) ? 'MODEL ENTRY' : 'DERIVED';
+  chEl.className = 'price-change';
+  setText('r52wHigh', fmt$(levels.resistance));
+  setText('r52wLow',  fmt$(levels.support));
   setText('rAtrPct',  d.atr_pct ? `${d.atr_pct}%` : '—');
 
   const srcEl = document.getElementById('rDataSource');
   if (srcEl) {
-    const prov = (d.data_provider || 'market data').toUpperCase();
-    const tf   = d.timeframe ? ` · ${d.timeframe.toUpperCase()}` : '';
-    srcEl.textContent = `${prov}${tf}`;
+    const tf = d.timeframe ? ` · ${String(d.timeframe).toUpperCase()}` : '';
+    srcEl.textContent = `SERVER-SIDE DERIVED ANALYSIS${tf} · CHART BY TRADINGVIEW`;
   }
 
   const setupColor = setupColorMap(setup.setup_type, tp.direction);
@@ -973,11 +1152,11 @@ function renderResults(d) {
     }
   }
 
-  renderMARow('maRow9',   'EMA 9',   d.ema9,   d.price);
-  renderMARow('maRow21',  'EMA 21',  d.ema21,  d.price);
-  renderMARow('maRow20',  'SMA 20',  d.ma20,   d.price);
-  renderMARow('maRow50',  'SMA 50',  d.ma50,   d.price);
-  renderMARow('maRow200', 'SMA 200', d.ma200,  d.price);
+  renderMARow('maRow9',   'EMA 9',   d.ema9,   referencePrice);
+  renderMARow('maRow21',  'EMA 21',  d.ema21,  referencePrice);
+  renderMARow('maRow20',  'SMA 20',  d.ma20,   referencePrice);
+  renderMARow('maRow50',  'SMA 50',  d.ma50,   referencePrice);
+  renderMARow('maRow200', 'SMA 200', d.ma200,  referencePrice);
 
   renderGauge('rsiGauge',   d.rsi14,     0, 100);
   renderGauge('stochGauge', stoch.k,     0, 100);
@@ -999,7 +1178,7 @@ function renderResults(d) {
   const wrVal    = d.williams_r;
   const vwapVal  = d.vwap_20d;
   const emaCross = d.ema_cross   || '';
-  const volDiv   = d.volume_price_divergence || 'NONE';
+  const volDiv   = vol.price_divergence || 'NONE';
 
   renderGauge('adxGauge', adxVal != null ? Math.min(adxVal, 60) : null, 0, 60);
   setText('adxValue', adxVal != null ? adxVal.toFixed(1) : '—');
@@ -1061,19 +1240,20 @@ function renderResults(d) {
   } else if (posSizeRow) {
     posSizeRow.style.display = 'none';
   }
-  const ratio    = vol.ratio || 0;
-  const volColor = ratio >= 2.0 ? 'var(--bull)' : ratio >= 1.5 ? 'var(--neutral)' : ratio < 0.8 ? 'var(--bear)' : 'var(--text-primary)';
-  const ratioEl  = document.getElementById('volRatio');
-  ratioEl.textContent   = `${ratio}×`;
-  ratioEl.style.color   = volColor;
+  const ratio = Number(vol.relative_ratio || 0);
+  const volColor = ratio >= 2.0 ? 'var(--bull)' : ratio >= 1.5 ? 'var(--neutral)' : ratio > 0 && ratio < 0.8 ? 'var(--bear)' : 'var(--text-primary)';
+  const ratioEl = document.getElementById('volRatio');
+  ratioEl.textContent = ratio > 0 ? `${ratio.toFixed(2)}×` : '—';
+  ratioEl.style.color = volColor;
 
+  const participation = ratio >= 2 ? 'SURGE' : ratio >= 1.5 ? 'ELEVATED' : ratio > 0 && ratio < 0.8 ? 'LIGHT' : ratio > 0 ? 'NORMAL' : 'UNAVAILABLE';
   const sigTagEl = document.getElementById('volSignal');
-  sigTagEl.textContent  = vol.volume_signal || (ratio >= 2 ? 'SURGE' : ratio >= 1.5 ? 'HIGH' : 'NORMAL');
+  sigTagEl.textContent = participation;
   sigTagEl.style.background = volColor + '22';
-  sigTagEl.style.color      = volColor;
+  sigTagEl.style.color = volColor;
 
-  setText('volCurrent', fmtVol(vol.current));
-  setText('volAvg',     fmtVol(vol.avg_20d));
+  setText('volCurrent', participation);
+  setText('volAvg', vol.price_divergence ? String(vol.price_divergence).replace(/_/g, ' ') : 'NONE');
 
   const vtEl = document.getElementById('volTrend');
   vtEl.textContent = vol.trend || '—';
@@ -1119,9 +1299,10 @@ function renderResults(d) {
       ? (tp.risk_reward >= 2 ? 'var(--bull)' : tp.risk_reward >= 1.5 ? 'var(--neutral)' : 'var(--bear)')
       : 'var(--bear)';
 
+    const actionRow = document.getElementById('tradeActionRow');
     const paperBtn = document.getElementById('paperTradeBtn');
-    paperBtn.style.display = planIsValid ? '' : 'none';
-    paperBtn.onclick = planIsValid ? () => openPaperModal(d) : null;
+    if (actionRow) actionRow.style.display = planIsValid ? '' : 'none';
+    if (paperBtn) paperBtn.onclick = planIsValid ? () => openPaperModal(d) : null;
   } else {
     if (tradeZones) tradeZones.className = 'trade-zones';
     if (targetLabel) targetLabel.textContent = 'TARGET';
@@ -1133,7 +1314,7 @@ function renderResults(d) {
     }
     ['planEntry','planEntryRange','planStop','planTarget','planStopPct','planTargetPct'].forEach(id => setText(id, '—'));
     setText('planRR', 'N/A');
-    document.getElementById('paperTradeBtn').style.display = 'none';
+    document.getElementById('tradeActionRow').style.display = 'none';
   }
 
   renderPred('5d',  preds['5d']);
@@ -1301,84 +1482,65 @@ function focusPatternOnChart(p) {
   }
 }
 
-function loadTradingView(ticker, interval) {
+function loadTradingView(ticker, interval, exchange = "") {
   const container = document.getElementById('tradingview_widget');
+  if (!container) return;
+  const tvSymbol = normalizeTVSymbol(ticker, exchange);
   container.innerHTML = '';
 
-  const tvSymbol = normalizeTVSymbol(ticker);
-
-  if (typeof TradingView === 'undefined') {
-    container.innerHTML = `
-      <div style="display:flex;align-items:center;justify-content:center;height:100%;flex-direction:column;gap:16px;color:var(--text-secondary);font-family:var(--font-body);font-size:12px;background:var(--bg-input);border-radius:14px;">
-        <div style="font-size:32px;">📊</div>
-        <div>TradingView unavailable — open in TradingView directly</div>
-        <a href="https://www.tradingview.com/chart/?symbol=${encodeURIComponent(tvSymbol)}" target="_blank"
-           style="color:var(--accent-primary);text-decoration:none;border:1px solid var(--border-bright);padding:9px 18px;border-radius:10px;font-size:11px;font-weight:650;">
-          OPEN ${ticker} IN TRADINGVIEW ↗
-        </a>
-      </div>`;
-    return;
-  }
-
-  try {
-    const lightChart = document.documentElement.dataset.theme === 'light';
-    const themeStyles = getComputedStyle(document.documentElement);
-    const chartBackground = themeStyles.getPropertyValue('--chart-bg').trim() || (lightChart ? '#dce4ec' : '#0c141f');
-    const chartGrid = themeStyles.getPropertyValue('--chart-grid').trim() || (lightChart ? 'rgba(61,87,119,0.14)' : 'rgba(100,145,194,0.12)');
-    const chartText = themeStyles.getPropertyValue('--chart-text').trim() || (lightChart ? '#485b6e' : '#a9b8c8');
-    tvWidget = new TradingView.widget({
-      container_id:     'tradingview_widget',
-      symbol:           tvSymbol,
-      interval:         interval,
-      timezone:         'America/New_York',
-      theme:            lightChart ? 'light' : 'dark',
-      style:            '1',
-      locale:           'en',
-      toolbar_bg:       chartBackground,
-      backgroundColor:  chartBackground,
-      gridColor:        chartGrid,
-      enable_publishing: false,
-      hide_top_toolbar: false,
-      hide_side_toolbar: false,
-      allow_symbol_change: true,
-      save_image:        false,
-      studies: [
-        'MASimple@tv-basicstudies',
-        'MASimple@tv-basicstudies',
-        'RSI@tv-basicstudies',
-        'MACD@tv-basicstudies',
-        'Volume@tv-basicstudies',
-      ],
-      studies_overrides: {
-        'moving average.length': 20,
-      },
-      overrides: {
-        'paneProperties.background':          chartBackground,
-        'paneProperties.backgroundGradientStartColor': chartBackground,
-        'paneProperties.backgroundGradientEndColor':   chartBackground,
-        'paneProperties.vertGridProperties.color': chartGrid,
-        'paneProperties.horzGridProperties.color': chartGrid,
-        'scalesProperties.textColor':         chartText,
-        'mainSeriesProperties.candleStyle.upColor':   '#5f957a',
-        'mainSeriesProperties.candleStyle.downColor': '#b96569',
-        'mainSeriesProperties.candleStyle.borderUpColor':   '#5f957a',
-        'mainSeriesProperties.candleStyle.borderDownColor': '#b96569',
-        'mainSeriesProperties.candleStyle.wickUpColor':   '#5f957a',
-        'mainSeriesProperties.candleStyle.wickDownColor': '#b96569',
-      },
-      width:  '100%',
-      height: 430,
-      autosize: false,
-    });
-  } catch (e) {
-    console.error('TradingView widget error:', e);
-  }
+  const widget = document.createElement('div');
+  widget.className = 'tradingview-widget-container';
+  widget.style.cssText = 'height:100%;width:100%;background:#07111f;border-radius:16px;overflow:hidden;';
+  widget.innerHTML = `<div class="tradingview-widget-container__widget" style="height:calc(100% - 28px);width:100%"></div>
+    <div class="tradingview-widget-copyright" style="height:28px;display:flex;align-items:center;justify-content:center;background:#07111f;font:10px var(--font-body);">
+      <a href="https://www.tradingview.com/chart/?symbol=${encodeURIComponent(tvSymbol)}" rel="noopener nofollow" target="_blank" style="color:#38cff3;text-decoration:none;font-weight:700;">${escapeHtml(ticker)} chart by TradingView</a>
+    </div>`;
+  const script = document.createElement('script');
+  script.type = 'text/javascript';
+  script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js';
+  script.async = true;
+  script.text = JSON.stringify({
+    autosize: true,
+    symbol: tvSymbol,
+    interval: interval || 'D',
+    timezone: 'exchange',
+    theme: 'dark',
+    style: '1',
+    locale: 'en',
+    backgroundColor: '#07111F',
+    gridColor: 'rgba(56, 207, 243, 0.08)',
+    hide_top_toolbar: true,
+    hide_side_toolbar: true,
+    hide_legend: true,
+    hide_volume: true,
+    withdateranges: false,
+    allow_symbol_change: false,
+    save_image: false,
+    details: false,
+    hotlist: false,
+    calendar: false,
+    support_host: 'https://www.tradingview.com'
+  });
+  widget.appendChild(script);
+  container.appendChild(widget);
 }
 
-function normalizeTVSymbol(ticker) {
-  const cryptoMap = {'BTC':'COINBASE:BTCUSD','ETH':'COINBASE:ETHUSD'};
-  if (cryptoMap[ticker]) return cryptoMap[ticker];
-  return `NASDAQ:${ticker}`; // Default to NASDAQ; TradingView auto-resolves
+function normalizeTVSymbol(ticker, exchange = "") {
+  const cleanTicker = String(ticker || '').toUpperCase().trim();
+  if (!cleanTicker) return '';
+  if (cleanTicker.includes(':')) return cleanTicker;
+  const cryptoMap = {'BTC':'COINBASE:BTCUSD','BTC-USD':'COINBASE:BTCUSD','ETH':'COINBASE:ETHUSD','ETH-USD':'COINBASE:ETHUSD'};
+  if (cryptoMap[cleanTicker]) return cryptoMap[cleanTicker];
+
+  const cleanExchange = String(exchange || '').toUpperCase();
+  if (/NASDAQ|NMS|NGM|NCM/.test(cleanExchange)) return `NASDAQ:${cleanTicker}`;
+  if (/NYSE|NYQ/.test(cleanExchange)) return `NYSE:${cleanTicker}`;
+  if (/AMEX|ASE/.test(cleanExchange)) return `AMEX:${cleanTicker}`;
+  if (/ARCA/.test(cleanExchange)) return `AMEX:${cleanTicker}`;
+
+  
+  
+  return cleanTicker;
 }
 
 async function generateAI(analysis, question = null) {
@@ -1414,7 +1576,6 @@ function formatAIText(text) {
     .replace(/(LONG|BULLISH|BUY)/g, '<span style="color:var(--bull)">$1</span>')
     .replace(/(SHORT|BEARISH|SELL)/g, '<span style="color:var(--bear)">$1</span>');
 }
-
 
 
 function initDevTools() {
@@ -2311,6 +2472,8 @@ window.scanFromWatchlist = function(ticker) {
 };
 
 async function scanAllWatchlist() {
+  const allowed = await requireAnalysisAccess({type:'scan-all'});
+  if (!allowed) return;
   const items = await API.watchlist.get();
   if (!items.length) return;
 
@@ -2320,7 +2483,7 @@ async function scanAllWatchlist() {
 
   try {
     const tickers = items.map(i => i.ticker);
-    const result  = await API.scanMultiple(tickers);
+    const result  = await API.scanMultiple(tickers, currentPeriod);
     renderScannerResults(result.results);
   } finally {
     btn.textContent = '⬡ SCAN ALL';
@@ -2346,7 +2509,7 @@ function renderScannerResults(results) {
       <button class="scanner-result-card" type="button" onclick="scanFromWatchlist('${d.ticker}')">
         <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;">
           <span class="src-ticker">${d.ticker}</span>
-          <span class="src-price">${fmt$(d.price)}</span>
+          <span class="src-price">${fmt$(d.trade_plan?.entry_ideal)}</span>
         </div>
         <div class="src-setup" style="color:${color}">
           ${(setup.setup_type||'—').replace(/_/g,' ')} — ${tp.direction || 'NEUTRAL'}
@@ -2441,26 +2604,22 @@ function fmtTradeDate(value) {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
-function buildTradeSparkline(points, fallbackValues = []) {
-  let vals = [];
-  if (Array.isArray(points)) vals = points.map(p => Number(p.close)).filter(Number.isFinite);
-  if (vals.length < 2) vals = fallbackValues.map(Number).filter(Number.isFinite);
-  if (vals.length < 2) return '<div class="pt-spark-empty">NO CHART</div>';
+function buildTradeLevelStrip(entry, current, target) {
+  const values = [entry, current, target].map(Number);
+  if (!values.every(Number.isFinite)) return '<div class="pt-spark-empty">PRICE LEVELS UNAVAILABLE</div>';
 
   const w = 164;
   const h = 46;
-  const min = Math.min(...vals);
-  const max = Math.max(...vals);
+  const min = Math.min(...values);
+  const max = Math.max(...values);
   const span = Math.max(max - min, 0.0001);
-  const coords = vals.map((v, i) => {
-    const x = vals.length === 1 ? w / 2 : (i / (vals.length - 1)) * w;
-    const y = h - ((v - min) / span) * h;
-    return `${x.toFixed(1)},${y.toFixed(1)}`;
-  }).join(' ');
-  const lastUp = vals[vals.length - 1] >= vals[0];
-  const cls = lastUp ? 'up' : 'down';
-  return `<svg class="pt-sparkline ${cls}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true">
-    <polyline points="${coords}" fill="none" stroke="currentColor" stroke-width="2" vector-effect="non-scaling-stroke" />
+  const y = value => h - ((value - min) / span) * h;
+  const directionClass = current >= entry ? 'up' : 'down';
+
+  return `<svg class="pt-sparkline ${directionClass}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" role="img" aria-label="Entry, current, and target price levels">
+    <line x1="0" y1="${y(entry).toFixed(1)}" x2="${w}" y2="${y(entry).toFixed(1)}" stroke="currentColor" stroke-opacity="0.35" stroke-dasharray="4 3" />
+    <line x1="0" y1="${y(target).toFixed(1)}" x2="${w}" y2="${y(target).toFixed(1)}" stroke="currentColor" stroke-opacity="0.55" stroke-dasharray="2 2" />
+    <circle cx="${(w * 0.5).toFixed(1)}" cy="${y(current).toFixed(1)}" r="4" fill="currentColor" />
   </svg>`;
 }
 
@@ -2480,7 +2639,7 @@ function renderPaperGrid(trades) {
     const pnlPct  = t.pnl_pct || 0;
     const pnlClass = (isOpen ? livePnl : pnl) >= 0 ? 'win' : 'loss';
     const dirClass = t.direction === 'LONG' ? 'long' : 'short';
-    const spark = buildTradeSparkline(t.mini_history, [t.entry_price, currentPrice, t.target_price]);
+    const levelStrip = buildTradeLevelStrip(t.entry_price, currentPrice, t.target_price);
     return `
       <div class="pt-card pt-card-expanded">
         <div class="pt-id-block">
@@ -2503,10 +2662,10 @@ function renderPaperGrid(trades) {
 
         <div class="pt-mini-chart-wrap">
           <div class="pt-mini-chart-head">
-            <span>MINI CHART</span>
+            <span>TRADE LEVELS</span>
             <span>${t.current_price_at ? escHtml(String(t.current_price_at).substring(0, 10)) : ''}</span>
           </div>
-          ${spark}
+          ${levelStrip}
         </div>
 
         <div class="pt-info pt-notes-block">
@@ -2542,6 +2701,7 @@ window.closePaperTrade = async function(tradeId, ticker) {
   }
 };
 
+
 function initModal() {
   document.getElementById('modalCancel').addEventListener('click', closeModal);
   document.getElementById('modalConfirm').addEventListener('click', confirmPaperTrade);
@@ -2560,7 +2720,7 @@ function openPaperModal(analysis) {
   const dir = tp.direction || 'LONG';
   document.getElementById('modalTicker').textContent = analysis.ticker;
   document.getElementById('modalDir').value          = dir;
-  document.getElementById('modalEntry').value        = tp.entry_ideal || analysis.price || '';
+  document.getElementById('modalEntry').value        = tp.entry_ideal || '';
   document.getElementById('modalStop').value         = tp.stop  || '';
   document.getElementById('modalTarget').value       = tp.target || '';
   document.getElementById('modalNotes').value        = `${(analysis.setup||{}).setup_type||''} — Score: ${(tp.quality_score||0).toFixed(0)}`;

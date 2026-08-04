@@ -124,3 +124,4 @@ def volume_ratio(hist: pd.DataFrame, i: int, window: int = 20) -> float:
     if not avg or avg <= 0:
         return 1.0
     return float(round(float(cur / avg), 3))
+

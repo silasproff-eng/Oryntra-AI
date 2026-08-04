@@ -21,7 +21,6 @@ CANDLE_FAMILY = "CANDLE"
 
 
 def detect_candle_patterns(hist: pd.DataFrame, indicators: dict[str, Any] | None = None) -> list[dict[str, Any]]:
-    """Detect single, multi-candle, gap, reversal, and continuation candlestick patterns."""
     if hist is None or len(hist) < 1:
         return []
 
@@ -43,7 +42,6 @@ def detect_candle_patterns(hist: pd.DataFrame, indicators: dict[str, Any] | None
         if key not in best or p["confidence"] > best[key]["confidence"]:
             best[key] = p
     return sorted(best.values(), key=lambda x: (x["candle_index"], x["confidence"]), reverse=False)
-
 
 
 def _ctx(hist: pd.DataFrame, i: int, extra: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -87,7 +85,6 @@ def _upper_tail_dominant(c: dict[str, float]) -> bool:
 
 def _lower_tail_dominant(c: dict[str, float]) -> bool:
     return c["lower"] >= max(c["body"] * 2.0, c["range"] * 0.45) and c["upper_pct"] <= 0.25
-
 
 
 def _single_candle(hist: pd.DataFrame, i: int) -> list[dict[str, Any]]:
@@ -157,7 +154,6 @@ def _single_candle(hist: pd.DataFrame, i: int) -> list[dict[str, Any]]:
     return out
 
 
-
 def _two_candle(hist: pd.DataFrame, i: int) -> list[dict[str, Any]]:
     p = candle(hist, i - 1)
     c = candle(hist, i)
@@ -219,7 +215,6 @@ def _two_candle(hist: pd.DataFrame, i: int) -> list[dict[str, Any]]:
         out.append(pattern(hist, i, "IN_NECK", CANDLE_FAMILY, "BEARISH", 44, context=_ctx(hist, i)))
 
     return out
-
 
 
 def _three_candle(hist: pd.DataFrame, i: int) -> list[dict[str, Any]]:
@@ -317,7 +312,6 @@ def _three_candle(hist: pd.DataFrame, i: int) -> list[dict[str, Any]]:
     return out
 
 
-
 def _four_candle(hist: pd.DataFrame, i: int) -> list[dict[str, Any]]:
     a, b, c, d = [candle(hist, j) for j in range(i - 3, i + 1)]
     out: list[dict[str, Any]] = []
@@ -349,3 +343,4 @@ def _five_candle(hist: pd.DataFrame, i: int) -> list[dict[str, Any]]:
         out.append(pattern(hist, i, "BREAKAWAY_BEARISH", CANDLE_FAMILY, "BEARISH", 60, context=_ctx(hist, i)))
 
     return out
+

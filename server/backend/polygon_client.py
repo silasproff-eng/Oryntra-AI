@@ -1,9 +1,3 @@
-"""Shared Polygon/Massive HTTP client with a strict cross-process rate limit.
-
-The free stock plan is capped at five API calls per minute. Every Polygon call
-in Oryntra routes through this module so the background market-wide importer,
-manual ticker scans, and reference lookups share one limiter.
-"""
 from __future__ import annotations
 
 import json
@@ -15,9 +9,9 @@ from typing import Any
 
 import requests
 
-try:  # Unix/macOS/Linux cross-process locking.
+try:
     import fcntl
-except Exception:  # pragma: no cover - Windows fallback
+except Exception:
     fcntl = None
 
 APP_DIR = Path(__file__).resolve().parents[1]
@@ -34,7 +28,7 @@ except Exception:
 POLYGON_BASE_URL = os.getenv("POLYGON_BASE_URL", "https://api.polygon.io").rstrip("/")
 DEFAULT_TIMEOUT_SECONDS = float(os.getenv("ORYNTRA_HTTP_TIMEOUT", "20"))
 MAX_CALLS_PER_MINUTE = max(1.0, float(os.getenv("ORYNTRA_POLYGON_CALLS_PER_MINUTE", "5")))
-# Add a small safety buffer so clock jitter never crosses the provider limit.
+
 MIN_GAP_SECONDS = max(
     60.0 / MAX_CALLS_PER_MINUTE,
     float(os.getenv("ORYNTRA_POLYGON_MIN_GAP", "12.5")),
@@ -76,12 +70,6 @@ def _write_rate_state(payload: dict[str, Any]) -> None:
 
 
 def reserve_polygon_slot() -> float:
-    """Reserve one provider call and return seconds to wait before using it.
-
-    The reservation file coordinates the web server and CLI processes. A
-    crashed process can waste one slot, but cannot cause a burst above the
-    configured limit.
-    """
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     with _THREAD_LOCK:
         with LOCK_PATH.open("a+") as lock_file:
@@ -128,7 +116,7 @@ def polygon_get(
     max_retries: int | None = None,
     session: requests.Session | None = None,
 ) -> tuple[dict[str, Any], requests.Response]:
-    """GET JSON from Polygon/Massive while respecting the shared 5/min cap."""
+
     url = path_or_url if path_or_url.startswith("http") else f"{POLYGON_BASE_URL}/{path_or_url.lstrip('/')}"
     query = dict(params or {})
     query.setdefault("apiKey", _api_key())
@@ -193,3 +181,4 @@ def rate_limit_info() -> dict[str, Any]:
         "minimum_gap_seconds": MIN_GAP_SECONDS,
         "next_allowed_at": state.get("next_allowed_at"),
     }
+

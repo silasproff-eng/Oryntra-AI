@@ -1,9 +1,3 @@
-"""Public market-data fetcher backed by the canonical repository.
-
-This module intentionally keeps the historical ``fetch_ticker_data`` contract
-used throughout Oryntra while delegating all cache and fallback decisions to
-``backend.market_repository``.
-"""
 from __future__ import annotations
 
 import threading
@@ -18,17 +12,6 @@ _MEMORY_LOCK = threading.Lock()
 
 
 def fetch_ticker_data(ticker: str, period: str = "6mo") -> dict[str, Any]:
-    """Return normalized daily market history for one ticker.
-
-    Resolution order:
-
-    1. Very short in-process response cache.
-    2. Canonical SQLite cache populated by grouped all-market downloads.
-    3. Rate-limited ticker-specific Massive/Polygon request.
-    4. Optional yfinance emergency fallback when explicitly enabled.
-
-    Every successful provider fallback is persisted before being returned.
-    """
     symbol = normalize_ticker(ticker)
     clean_period = normalize_period(period)
     key = (symbol, clean_period)
@@ -59,7 +42,6 @@ def fetch_ticker_data(ticker: str, period: str = "6mo") -> dict[str, Any]:
 
 
 def clear_fetcher_memory_cache(ticker: str | None = None) -> None:
-    """Clear the tiny response cache; this never deletes database candles."""
     with _MEMORY_LOCK:
         if ticker is None:
             _MEMORY_CACHE.clear()
@@ -68,3 +50,4 @@ def clear_fetcher_memory_cache(ticker: str | None = None) -> None:
         for key in list(_MEMORY_CACHE):
             if key[0] == symbol:
                 _MEMORY_CACHE.pop(key, None)
+

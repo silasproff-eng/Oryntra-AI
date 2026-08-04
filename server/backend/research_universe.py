@@ -72,20 +72,20 @@ def select_unseen_tickers(
 ) -> list[str]:
     excluded = {str(ticker).strip().upper() for ticker in cached_tickers or []}
     excluded.update(str(ticker).strip().upper() for ticker in additional_exclusions or [])
-    
+
     candidates, _ = clean_tickers(BROAD_US_LIQUID_UNIVERSE, max_count=500)
     candidates = [ticker for ticker in candidates if ticker not in excluded]
-    
+
     rng = random.Random(int(seed))
     rng.shuffle(candidates)
-    
+
     requested = max(1, min(int(count), 150))
-    
+
     if not candidates:
         fallback_pool = list(BROAD_US_LIQUID_UNIVERSE)
         rng.shuffle(fallback_pool)
         return fallback_pool[:requested]
-        
+
     requested = min(requested, len(candidates))
     return candidates[:requested]
 
@@ -107,3 +107,4 @@ def universe_metadata(
         "selection_policy": "Deterministic seeded shuffle from a broad liquid-US research pool, falling back to random sampling of the universe if unused pool is exhausted.",
         "requires_market_data_validation": True,
     }
+

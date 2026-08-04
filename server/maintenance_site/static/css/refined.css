@@ -1,7 +1,5 @@
-/*
- * Oryntra Refined
- * A restrained, editorial interface layer for the existing Oryntra web app.
- */
+
+
 
 :root,
 html[data-theme="dark"] {
@@ -162,7 +160,7 @@ body {
 body::before,
 body::after,
 .scanlines {
-  display: none !important;
+  display: none ;
 }
 
 button,
@@ -186,8 +184,8 @@ a {
 }
 
 :where(button, a, input, select, textarea, [tabindex]):focus-visible {
-  outline: none !important;
-  box-shadow: var(--focus-ring) !important;
+  outline: none ;
+  box-shadow: var(--focus-ring) ;
 }
 
 ::selection {
@@ -203,7 +201,6 @@ a {
   box-shadow: var(--shadow-float);
 }
 
-/* Header and global navigation */
 
 .app-header {
   position: sticky;
@@ -375,7 +372,6 @@ a {
   box-shadow: 0 8px 22px rgba(0, 0, 0, 0.09);
 }
 
-/* Page structure */
 
 .app-main {
   width: min(100% - 36px, 1440px);
@@ -415,7 +411,7 @@ a {
 .card::after,
 .settings-category::before,
 .settings-hero::before {
-  display: none !important;
+  display: none ;
 }
 
 .card:hover {
@@ -487,7 +483,6 @@ a {
   color: var(--accent-primary);
 }
 
-/* Search and home content */
 
 .search-bar {
   gap: 10px;
@@ -772,7 +767,6 @@ a {
   letter-spacing: 0.08em;
 }
 
-/* Results and market information */
 
 .scanner-results {
   margin-top: 38px;
@@ -1029,7 +1023,6 @@ a {
   line-height: 1.7;
 }
 
-/* Watchlist, paper trading, and backtests */
 
 .paper-header,
 .backtest-header {
@@ -1330,7 +1323,6 @@ a {
   background: var(--surface-raised);
 }
 
-/* Settings and themes */
 
 .settings-page {
   width: min(100%, 1160px);
@@ -1409,7 +1401,7 @@ a {
   border-color: var(--border-blue-soft);
   background:
     linear-gradient(145deg, color-mix(in srgb, var(--accent-primary), transparent 82%), transparent 66%),
-    var(--surface-blue) !important;
+    var(--surface-blue) ;
 }
 
 .muted-settings-category {
@@ -1536,7 +1528,6 @@ a {
   line-height: 1.35;
 }
 
-/* Pattern Lab */
 
 .dev-lab-panel {
   width: min(100%, 1280px);
@@ -1771,7 +1762,6 @@ a {
 }
 
 
-
 .dev-engine-checks label:hover {
   border-color: var(--border-bright);
   background: var(--bg-card-hover);
@@ -1852,7 +1842,6 @@ a {
   font-family: var(--font-mono);
 }
 
-/* Modals, loading, and errors */
 
 .modal-overlay {
   padding: 20px;
@@ -1929,7 +1918,6 @@ a {
   font-family: var(--font-body);
 }
 
-/* Footer */
 
 .legal-footer {
   border-top-color: var(--border);
@@ -1941,7 +1929,6 @@ a {
   color: var(--text-secondary);
 }
 
-/* Standalone legal and support pages */
 
 body:has(.legal-shell) {
   --legal-bg: var(--bg-void);
@@ -1957,39 +1944,39 @@ body:has(.legal-shell) {
 }
 
 .legal-page {
-  border-color: var(--border) !important;
-  border-radius: 24px !important;
-  background: var(--bg-card) !important;
-  box-shadow: var(--shadow-card) !important;
-  backdrop-filter: none !important;
+  border-color: var(--border) ;
+  border-radius: 24px ;
+  background: var(--bg-card) ;
+  box-shadow: var(--shadow-card) ;
+  backdrop-filter: none ;
 }
 
 .legal-header {
-  border-bottom-color: var(--border) !important;
+  border-bottom-color: var(--border) ;
   background:
     linear-gradient(130deg, color-mix(in srgb, var(--accent-primary), transparent 90%), transparent 54%),
-    var(--bg-card) !important;
+    var(--bg-card) ;
 }
 
 .legal-kicker,
 .legal-section-label {
-  color: var(--accent-primary) !important;
-  font-family: var(--font-body) !important;
+  color: var(--accent-primary) ;
+  font-family: var(--font-body) ;
 }
 
 .legal-page h1,
 .legal-page h2,
 .legal-page h3 {
-  color: var(--text-primary) !important;
-  font-family: var(--font-display) !important;
-  text-shadow: none !important;
+  color: var(--text-primary) ;
+  font-family: var(--font-display) ;
+  text-shadow: none ;
 }
 
 .legal-page p,
 .legal-page li,
 .legal-meta,
 .legal-footer {
-  color: var(--text-secondary) !important;
+  color: var(--text-secondary) ;
 }
 
 .legal-summary,
@@ -1997,12 +1984,11 @@ body:has(.legal-shell) {
 .legal-page table,
 .legal-page th,
 .legal-page td {
-  border-color: var(--border) !important;
-  background: var(--surface-muted) !important;
-  box-shadow: none !important;
+  border-color: var(--border) ;
+  background: var(--surface-muted) ;
+  box-shadow: none ;
 }
 
-/* Light-mode corrections for legacy hard-coded surfaces */
 
 html[data-theme="light"] .app-header {
   border-bottom-color: var(--border);
@@ -2081,7 +2067,6 @@ html[data-theme="light"] .pattern-item {
   box-shadow: none;
 }
 
-/* Responsive refinements */
 
 @media (max-width: 1120px) {
   .app-header {
@@ -2206,7 +2191,7 @@ html[data-theme="light"] .pattern-item {
   .results-grid,
   .dev-lab-grid,
   .dev-inline-fields {
-    grid-template-columns: 1fr !important;
+    grid-template-columns: 1fr ;
   }
 
   .card,
@@ -2263,9 +2248,9 @@ html[data-theme="light"] .pattern-item {
   *,
   *::before,
   *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    scroll-behavior: auto !important;
-    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms ;
+    animation-iteration-count: 1 ;
+    scroll-behavior: auto ;
+    transition-duration: 0.01ms ;
   }
 }

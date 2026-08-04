@@ -46,3 +46,4 @@ async def remove_from_watchlist(ticker: str, request: Request):
         return {"status": "ok", "ticker": ticker}
     finally:
         conn.close()
+

@@ -61,7 +61,9 @@ import WidgetKit
       center.requestAuthorization(options: [.alert, .badge, .sound]) { granted, error in
         DispatchQueue.main.async {
           if let error = error {
-            result(FlutterError(code: "notification_permission", message: error.localizedDescription, details: nil))
+            result(
+              FlutterError(
+                code: "notification_permission", message: error.localizedDescription, details: nil))
           } else {
             if granted {
               UIApplication.shared.registerForRemoteNotifications()
@@ -90,18 +92,21 @@ import WidgetKit
         result(nil)
         return
       }
-      #if DEBUG
+
       let environment = "sandbox"
-      #else
+
       let environment = "production"
-      #endif
+
       result(["token": token, "environment": environment])
 
     case "scheduleDaily":
       guard let args = call.arguments as? [String: Any],
-            let hour = args["hour"] as? Int,
-            let minute = args["minute"] as? Int else {
-        result(FlutterError(code: "invalid_arguments", message: "Hour and minute are required.", details: nil))
+        let hour = args["hour"] as? Int,
+        let minute = args["minute"] as? Int
+      else {
+        result(
+          FlutterError(
+            code: "invalid_arguments", message: "Hour and minute are required.", details: nil))
         return
       }
       center.removePendingNotificationRequests(withIdentifiers: dailyReminderIdentifiers)
@@ -125,12 +130,16 @@ import WidgetKit
 
     case "syncMarketAlerts":
       guard let args = call.arguments as? [String: Any],
-            let rawTickers = args["tickers"] as? [String] else {
-        result(FlutterError(code: "invalid_arguments", message: "Tracked tickers are required.", details: nil))
+        let rawTickers = args["tickers"] as? [String]
+      else {
+        result(
+          FlutterError(
+            code: "invalid_arguments", message: "Tracked tickers are required.", details: nil))
         return
       }
       center.removePendingNotificationRequests(withIdentifiers: marketAlertIdentifiers)
-      let tickers = rawTickers
+      let tickers =
+        rawTickers
         .map { $0.trimmingCharacters(in: .whitespacesAndNewlines).uppercased() }
         .filter { !$0.isEmpty }
       guard !tickers.isEmpty else {
@@ -171,7 +180,9 @@ import WidgetKit
 
     case "showScanResult":
       guard let args = call.arguments as? [String: Any] else {
-        result(FlutterError(code: "invalid_arguments", message: "Scan details are required.", details: nil))
+        result(
+          FlutterError(
+            code: "invalid_arguments", message: "Scan details are required.", details: nil))
         return
       }
       let ticker = args["ticker"] as? String ?? "Ticker"
@@ -189,7 +200,9 @@ import WidgetKit
       center.add(request) { error in
         DispatchQueue.main.async {
           if let error = error {
-            result(FlutterError(code: "notification_delivery", message: error.localizedDescription, details: nil))
+            result(
+              FlutterError(
+                code: "notification_delivery", message: error.localizedDescription, details: nil))
           } else {
             result(nil)
           }
@@ -251,7 +264,9 @@ import WidgetKit
     }
     group.notify(queue: .main) {
       if let error = firstError {
-        result(FlutterError(code: "notification_schedule", message: error.localizedDescription, details: nil))
+        result(
+          FlutterError(
+            code: "notification_schedule", message: error.localizedDescription, details: nil))
       } else {
         result(nil)
       }
@@ -278,8 +293,9 @@ import WidgetKit
 
   private func handleWidgetCall(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
     guard call.method == "updateScan",
-          let args = call.arguments as? [String: Any],
-          let defaults = UserDefaults(suiteName: appGroup) else {
+      let args = call.arguments as? [String: Any],
+      let defaults = UserDefaults(suiteName: appGroup)
+    else {
       result(FlutterMethodNotImplemented)
       return
     }
@@ -291,7 +307,7 @@ import WidgetKit
     defaults.set(args["updatedAt"] as? String ?? "", forKey: "updatedAt")
     defaults.synchronize()
 
-    if #available(iOS 14.0, *) {
+    if (14.0, *) {
       WidgetCenter.shared.reloadAllTimelines()
     }
     result(nil)

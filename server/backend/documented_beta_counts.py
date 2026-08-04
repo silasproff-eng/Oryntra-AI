@@ -8,7 +8,6 @@ DOCUMENTED_BETA_ENGINE_CHECKS = 9499
 
 
 def sync_documented_beta_counts() -> dict:
-    """Set counters to at least the documented beta totals without double-counting."""
     before_stock = get_app_counter('stock_searches')
     before_lab = get_app_counter('pattern_lab_stock_analyses')
     before_checks = get_app_counter('pattern_lab_engine_checks')
@@ -26,3 +25,4 @@ def sync_documented_beta_counts() -> dict:
         'added_engine_floor': max(0, after_checks - before_checks),
         'note': 'Counters were raised only to the documented beta-test floor; existing higher counters were preserved.'
     }
+

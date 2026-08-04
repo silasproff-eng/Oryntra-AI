@@ -1,9 +1,3 @@
-"""Oryntra simulated paper-trading routes.
-
-Open/close actions remain local educational simulations. When an Alpaca account
-is connected, current prices are requested with that user's OAuth token. The
-route never returns candle arrays or mini-history data.
-"""
 from __future__ import annotations
 
 from typing import Optional
@@ -11,9 +5,7 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
-from ..alpaca_client import AlpacaAPIError, AlpacaConfigurationError, decrypt_token, get_latest_bars
 from ..database import get_connection
-from .alpaca import _connection
 from .auth import require_current_user
 
 router = APIRouter()
@@ -37,60 +29,20 @@ class CloseTradeRequest(BaseModel):
     notes: str = ""
 
 
-async def _augment_trade_rows(rows, user_id: int) -> list[dict]:
-    trades = [dict(row) for row in rows]
-    prices: dict[str, float] = {}
-    source = "unavailable"
-    connection = _connection(user_id)
-    if connection:
-        try:
-            token = decrypt_token(connection["encrypted_access_token"])
-            prices = await get_latest_bars(token, [trade.get("ticker", "") for trade in trades])
-            source = f"user_authorized_alpaca_{connection['environment']}"
-        except (AlpacaAPIError, AlpacaConfigurationError):
-            prices = {}
-
+async def _augment_trade_rows(rows) -> list[dict]:
     output: list[dict] = []
-    for trade in trades:
-        ticker = str(trade.get("ticker") or "").upper()
+    for row in rows:
+        trade = dict(row)
         status = str(trade.get("status") or "").upper()
-        current = prices.get(ticker)
-        if status == "CLOSED" and trade.get("close_price") is not None:
-            current = float(trade["close_price"])
-        trade["current_price"] = current
+        trade["current_price"] = float(trade["close_price"]) if status == "CLOSED" and trade.get("close_price") is not None else None
         trade["current_price_at"] = None
-        trade["snapshot_source"] = source if current is not None else "unavailable"
-
-        entry = trade.get("entry_price")
-        size = trade.get("size") or 0
-        direction = trade.get("direction")
-        if status == "OPEN" and current is not None and entry:
-            try:
-                current_value = float(current)
-                entry_value = float(entry)
-                if direction == "SHORT":
-                    pnl = (entry_value - current_value) * float(size)
-                    pnl_pct = (entry_value - current_value) / entry_value * 100
-                else:
-                    pnl = (current_value - entry_value) * float(size)
-                    pnl_pct = (current_value - entry_value) / entry_value * 100
-                trade["current_pnl"] = round(pnl, 2)
-                trade["current_pnl_pct"] = round(pnl_pct, 2)
-            except (TypeError, ValueError, ZeroDivisionError):
-                trade["current_pnl"] = None
-                trade["current_pnl_pct"] = None
-        else:
-            trade["current_pnl"] = trade.get("pnl")
-            trade["current_pnl_pct"] = trade.get("pnl_pct")
-
+        trade["snapshot_source"] = "user_entered_simulation"
+        trade["current_pnl"] = trade.get("pnl") if status == "CLOSED" else None
+        trade["current_pnl_pct"] = trade.get("pnl_pct") if status == "CLOSED" else None
         if status == "CLOSED":
             final_pnl = trade.get("pnl")
-            if final_pnl is None:
-                trade["success"] = None
-                trade["success_label"] = "UNKNOWN"
-            else:
-                trade["success"] = float(final_pnl) > 0
-                trade["success_label"] = "YES" if trade["success"] else "NO"
+            trade["success"] = None if final_pnl is None else float(final_pnl) > 0
+            trade["success_label"] = "UNKNOWN" if final_pnl is None else ("YES" if trade["success"] else "NO")
         else:
             trade["success"] = None
             trade["success_label"] = "IN PROGRESS"
@@ -109,7 +61,7 @@ async def get_open_trades(request: Request):
         ).fetchall()
     finally:
         conn.close()
-    return await _augment_trade_rows(rows, user["id"])
+    return await _augment_trade_rows(rows)
 
 
 @router.get("/trades/all")
@@ -123,7 +75,7 @@ async def get_all_trades(request: Request):
         ).fetchall()
     finally:
         conn.close()
-    return await _augment_trade_rows(rows, user["id"])
+    return await _augment_trade_rows(rows)
 
 
 @router.post("/open")
@@ -232,3 +184,4 @@ async def get_paper_stats(request: Request):
         "best_trade": max((trade["pnl"] or 0 for trade in trades), default=0),
         "worst_trade": min((trade["pnl"] or 0 for trade in trades), default=0),
     }
+

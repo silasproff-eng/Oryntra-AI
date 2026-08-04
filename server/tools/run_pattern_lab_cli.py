@@ -9,7 +9,6 @@ from backend.pattern_lab import run_pattern_lab
 from tools.warm_cache_cli import DEFAULT_150
 
 
-
 def _ascii_bar(pct: float, width: int = 34) -> str:
     pct = max(0.0, min(100.0, float(pct or 0)))
     filled = int(round((pct / 100.0) * width))
@@ -98,3 +97,4 @@ def main():
     ap.add_argument('--label', default='latest')
     return asyncio.run(main_async(ap.parse_args()))
 if __name__=='__main__': raise SystemExit(main())
+

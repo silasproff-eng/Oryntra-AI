@@ -85,12 +85,18 @@ class ScannerScreenState extends State<ScannerScreen> {
       await widget.widgetService.updateScan(
         ticker: ticker,
         signal: _read(result, ['signal']),
-        price: _read(result, ['price']),
+        price: _read(result, ['trade_plan', 'entry_ideal']),
         quality: _read(result, ['quality_score']),
       );
       if (mounted) {
         setState(() => _result = result);
         await _interstitialAds.recordSuccessfulScan();
+      }
+    } on ApiException catch (error) {
+      if (error.statusCode == 401 && mounted) {
+        widget.onCreateAccount();
+      } else if (mounted) {
+        setState(() => _error = error.toString());
       }
     } catch (error) {
       if (mounted) setState(() => _error = error.toString());
@@ -431,6 +437,7 @@ class ScannerScreenState extends State<ScannerScreen> {
     }
   }
 
+
   @override
   Widget build(BuildContext context) {
     final primary = Theme.of(context).colorScheme.primary;
@@ -461,12 +468,12 @@ class ScannerScreenState extends State<ScannerScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Official V7 Scanner',
+                          'Oryntra Market Intelligence',
                           style: Theme.of(context).textTheme.titleLarge
                               ?.copyWith(fontWeight: FontWeight.w900),
                         ),
                         const Text(
-                          'Technical analysis, patterns, and simulated planning.',
+                          'Server-side derived analysis with independent TradingView charts.',
                           style: TextStyle(color: Colors.white60, fontSize: 12),
                         ),
                       ],
@@ -489,7 +496,7 @@ class ScannerScreenState extends State<ScannerScreen> {
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
                 initialValue: _period,
-                decoration: const InputDecoration(labelText: 'History period'),
+                decoration: const InputDecoration(labelText: 'Analysis lookback'),
                 items: const [
                   DropdownMenuItem(value: '1mo', child: Text('1 month')),
                   DropdownMenuItem(value: '6mo', child: Text('6 months')),
@@ -702,7 +709,7 @@ class _ScanResult extends StatelessWidget {
     final quality = read([
       'quality_score',
     ], fallback: read(['trade_plan', 'quality_score']));
-    final price = read(['price']);
+    final price = entry;
     final stop = read(['trade_plan', 'stop'], fallback: read(['stop']));
     final target = read(['trade_plan', 'target'], fallback: read(['target']));
     final riskReward = read(['trade_plan', 'risk_reward']);
@@ -867,7 +874,7 @@ class _ScanResult extends StatelessWidget {
                   const SizedBox(height: 14),
                   _PatternCard(patterns: patterns),
                   const SizedBox(height: 14),
-                  FilledButton.icon(
+                  OutlinedButton.icon(
                     onPressed: openingPaperTrade ? null : onPaperTrade,
                     icon: openingPaperTrade
                         ? const SizedBox.square(
@@ -921,7 +928,7 @@ class _ScanResult extends StatelessWidget {
                   ),
                   const SizedBox(height: 12),
                   const Text(
-                    'Oryntra AI provides educational analysis and simulated planning only. It is not financial advice.',
+                    'Oryntra provides educational market intelligence, not investment advice. Charts are supplied independently by TradingView. Oryntra does not execute trades.',
                     style: TextStyle(fontSize: 12, color: Colors.white60),
                   ),
                 ],
@@ -995,18 +1002,18 @@ class _IndicatorSummary extends StatelessWidget {
   Widget build(BuildContext context) {
     final rsi = read(['rsi14'], fallback: read(['indicators', 'rsi']));
     final volume = read([
-      'volume',
-      'ratio',
+      'volume_context',
+      'relative_ratio',
     ], fallback: read(['indicators', 'volume_ratio']));
     final trend = read(['trend'], fallback: read(['indicators', 'trend']));
     final strength = read(['trend_strength']);
     final support = read([
       'levels',
-      'support_1',
+      'support',
     ], fallback: read(['indicators', 'support']));
     final resistance = read([
       'levels',
-      'resist_1',
+      'resistance',
     ], fallback: read(['indicators', 'resistance']));
 
     return Container(
