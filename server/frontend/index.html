@@ -50,48 +50,40 @@
 </head>
 <body>
   <a class="skip-link" href="#mainContent">Skip to main content</a>
-  <header class="app-header">
-    <div class="header-left">
-      <div class="logo" aria-label="Oryntra AI">
-        <img class="logo-image" src="/static/img/oryntra-logo.png?v=050" alt="" />
-        <span class="logo-text">ORYNTRA <span class="logo-accent">AI</span></span>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="Oryntra workspace navigation">
+      <div class="sidebar-head">
+        <div class="brand-line" aria-label="Oryntra AI">
+          <img class="brand-logo" src="/static/img/oryntra-logo.png?v=050" alt="Oryntra AI" />
+          <span>ORYNTRA <em>AI</em></span>
+        </div>
       </div>
-
-      <span class="beta-badge beta-version-badge" role="button" tabindex="0" aria-controls="devLabPanel" aria-expanded="false" aria-label="Open developer Pattern Lab">
-        BETA
-        <span class="beta-version-text">V0.9.1</span>
-      </span>
-
-      <div class="market-status" aria-label="Market data status">
-        <span class="status-dot" aria-hidden="true"></span>
-        SERVER ANALYSIS READY
+      <div class="workspace-pill">
+        <img class="workspace-avatar" src="/static/img/github-pfp.jpg?v=021" alt="" />
+        <span><strong>Silas Cowles</strong><small>Personal workspace</small></span>
       </div>
-    </div>
-
-    <div class="header-version-display" aria-hidden="true">V0.9.1</div>
-
-    <div class="header-right">
-      <div class="auth-header">
-        <span class="auth-state" id="authStateText">SIGNED OUT</span>
-        <button class="auth-mini-btn" id="authOpenBtn" type="button">LOGIN</button>
-      </div>
-
-      <a class="header-github-link" href="https://github.com/silasproff-eng" target="_blank" rel="noopener">
-        <img class="header-github-avatar" src="/static/img/github-pfp.jpg?v=021" alt="" />
-        <span>GITHUB</span>
-      </a>
-
-      <nav class="tab-nav" aria-label="Main navigation" role="tablist">
-        <button class="tab-btn active" id="nav-scanner" type="button" role="tab" aria-selected="true" aria-controls="tab-scanner" tabindex="0" data-tab="scanner">SCANNER</button>
-        <button class="tab-btn" id="nav-watchlist" type="button" role="tab" aria-selected="false" aria-controls="tab-watchlist" tabindex="-1" data-tab="watchlist">WATCHLIST</button>
-        <button class="tab-btn" id="nav-paper" type="button" role="tab" aria-selected="false" aria-controls="tab-paper" tabindex="-1" data-tab="paper">PAPER TRADES</button>
-        <button class="tab-btn" id="nav-backtest" type="button" role="tab" aria-selected="false" aria-controls="tab-backtest" tabindex="-1" data-tab="backtest">BACKTEST</button>
-        <button class="tab-btn" id="nav-settings" type="button" role="tab" aria-selected="false" aria-controls="tab-settings" tabindex="-1" data-tab="settings">SETTINGS</button>
+      <nav class="primary-nav" aria-label="Main navigation" role="tablist">
+        <button class="nav-item tab-btn active" id="nav-scanner" type="button" role="tab" aria-selected="true" aria-controls="tab-scanner" tabindex="0" data-tab="scanner"><span class="nav-glyph">◫</span>Scanner</button>
+        <button class="nav-item tab-btn" id="nav-watchlist" type="button" role="tab" aria-selected="false" aria-controls="tab-watchlist" tabindex="-1" data-tab="watchlist"><span class="nav-glyph">☆</span>Watchlist</button>
+        <button class="nav-item tab-btn" id="nav-paper" type="button" role="tab" aria-selected="false" aria-controls="tab-paper" tabindex="-1" data-tab="paper"><span class="nav-glyph">◌</span>Paper trades</button>
+        <button class="nav-item tab-btn" id="nav-backtest" type="button" role="tab" aria-selected="false" aria-controls="tab-backtest" tabindex="-1" data-tab="backtest"><span class="nav-glyph">↗</span>Backtest</button>
       </nav>
-    </div>
-  </header>
-
-  <main class="app-main" id="mainContent" tabindex="-1">
+      <div class="sidebar-bottom">
+        <button class="nav-item tab-btn" id="nav-settings" type="button" role="tab" aria-selected="false" aria-controls="tab-settings" tabindex="-1" data-tab="settings"><span class="nav-glyph">⚙</span>Settings</button>
+        <div class="sidebar-rule"></div>
+        <span class="beta-badge beta-version-badge" role="button" tabindex="0" aria-controls="devLabPanel" aria-expanded="false" aria-label="Open developer Pattern Lab">BETA · <span class="beta-version-text">V0.9.1</span></span>
+        <p class="sidebar-meta"><span class="status-dot" aria-hidden="true"></span> Server analysis ready<br><small>Educational research only</small></p>
+      </div>
+    </aside>
+    <section class="main-column">
+      <header class="topbar">
+        <div class="breadcrumb"><span>Workspace</span><b>/</b><strong>Market intelligence</strong></div>
+        <div class="topbar-actions">
+          <a class="header-github-link" href="https://github.com/silasproff-eng" target="_blank" rel="noopener">github.com/silasproff-eng</a>
+          <div class="auth-header"><span class="auth-state" id="authStateText">SIGNED OUT</span><button class="auth-mini-btn" id="authOpenBtn" type="button">LOGIN</button></div>
+        </div>
+      </header>
+      <main class="content" id="mainContent" tabindex="-1">
 <section class="psa-banner" id="psaBanner" hidden aria-live="polite">
   <div class="psa-icon" aria-hidden="true">i</div>
 
@@ -1022,7 +1014,9 @@
       <span>Educational market intelligence only — not financial advice or a market-data feed.</span>
     </footer>
 
-  </main>
+      </main>
+    </section>
+  </div>
 
 
   <section class="ad-zone ad-zone-mobile-bottom" data-ad-slot="mobile_bottom" data-ad-format="horizontal" aria-label="Advertisement area">

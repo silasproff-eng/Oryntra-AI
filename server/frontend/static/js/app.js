@@ -62,7 +62,7 @@ let themeMediaListenerAttached = false;
 
 function getThemePreference() {
   const stored = safeStorageGet(APP_THEME_KEY);
-  return ['system', 'light', 'dark'].includes(stored) ? stored : 'system';
+  return ['system', 'light', 'dark'].includes(stored) ? stored : 'light';
 }
 
 function resolveTheme(preference = getThemePreference()) {
@@ -79,7 +79,7 @@ function updateThemeControls(preference) {
 }
 
 function applyTheme(preference, options = {}) {
-  const nextPreference = ['system', 'light', 'dark'].includes(preference) ? preference : 'system';
+  const nextPreference = ['system', 'light', 'dark'].includes(preference) ? preference : 'light';
   const previousTheme = document.documentElement.dataset.theme;
   const resolvedTheme = resolveTheme(nextPreference);
 
