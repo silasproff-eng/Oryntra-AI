@@ -1,282 +1,263 @@
 <div align="center">
 
-<img src="brand-assets/oryntra-ai-master-logo.png" width="500">
+<img src="brand-assets/oryntra-ai-master-logo.png" width="220" alt="Oryntra AI logo">
 
 # Oryntra AI
 
-### Quantitative Market Intelligence Platform
+### Market Intelligence · Systematic Research · Explainable Analysis
 
-*A research platform for technical market analysis, quantitative signal generation, statistical pattern recognition, and AI-assisted trade interpretation.*
+**A private-first quantitative research platform for inspecting historical market behaviour, testing transparent rules, and communicating evidence with appropriate limits.**
 
 </div>
 
 ---
 
-## Overview
-
-Oryntra AI is a modular quantitative market research platform designed to transform historical market data into structured technical intelligence.
-
-The system combines deterministic technical-analysis algorithms, statistical pattern-recognition pipelines, and machine-learning assisted interpretation to produce explainable market research rather than automated trading signals.
-
-The platform is intentionally architected as independent services to separate market-data ingestion, indicator computation, pattern detection, AI reasoning, persistence, and client presentation.
-
----
-
-# High-Level Architecture
-
-```
-                    Data Provider
-                         │
-                         ▼
-             Market Data Ingestion Layer
-                         │
-                         ▼
-               Data Validation Pipeline
-                         │
-                         ▼
-            Technical Indicator Engine
-                         │
-                         ▼
-              Pattern Recognition Layer
-                         │
-                         ▼
-              Quantitative Scoring Engine
-                         │
-                         ▼
-             AI Interpretation Pipeline
-                         │
-                         ▼
-           REST API / Mobile Application
-```
-
-Each layer has a single responsibility and can be replaced independently without affecting downstream systems.
-
----
-
-# System Components
-
-## Backend
-
-Python
-
-FastAPI
-
-SQLite
-
-Asynchronous task execution
-
-REST architecture
-
-Repository pattern
-
-Dependency injection
-
-Layered service architecture
-
-Caching
-
-Configuration-driven behavior
-
-The backend is responsible for:
-
-- market data ingestion
-- technical indicator computation
-- pattern recognition
-- statistical scoring
-- watchlist processing
-- research persistence
-- API serialization
-- authentication
-- rate limiting
-
----
-
-## Quantitative Analysis Engine
-
-Current research modules include:
-
-- Relative Strength Index
-- Moving Average Convergence Divergence
-- Exponential Moving Averages
-- Simple Moving Averages
-- VWAP analysis
-- Bollinger Bands
-- ATR
-- ADX
-- Support / Resistance detection
-- Fair Value Gap detection
-- Liquidity Sweep detection
-- Break of Structure
-- Change of Character
-- Multi-pattern recognition
-- Risk / Reward estimation
-- Confidence scoring
-
-Indicator calculations are deterministic and reproducible.
-
-Machine learning is used only for interpretation—not for numerical indicator generation.
-
----
-
-## Pattern Recognition
-
-The Pattern Lab subsystem identifies higher-level market structures using deterministic algorithms.
-
-Examples include:
-
-- accumulation
-- distribution
-- liquidity sweeps
-- bullish continuation
-- bearish continuation
-- reversal structures
-- trend exhaustion
-- consolidation
-- volatility expansion
-
-Pattern confidence is calculated from multiple independent factors rather than a single indicator.
-
----
-
-## AI Interpretation Layer
-
-The AI subsystem consumes structured quantitative output instead of raw market data.
-
-Input includes:
-
-- indicator states
-- trend metrics
-- pattern detections
-- volatility measures
-- momentum statistics
-- support/resistance relationships
-
-Output includes:
-
-- natural-language explanations
-- confidence summaries
-- risk observations
-- educational descriptions
-
-This separation allows deterministic market analysis while using language models solely as an explanation layer.
-
----
-
-# Mobile Client
-
-Flutter
-
-Cross-platform architecture
-
-Material Design
-
-Responsive layouts
-
-State-driven UI
-
-REST client abstraction
-
-Offline cache
-
-The client intentionally contains no market-analysis logic.
-
-All computation occurs server-side.
-
----
-
-# Engineering Goals
-
-Primary objectives:
-
-- deterministic analysis
-- modular architecture
-- reproducibility
-- explainable outputs
-- maintainability
-- testability
-- provider abstraction
-- scalable service boundaries
-
----
-
-# Current Repository Structure
-
-```
-server/
-
-    backend/
-
-        analysis/
-
-        indicators/
-
-        patterns/
-
-        scoring/
-
-        api/
-
-        database/
-
-        services/
-
-ios-app/
-
-brand-assets/
-
-docs/
+> **Research software, not an investment adviser.** Oryntra does not connect to a brokerage account, create orders, or tell a user what to buy or sell. Historical simulations are analytical outputs, not forecasts, recommendations, or a promise of performance.
+
+## Executive summary
+
+Oryntra AI is an end-to-end market-intelligence system built around a simple premise: a useful research product should make its assumptions visible. Rather than hiding a conclusion behind an opaque score, the platform records where market data came from, applies deterministic calculations, exposes the controls applied to a hypothetical portfolio, and reports where the historical evidence is weak. The result is a tool for forming and challenging research hypotheses—not a machine for producing certainty.
+
+The repository brings together a FastAPI service, a browser workspace, a local market-data cache, a policy-aware public scanner, and a private Quant Lab. The public-facing experience is deliberately limited to derived analysis. More sensitive research functionality—such as backtesting, pattern-lab tools, cache maintenance, and systematic portfolio diagnostics—is mounted only when the server is explicitly configured for private research use.
+
+The operating model is informed by public institutional research conventions: start from an observable question, separate a signal from its implementation, quantify cost and concentration, test over time, and state what the evidence cannot establish. That is a documentation and engineering standard, not a claim that this project reproduces any firm’s proprietary research or trading systems.
+
+## What the platform is designed to do
+
+| Area | Oryntra provides | Oryntra does not provide |
+| --- | --- | --- |
+| Market intelligence | Derived technical states, deterministic pattern observations, and explainable summaries | A guarantee that a state predicts a future return |
+| Quantitative research | Transparent strategy comparators, configurable assumptions, chronological holdouts, and risk diagnostics | Live trading, broker connectivity, or an automated execution engine |
+| Data handling | Local-cache-first history retrieval with provider metadata and a reproducible dataset fingerprint | A license to redistribute raw vendor market data |
+| AI | Plain-language interpretation of structured, server-side outputs | AI-generated numeric indicators, discretionary trade advice, or a replacement for validation |
+| Product operation | Authentication, access boundaries, paper-trade records, and a responsive research workspace | A production institutional order-management, compliance, or surveillance stack |
+
+## System at a glance
+
+```mermaid
+flowchart LR
+    A["Market data providers\nPolygon · Twelve Data · local cache"] --> B["Repository and validation layer\nnormalization · freshness · metadata"]
+    B --> C["Deterministic analysis\nindicators · patterns · scoring"]
+    B --> D["Quant Lab\nsignal construction · controls · simulation"]
+    C --> E["Derived market-intelligence API"]
+    D --> F["Private research API"]
+    E --> G["Public scanner and account workspace"]
+    F --> H["Private Quant Desk\nbacktests · diagnostics · development tools"]
+    C --> I["Structured context"]
+    I --> J["AI explanation layer\nplain-language interpretation"]
+    J --> G
 ```
 
----
+The diagram represents a boundary as well as a flow. Provider credentials remain server-side; raw vendor data is not intended to become a public product response. Analysis and language explanation consume structured internal results. Private research routes are opt-in at startup, so the public scanner and the research workbench can operate as different product surfaces rather than as one broad, unrestricted API.
 
-# Design Philosophy
+## Operating principles
 
-Rather than attempting to predict markets using opaque machine-learning models, Oryntra emphasizes explainable quantitative analysis.
+### 1. Decompose the question before measuring it
 
-Every conclusion produced by the system is traceable back to deterministic computations generated from technical indicators and statistical market structure.
+Market outcomes are the result of many overlapping forces. Oryntra therefore separates data retrieval, indicator calculation, pattern detection, portfolio construction, and explanation into distinct components. A trend measurement is not the same thing as a portfolio rule; a portfolio rule is not the same thing as an execution system; and a strong in-sample chart is not the same thing as evidence of persistent performance. Keeping these layers separate makes it easier to audit each one and replace it without rewriting the entire product.
 
-The AI layer explains the quantitative output rather than replacing it.
+### 2. Treat every signal as a hypothesis
 
----
+RSI, moving averages, Bollinger Bands, price patterns, trend rules, and relative-strength screens can be useful starting points. None is assumed to be automatically predictive. The research workflow asks whether a rule survives explicit timing, costs, borrow assumptions, multiple market environments, and a chronological holdout. If the answer is no, the appropriate conclusion is that the hypothesis did not hold under the tested assumptions—not that the data should be ignored or that a different indicator should be marketed as certain.
 
-# Research Direction
+### 3. Make risk visible beside return
 
-Current areas of exploration include:
+Institutional-quality research is as much about failure modes as attractive historical results. Oryntra reports drawdown, volatility, turnover, estimated historical value at risk, expected shortfall, gross and net exposure, concentration, correlation, data coverage, and regime slices next to return metrics. These measurements are descriptive and model-dependent, but they create a much better conversation than a single confidence score.
 
-- multi-timeframe signal aggregation
+### 4. Keep the public surface narrow
 
-- probabilistic confidence estimation
-
-- adaptive pattern scoring
-
-- volatility normalization
-
-- factor weighting
-
-- ensemble signal generation
-
-- walk-forward validation
-
-- strategy robustness testing
-
-- statistical edge discovery
+The public scanner is intended to expose derived analysis within the configured access policy. The private Quant Lab, backtesting routes, cache tooling, and developer tools are available only when `ORYNTRA_PRIVATE_RESEARCH_ROUTES=true`. This division is both a product decision and a safety boundary: it avoids exposing raw market-data workflows or experimental research controls as a public recommendation service.
 
 ---
 
-# Disclaimer
+## Research lifecycle
 
-This repository represents an ongoing quantitative software engineering and market-research project.
+```mermaid
+flowchart TD
+    Q["Define a research question"] --> U["Select a liquid, documented universe"]
+    U --> P["Retrieve and validate price history"]
+    P --> S["Specify fixed rule parameters"]
+    S --> T["Apply next-session timing and trading-cost assumptions"]
+    T --> R["Measure return, risk, turnover, concentration, and correlation"]
+    R --> V["Compare development period with chronological holdout"]
+    V --> W["Review regimes, coverage gaps, and failure modes"]
+    W --> X["Document conclusion or reject the hypothesis"]
+```
 
-It is intended for educational, research, and software-development purposes.
+This sequence is intentionally conservative. It does not search a large parameter space and then label the best historical result as a discovery. The current strategy sleeves are transparent comparators with user-visible controls. A research conclusion should remain provisional until it has been evaluated on appropriate point-in-time data, a universe that includes delisted securities where relevant, realistic liquidity and shorting assumptions, and untouched out-of-sample periods.
 
-It is not investment advice, does not execute trades, and should not be interpreted as a recommendation to buy or sell financial instruments.
+## Quant Lab
 
----
+Quant Lab is Oryntra’s private systematic-research workspace. It evaluates a selected universe of daily closing-price histories using rules that are fixed before each run. The tool runs independently of the scanner and does not place trades. It is designed to help a user understand how a simple portfolio rule would have behaved historically after the requested controls and cost assumptions—not to identify a “best” strategy.
 
-## License
+### Strategy comparators
 
-Copyright © 2026 Oryntra AI
+| Sleeve | Question it examines | Primary failure mode |
+| --- | --- | --- |
+| V8 time-series trend | Does an asset’s own trailing direction persist into the next holding period? | Whipsaw during repeated range-bound reversals |
+| V8 cross-sectional momentum | Do relative leaders and laggards continue to separate within a broad universe? | Momentum crashes and leadership turnover |
+| V8 mean-reversion comparator | Do unusually large short-window moves partially reverse after a volatility check? | Fighting a genuine breakout or trend |
+| V8 defensive low-volatility sleeve | Does a lower-realized-volatility group behave differently from a higher-volatility group? | Concentration and lag in high-beta leadership |
 
-All Rights Reserved.
+The V8 regime-diversified profile combines these sleeves using visible contribution weights. Alternative profiles bias the blend toward trend or relative strength, while the equal-weight baseline provides a simpler comparison. The server normalizes selected positive allocations to 100%; it does not silently apply unbounded leverage.
 
-This repository is distributed under the accompanying proprietary source-available license.
+### How a Quant Lab run works
+
+```mermaid
+sequenceDiagram
+    participant User as Researcher
+    participant API as Private Quant API
+    participant Repo as Market Repository
+    participant Model as Rule and control engine
+    participant Desk as Quant Desk
+
+    User->>API: Submit universe, model, costs, and limits
+    API->>Repo: Retrieve cache-first daily history
+    Repo-->>API: Bars plus provider/freshness metadata
+    API->>Model: Build signals using information available at close t
+    Model->>Model: Apply exposure, name-weight, rebalance, and volatility controls
+    Model->>Model: Hold target weights for session t+1 and deduct modeled costs
+    Model-->>API: Metrics, diagnostics, and dataset fingerprint
+    API-->>Desk: Render research-only report
+```
+
+The timing convention is explicit: signals are formed at the close of session **t**, then held over the following session. Transaction costs are deducted when portfolio weights change, and a short-borrow assumption is applied to short exposure. Volatility targeting can reduce exposure to the requested target but is not permitted to increase exposure beyond the configured limit. Gross-exposure and single-name caps are applied before the simulated holdings are evaluated.
+
+### Research controls and diagnostics
+
+| Control or diagnostic | What it is intended to reveal |
+| --- | --- |
+| Configurable cost and borrow assumptions | Whether an apparent result depends on unrealistically frictionless trading |
+| Daily, weekly, or monthly rebalancing | The trade-off between responsiveness and turnover |
+| Gross and single-name limits | Whether an outcome is driven by excessive portfolio concentration |
+| Volatility target | Whether the rule’s historical risk would have required scaling down exposure |
+| Chronological development/holdout split | Whether a fixed rule behaves materially differently in later history |
+| Regime report | Sensitivity to broad trend and volatility states in the selected universe |
+| Correlation matrix | Pairs whose diversification benefit may disappear when they move together |
+| Monthly return heatmap | Clustering, gaps, and dispersion in net simulated monthly results |
+| Equity, drawdown, and rolling-volatility paths | The path of risk, not only the ending value |
+| Data-quality and source metadata | Missing bars, usable overlap, freshness, provider, and cache provenance |
+
+The correlation heatmap is a trailing, pairwise daily-return matrix. The monthly heatmap aggregates the exact net simulated return series after the configured cost model. The equity, drawdown, and rolling 63-session volatility charts are derived from the same simulated portfolio. They are not decorative visualizations; each is a different view of the output being evaluated.
+
+## Data architecture and provenance
+
+Oryntra uses a repository layer so downstream analysis can work with a consistent daily OHLCV-shaped frame regardless of source. Ticker formats are normalized, timestamps are de-duplicated and ordered, bars are validated for basic numerical integrity, and retrieval metadata follows the result. This makes provider choice a visible part of a research run instead of an invisible implementation detail.
+
+### Provider path
+
+```mermaid
+flowchart LR
+    A["Requested symbol and period"] --> B{"Local cache sufficient?"}
+    B -- Yes --> C["Use cache\nrecord freshness and source"]
+    B -- No --> D{"Selected provider"}
+    D -- Polygon --> E["Polygon retrieval"]
+    D -- Twelve Data --> F["Twelve Data retrieval"]
+    D -- Smart fallback --> G["Configured provider fallback"]
+    E --> H["Validate and store usable bars"]
+    F --> H
+    G --> H
+    H --> I["Return history + metadata + fingerprint"]
+```
+
+`cache_only` is useful when a run must be reproducible from locally available history. `auto` begins from the cache and may use a configured provider when sufficient history is absent. `polygon` and `twelvedata` are explicit provider preferences. Twelve Data is optional and enabled through a private environment variable; its shared request limiter must remain at or below the allowance of the selected plan. Credentials are never stored in frontend code or committed configuration.
+
+The current repository does not claim point-in-time fundamentals, complete delisted-security coverage, order-book history, corporate-action reconstruction beyond the supplied source, or institutional execution data. Those omissions matter. They are documented in the product because a professional research process should identify material data gaps before interpreting a chart.
+
+## Analysis and explanation stack
+
+The deterministic analysis engine provides the structured observations used across the platform, including common technical measures such as RSI, MACD, moving averages, VWAP, Bollinger Bands, ATR, ADX, support/resistance relationships, and selected market-structure and pattern observations. These measurements are calculations, not predictions. Their role is to describe a condition in a reproducible way that can be compared across symbols and time periods.
+
+The Pattern Lab builds higher-level observations from deterministic rules. Examples include continuation or reversal contexts, consolidation, volatility expansion, liquidity sweeps, fair-value gaps, break-of-structure, and change-of-character conditions. A pattern label should be interpreted as the output of a documented detector under a defined lookback—not as proof that a market will move in a particular direction.
+
+The AI explanation layer receives structured quantitative context rather than replacing the underlying calculations. Its role is to translate indicator states, risk observations, and detected conditions into readable educational language. Numerical indicator construction stays deterministic and server-side. This separation preserves traceability: a user can inspect the facts used in an explanation instead of treating the explanation itself as the source of truth.
+
+## Application architecture
+
+| Layer | Primary responsibility | Representative modules |
+| --- | --- | --- |
+| API and lifecycle | FastAPI app, startup, compression, route registration, health status | `server/backend/main.py`, `server/run.py` |
+| Access boundary | Account/session flows and public/private research access rules | `server/backend/routes/auth.py`, `analysis_access.py` |
+| Market repository | Provider selection, cache access, normalization, metadata, and fingerprints | `market_repository.py`, `market_cache.py`, `polygon_client.py`, `twelvedata_client.py` |
+| Deterministic analysis | Indicators, scoring, patterns, setup detection, and backtests | `indicators.py`, `pattern_analyzer.py`, `patterns/`, `backtest.py` |
+| Quant Lab | Strategy sleeves, portfolio controls, simulations, validation, and diagnostics | `quant_research.py`, `routes/quant.py` |
+| Explanation | Structured analysis context and natural-language interpretation | `routes/ai_explain.py`, `vai_model.py`, `vai2_model.py` |
+| Client | Browser workspace, settings, private Quant Desk, and legal pages | `server/frontend/` |
+| Persistence | SQLite-backed application and local-market-data storage | `database.py`, `server/data/oryntra.db` |
+
+### Repository map
+
+```text
+Oryntra-AI/
+├── README.md                         # Product, architecture, and operating model
+├── brand-assets/                     # Oryntra identity assets
+└── server/
+    ├── backend/
+    │   ├── main.py                   # FastAPI composition and route boundaries
+    │   ├── market_repository.py      # Provider, cache, validation, provenance
+    │   ├── quant_research.py         # Private systematic-research engine
+    │   ├── routes/                   # API surfaces grouped by capability
+    │   └── patterns/                 # Deterministic pattern detectors
+    ├── frontend/                     # Browser application and legal pages
+    ├── tests/                        # Regression and research-engine tests
+    ├── tools/                        # Cache, backtest, and research utilities
+    ├── QUANT_LAB.md                  # Quant Lab operating notes
+    ├── requirements.txt              # Python runtime dependencies
+    └── .env.example                  # Safe configuration template
+```
+
+## Running locally
+
+The following creates an isolated local environment and starts the FastAPI service. It intentionally uses the provided environment template rather than a committed key file.
+
+```bash
+cd server
+python3 -m venv .venv
+.venv/bin/pip install -r requirements.txt
+cp .env.example .env
+PYTHONPATH=. .venv/bin/python3 run.py
+```
+
+The default address is `http://127.0.0.1:8001`. Configure `ORYNTRA_PUBLIC_SCANNER_WEBSITE=true` to serve the browser workspace. Configure `ORYNTRA_PRIVATE_RESEARCH_ROUTES=true` only for private/local research use; it enables the Quant Lab and other private research routes, and it makes API documentation available locally.
+
+### Configuration categories
+
+| Category | Examples | Purpose |
+| --- | --- | --- |
+| Network | `PORT`, `PUBLIC_BASE_URL`, `ORYNTRA_CORS_ORIGINS` | Local service address and allowed origins |
+| Provider access | `POLYGON_API_KEY`, `TWELVEDATA_API_KEY` | Private server-side market-data credentials |
+| Provider safety | `ORYNTRA_POLYGON_CALLS_PER_MINUTE`, `ORYNTRA_TWELVEDATA_CALLS_PER_MINUTE` | Rate limits aligned to the configured data plan |
+| Research boundary | `ORYNTRA_PRIVATE_RESEARCH_ROUTES`, `ORYNTRA_PUBLIC_DERIVED_ANALYSIS_ENABLED` | Public/private capability separation |
+| Cache operation | `ORYNTRA_MARKET_CACHE_*` | Refresh, retention, and maintenance controls |
+| Product policy | `ORYNTRA_OWNER_EMAILS`, subscription and analysis-limit settings | Access and operational policy |
+
+Never commit a populated `.env`, provider credential, user database, or unreviewed raw-data archive. The database and cache can contain information that should remain local even when the application code is published.
+
+## Verification
+
+The repository includes focused backend regression tests and syntax checks. From `server/`, run:
+
+```bash
+PYTHONPATH=. .venv/bin/python3 -m unittest discover -s tests -v
+.venv/bin/python3 -m py_compile backend/quant_research.py
+node --check frontend/static/js/app.js
+```
+
+For a release candidate, verify the actual health endpoint after startup, exercise a cache-only Quant Lab run, exercise a configured-provider fallback if credentials are available, and inspect the browser console after a clean reload. A listening port is not sufficient evidence that the application path is healthy; the returned `/health` payload, selected UI routes, and the intended access boundary should all be checked.
+
+## Research limitations and disclosures
+
+Historical performance is not a guarantee of future results. Backtests can be distorted by survivorship bias, selection bias, data revisions, market-impact assumptions, parameter search, implementation shortfall, and the absence of realistic liquidity or borrow constraints. Diversification and correlation analysis can reduce some forms of concentration but cannot eliminate losses.
+
+Oryntra’s current Quant Lab works with daily historical closes and configured cost assumptions. It is not a high-frequency system, execution simulator, smart-order router, risk-management system for live capital, or substitute for regulated advice. Do not use the product to make an investment decision without independent research and, where appropriate, advice from a qualified professional.
+
+## Research references and design influences
+
+The project uses original documentation and original code. The following public materials informed the high-level research framing: decomposing return drivers and balancing risks across uncertain environments; connecting research, technology, and market mechanics; treating implementation, liquidity, and risk management as first-class concerns; and demanding evidence after costs and proper out-of-sample testing.
+
+- [Bridgewater — The All Weather Story](https://www.bridgewater.com/research-and-insights/the-all-weather-story)
+- [Jane Street — Trading, Research, Tech](https://www.janestreet.com/what-we-do/overview/)
+- [Citadel Securities — What Is a Market Maker?](https://www.citadelsecurities.com/what-we-do/what-is-a-market-maker/)
+- [AQR — How Do Factor Premia Vary Over Time? A Century of Evidence](https://www.aqr.com/insights/research/journal-article/how-do-factor-premia-vary-over-time-a-century-of-evidence)
+
+These references do not endorse Oryntra AI, and Oryntra does not represent or replicate their private systems, trading strategies, data, execution capabilities, or investment products.
