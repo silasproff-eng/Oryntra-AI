@@ -12,7 +12,7 @@ from fastapi.middleware.gzip import GZipMiddleware
 
 from .database import init_db, get_app_counter
 from .market_cache import start_market_cache_worker, status as market_cache_status
-from .routes import analysis, watchlist, paper_trading, ai_explain, backtest, patterns, auth, dev_tools, pro, intelligence
+from .routes import analysis, watchlist, paper_trading, ai_explain, backtest, patterns, auth, dev_tools, pro, intelligence, quant
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FRONTEND_DIR = os.path.join(BASE_DIR, "frontend")
@@ -177,6 +177,7 @@ if _private_research:
     app.include_router(backtest.router, prefix="/api/backtest", tags=["Private Backtesting"])
     app.include_router(patterns.router, prefix="/api/patterns", tags=["Private Patterns"])
     app.include_router(dev_tools.router, prefix="/api/dev", tags=["Private Developer Tools"])
+    app.include_router(quant.router, prefix="/api/quant", tags=["Private Quant Lab"])
     app.include_router(pro.router, prefix="/api/pro", tags=["Private Oryntra Pro"])
 
 app.mount(
@@ -313,4 +314,3 @@ async def sitemap_xml():
     urls = "".join(f"<url><loc>{escape(site + path)}</loc></url>" for path in paths)
     xml = f'<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">{urls}</urlset>'
     return Response(content=xml, media_type="application/xml")
-

@@ -13,6 +13,7 @@ import pandas as pd
 
 from .database import get_connection, get_market_symbol, store_ohlcv_bars
 from .polygon_client import PolygonAPIError, polygon_get
+from .twelvedata_client import TwelveDataAPIError, twelvedata_available, twelvedata_get
 
 try:
     import yfinance as yf
@@ -53,6 +54,13 @@ def normalize_ticker(value: str) -> str:
 def normalize_period(value: str | None) -> str:
     period = str(value or "all").strip().lower()
     return period if period in _PERIOD_CALENDAR_DAYS else "all"
+
+
+def normalize_provider_preference(value: str | None) -> str:
+    provider = str(value or "auto").strip().lower()
+    if provider not in {"auto", "cache_only", "polygon", "twelvedata"}:
+        raise ValueError("Choose cache_only, auto, polygon, or twelvedata as the data provider.")
+    return provider
 
 
 def period_calendar_days(period: str | None) -> int:
@@ -139,6 +147,32 @@ def _polygon_frame(results: Sequence[dict[str, Any]]) -> pd.DataFrame:
         .sort_values("timestamp")
         .set_index("timestamp")
     )
+
+
+def _twelvedata_frame(values: Sequence[dict[str, Any]]) -> pd.DataFrame:
+    records: list[dict[str, Any]] = []
+    for bar in values or []:
+        try:
+            timestamp = pd.to_datetime(bar["datetime"], errors="coerce")
+            if pd.isna(timestamp):
+                continue
+            if getattr(timestamp, "tzinfo", None) is not None:
+                timestamp = timestamp.tz_convert(None)
+            values_row = {
+                "Open": float(bar["open"]), "High": float(bar["high"]), "Low": float(bar["low"]),
+                "Close": float(bar["close"]), "Volume": float(bar.get("volume") or 0.0),
+                "VWAP": math.nan, "Transactions": math.nan,
+            }
+            if not all(math.isfinite(float(values_row[key])) for key in ("Open", "High", "Low", "Close", "Volume")):
+                continue
+            if min(values_row["Open"], values_row["High"], values_row["Low"], values_row["Close"]) <= 0 or values_row["High"] < values_row["Low"]:
+                continue
+            records.append({"timestamp": timestamp, **values_row})
+        except Exception:
+            continue
+    if not records:
+        return pd.DataFrame(columns=["Open", "High", "Low", "Close", "Volume", "VWAP", "Transactions"])
+    return pd.DataFrame(records).drop_duplicates(subset=["timestamp"], keep="last").sort_values("timestamp").set_index("timestamp")
 
 
 @dataclass(frozen=True)
@@ -512,6 +546,23 @@ class MarketDataRepository:
         )
         return frame
 
+    def _fetch_twelvedata(self, ticker: str, period: str) -> pd.DataFrame:
+        end = _latest_reasonable_session_date()
+        start = end - timedelta(days=period_calendar_days(period))
+        payload, _response = twelvedata_get(
+            "/time_series",
+            params={"symbol": ticker, "interval": "1day", "start_date": start.isoformat(), "end_date": end.isoformat(), "adjust": "all", "order": "ASC"},
+        )
+        frame = _twelvedata_frame(payload.get("values") or [])
+        if frame.empty:
+            raise ValueError(f"No Twelve Data daily data was returned for '{ticker}'.")
+        stored = store_ohlcv_bars(ticker, "1d", frame, provider="twelvedata_ticker_fallback", adjusted=True)
+        if stored <= 0:
+            raise ValueError(f"Twelve Data returned unusable candles for '{ticker}'.")
+        self._clear_negative_cache(ticker)
+        self._log_fetch(ticker, period, "ticker_fallback", "twelvedata_ticker_fallback", "success", len(frame))
+        return frame
+
     def _fetch_yfinance(self, ticker: str, period: str) -> pd.DataFrame:
         if yf is None:
             raise ValueError("yfinance is not installed.")
@@ -567,11 +618,13 @@ class MarketDataRepository:
         force_refresh: bool = False,
         max_stale_days: int | None = None,
         allow_stale_on_error: bool = True,
+        provider_preference: str = "auto",
     ) -> HistoryResult:
 
 
         symbol = normalize_ticker(ticker)
         clean_period = normalize_period(period)
+        selected_provider = normalize_provider_preference(provider_preference)
         stale_days = max(
             0,
             int(max_stale_days if max_stale_days is not None else os.getenv("ORYNTRA_CACHE_MAX_STALE_DAYS", "7")),
@@ -598,7 +651,7 @@ class MarketDataRepository:
             )
             return HistoryResult(symbol, local, self._info(symbol), metadata)
 
-        if not allow_api:
+        if not allow_api or selected_provider == "cache_only":
             warning = None
             if local is not None and not local.empty:
                 warning = (
@@ -645,28 +698,29 @@ class MarketDataRepository:
             )
 
         errors: list[str] = []
-        try:
-            self._fetch_polygon(symbol, clean_period)
-        except (PolygonAPIError, ValueError) as exc:
-            errors.append(str(exc))
-            self._log_fetch(
-                symbol,
-                clean_period,
-                "ticker_fallback",
-                "polygon_ticker_fallback",
-                "failed",
-                error=str(exc),
-            )
-            if os.getenv("ORYNTRA_ENABLE_YFINANCE_FALLBACK", "0").strip().lower() in {
-                "1",
-                "true",
-                "yes",
-                "on",
-            }:
+        fetched = False
+        if selected_provider in {"auto", "polygon"}:
+            try:
+                self._fetch_polygon(symbol, clean_period)
+                fetched = True
+            except (PolygonAPIError, ValueError) as exc:
+                errors.append(str(exc))
+                self._log_fetch(symbol, clean_period, "ticker_fallback", "polygon_ticker_fallback", "failed", error=str(exc))
+        if not fetched and selected_provider in {"auto", "twelvedata"}:
+            if not twelvedata_available():
+                errors.append("Twelve Data is not configured on this private server.")
+            else:
                 try:
-                    self._fetch_yfinance(symbol, clean_period)
-                except Exception as yf_exc:
-                    errors.append(str(yf_exc))
+                    self._fetch_twelvedata(symbol, clean_period)
+                    fetched = True
+                except (TwelveDataAPIError, ValueError) as exc:
+                    errors.append(str(exc))
+                    self._log_fetch(symbol, clean_period, "ticker_fallback", "twelvedata_ticker_fallback", "failed", error=str(exc))
+        if not fetched and selected_provider == "auto" and os.getenv("ORYNTRA_ENABLE_YFINANCE_FALLBACK", "0").strip().lower() in {"1", "true", "yes", "on"}:
+            try:
+                self._fetch_yfinance(symbol, clean_period)
+            except Exception as exc:
+                errors.append(str(exc))
 
         refreshed = self.load_local(symbol, period=clean_period)
         if refreshed is not None and len(refreshed) >= max(1, minimum_bars):
@@ -772,6 +826,7 @@ def get_history(
     minimum_bars: int = 20,
     allow_api: bool = True,
     force_refresh: bool = False,
+    provider_preference: str = "auto",
 ) -> HistoryResult:
     return get_market_repository().get_history(
         ticker,
@@ -779,5 +834,5 @@ def get_history(
         minimum_bars=minimum_bars,
         allow_api=allow_api,
         force_refresh=force_refresh,
+        provider_preference=provider_preference,
     )
-

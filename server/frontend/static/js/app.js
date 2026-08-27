@@ -226,6 +226,10 @@ const API = {
   stats: () => apiFetch('/api/app/stats', {cache: 'no-store'}).then(apiJson),
   runtime: () => apiFetch('/api/app/version', {cache:'no-store'}).then(apiJson),
 
+  quant: {
+    run: (data) => apiFetch('/api/quant/run', {method:'POST', headers:authHeaders(true), body:JSON.stringify(data)}).then(apiJson),
+  },
+
   intelligence: {
     status: () => apiFetch('/api/intelligence/status', {headers:authHeaders(false), cache:'no-store'}).then(apiJson),
     quota: () => apiFetch('/api/intelligence/quota', {headers:authHeaders(false), cache:'no-store'}).then(apiJson),
@@ -405,6 +409,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initAnalysisAccess();
   initRuntimeCapabilities();
   initTabs();
+  initQuantLab();
   initScanner();
   initWatchlist();
   initPaperTrades();
@@ -670,6 +675,7 @@ function closeSubscriptionModal() {
 
 function initTabs() {
   const tabs = Array.from(document.querySelectorAll('.tab-btn'));
+  const labels = {scanner: 'Market scanner', watchlist: 'Watchlist', paper: 'Paper trades', backtest: 'Historical backtest', quant: 'Systematic research', settings: 'Settings'};
   const activate = btn => {
     const tab = btn.dataset.tab;
     tabs.forEach(item => {
@@ -683,6 +689,8 @@ function initTabs() {
       panel.classList.toggle('active', selected);
       panel.setAttribute('aria-hidden', String(!selected));
     });
+    const crumb = document.getElementById('pageCrumb');
+    if (crumb) crumb.textContent = labels[tab] || 'Workspace';
     if (tab === 'watchlist') loadWatchlist();
     if (tab === 'paper') loadPaperTrades();
     if (tab === 'settings' && currentUser) refreshAnalysisAccess({silent:true}).catch(() => {});
@@ -705,17 +713,110 @@ function initTabs() {
   });
 }
 
+function initQuantLab() {
+  const button = document.getElementById('quantRunBtn');
+  if (!button) return;
+  button.addEventListener('click', runQuantResearch);
+  document.querySelectorAll('.quant-allocation-slider, .quant-strategy-set input[type="checkbox"]').forEach(input => {
+    input.addEventListener('input', updateQuantAllocationUI);
+    input.addEventListener('change', updateQuantAllocationUI);
+  });
+  document.getElementById('quantModel')?.addEventListener('change', event => {
+    const profiles = {
+      v8_regime_diversified: {time_series_trend: 35, cross_sectional_momentum: 30, mean_reversion: 15, defensive_low_volatility: 20},
+      v8_balanced: {time_series_trend: 45, cross_sectional_momentum: 40, mean_reversion: 15, defensive_low_volatility: 0},
+      v8_trend_first: {time_series_trend: 65, cross_sectional_momentum: 25, mean_reversion: 10, defensive_low_volatility: 0},
+      v8_relative_strength: {time_series_trend: 25, cross_sectional_momentum: 65, mean_reversion: 10, defensive_low_volatility: 0},
+      equal_weight_baseline: {time_series_trend: 34, cross_sectional_momentum: 33, mean_reversion: 33, defensive_low_volatility: 0},
+    };
+    Object.entries(profiles[event.target.value] || profiles.v8_regime_diversified).forEach(([strategy, value]) => {
+      const slider = document.querySelector(`.quant-allocation-slider[data-strategy="${strategy}"]`);
+      if (slider) slider.value = String(value);
+    });
+    updateQuantAllocationUI();
+  });
+  updateQuantAllocationUI();
+}
+
+function updateQuantAllocationUI() {
+  const checked = new Set(Array.from(document.querySelectorAll('.quant-strategy-set input[type="checkbox"]:checked')).map(input => input.value));
+  let total = 0;
+  document.querySelectorAll('.quant-allocation-slider').forEach(slider => {
+    const active = checked.has(slider.dataset.strategy);
+    slider.disabled = !active;
+    const value = active ? Math.max(0, Number(slider.value) || 0) : 0;
+    total += value;
+    const output = document.querySelector(`[data-allocation-output="${slider.dataset.strategy}"]`);
+    if (output) output.textContent = `${value}%`;
+  });
+  const status = document.getElementById('quantAllocationStatus');
+  if (!status) return;
+  status.textContent = `Allocation: ${total.toFixed(0)}% across active strategy sleeves. ${total > 0 ? 'The server will normalize active sleeves to 100%.' : 'Set at least one active allocation above 0%.'}`;
+  status.classList.toggle('is-warning', total <= 0 || Math.abs(total - 100) > .1);
+}
+
+function quantNumber(value, digits=2, suffix='') {
+  if (value === null || value === undefined || !Number.isFinite(Number(value))) return '—';
+  const number = Number(value);
+  return `${number > 0 ? '+' : ''}${number.toFixed(digits)}${suffix}`;
+}
+
+async function runQuantResearch() {
+  const button = document.getElementById('quantRunBtn');
+  const status = document.getElementById('quantStatus');
+  const results = document.getElementById('quantResults');
+  const tickers = (document.getElementById('quantTickers')?.value || '').split(/[\s,]+/).map(sanitizeTickerSymbol).filter(Boolean);
+  const strategies = Array.from(document.querySelectorAll('.quant-strategy-set input:checked')).map(input => input.value);
+  if (tickers.length < 2 || !strategies.length) { status.textContent = 'Choose at least two symbols and one strategy family.'; return; }
+  const weights = Object.fromEntries(Array.from(document.querySelectorAll('.quant-allocation-slider')).map(slider => [slider.dataset.strategy, Number(slider.value) || 0]));
+  if (!strategies.some(strategy => weights[strategy] > 0)) { status.textContent = 'Give at least one selected strategy an allocation above 0%.'; return; }
+  const provider = document.getElementById('quantProvider')?.value || 'auto';
+  const lookback = Number(document.getElementById('quantLookback')?.value || 126);
+  const payload = {tickers, strategies, period: document.getElementById('quantPeriod')?.value || '2y', data_source: provider === 'cache_only' ? 'cache_only' : 'cache_first', data_provider: provider, model: document.getElementById('quantModel')?.value || 'v8_regime_diversified', strategy_weights: weights, trend_lookback: lookback, momentum_lookback: lookback, cost_bps: Number(document.getElementById('quantCost')?.value || 12), borrow_bps_annual: Number(document.getElementById('quantBorrow')?.value || 50), long_short: Boolean(document.getElementById('quantLongShort')?.checked), target_annual_volatility: Number(document.getElementById('quantTargetVol')?.value || 12), max_gross_exposure: Number(document.getElementById('quantMaxGross')?.value || 1), max_single_name_weight: Number(document.getElementById('quantMaxName')?.value || 35) / 100, rebalance_frequency: document.getElementById('quantRebalance')?.value || 'weekly', walk_forward_folds: Number(document.getElementById('quantWalkForward')?.value || 3)};
+  button.disabled = true; results.hidden = true; status.textContent = 'Loading histories, applying fixed rules, and modeling next-session execution…';
+  try { const report = await API.quant.run(payload); renderQuantReport(report); status.textContent = `Completed ${report.universe.sessions} sessions across ${report.universe.symbols.length} usable symbols. Results are net of the entered costs.`; }
+  catch (error) { status.textContent = `Research run could not finish: ${error.message || String(error)}`; }
+  finally { button.disabled = false; }
+}
+
+function renderQuantReport(report) {
+  const results = document.getElementById('quantResults');
+  if (!results) return;
+  const cards = (report.results || []).map(item => `<article class="panel quant-result-card"><div class="quant-result-head"><div><div class="quant-result-kicker">${escapeHtml(item.id || '')}</div><h3>${escapeHtml(item.label || '')}</h3></div><span class="quant-research-badge">RESEARCH ONLY</span></div><p>${escapeHtml(item.description || '')}</p><div class="quant-result-allocation"><span>CONFIGURED CONTRIBUTION</span><b>${quantNumber(item.configured_allocation_pct, 1, '%')}</b></div><div class="quant-metrics"><div><span>ANN. RETURN</span><strong>${quantNumber(item.annualized_return_pct, 2, '%')}</strong></div><div><span>MAX DRAWDOWN</span><strong>${quantNumber(item.max_drawdown_pct, 2, '%')}</strong></div><div><span>VOLATILITY</span><strong>${quantNumber(item.annualized_volatility_pct, 2, '%')}</strong></div><div><span>SHARPE</span><strong>${quantNumber(item.sharpe_zero_cash_rate)}</strong></div><div><span>HIST. ES 95%</span><strong>${quantNumber(item.historical_expected_shortfall_95_pct, 2, '%')}</strong></div><div><span>ANN. TURNOVER</span><strong>${quantNumber(item.annualized_turnover, 2, '×')}</strong></div></div>${item.validation_warning ? `<div class="quant-warning">${escapeHtml(item.validation_warning)}</div>` : ''}<div class="quant-curve">${renderQuantCurve(item.equity_curve || [])}</div><details class="quant-detail"><summary>Method, environment & risk</summary><div class="quant-explainer"><div><strong>HOW IT WORKS</strong><br>${escapeHtml(item.how_it_works || '')}</div><div><strong>BEST ENVIRONMENT</strong><br>${escapeHtml(item.best_environment || '')}</div><div><strong>KEY RISK</strong><br>${escapeHtml(item.key_risk || '')}</div></div></details></article>`).join('');
+  const risk = report.portfolio_risk || {}, validation = report.validation || {};
+  const kpi = (name, value) => `<div class="quant-kpi"><span>${name}</span><strong>${value}</strong></div>`;
+  const regimeRows = (report.regime_breakdown || []).map(row => `<tr><td>${escapeHtml(row.regime)}</td><td>${escapeHtml(String(row.sessions))}</td><td>${quantNumber(row.total_return_pct,2,'%')}</td><td>${quantNumber(row.annualized_volatility_pct,2,'%')}</td></tr>`).join('') || '<tr><td colspan="4">Insufficient completed history for a regime comparison.</td></tr>';
+  const positionRows = (risk.latest_positions || []).map(row => `<tr><td>${escapeHtml(row.symbol)}</td><td>${quantNumber(row.weight_pct,2,'%')}</td></tr>`).join('') || '<tr><td colspan="2">No active hypothetical positions.</td></tr>';
+  const qualityRows = (report.data_quality?.symbols || []).map(row => `<tr><td>${escapeHtml(row.symbol)}</td><td>${escapeHtml(String(row.bars))}</td><td>${quantNumber(row.missing_session_pct,2,'%')}</td><td>${escapeHtml(row.last_bar || '—')}</td></tr>`).join('') || '<tr><td colspan="4">No quality record available.</td></tr>';
+  const warnings = (report.methodology?.warnings || []).map(text => `<li>${escapeHtml(text)}</li>`).join('');
+  results.innerHTML = `<div class="quant-run-meta"><span>DATASET FINGERPRINT</span><code>${escapeHtml((report.dataset_fingerprint || '').slice(0,20))}…</code><span>${escapeHtml(report.universe?.start || '—')} → ${escapeHtml(report.universe?.end || '—')}</span><span>PROVIDER · ${escapeHtml(report.data_provider || '—')}</span></div><section class="quant-kpi-grid">${kpi('Gross exposure', quantNumber(risk.latest_gross_exposure,2,'×'))}${kpi('Net exposure', quantNumber(risk.latest_net_exposure,2,'×'))}${kpi('Effective positions', quantNumber(risk.effective_number_of_positions,2))}${kpi('Avg. |correlation|', quantNumber(risk.average_abs_correlation_126_sessions,3))}${kpi('Holdout return', quantNumber(validation.holdout?.total_return_pct,2,'%'))}${kpi('Holdout max drawdown', quantNumber(validation.holdout?.max_drawdown_pct,2,'%'))}</section><div class="quant-result-grid">${cards}</div><div class="quant-diagnostics-grid"><section class="panel quant-diagnostic"><p class="eyebrow">Regime report</p><h2>How did the rules behave?</h2><table><thead><tr><th>Historical state</th><th>Sessions</th><th>Return</th><th>Volatility</th></tr></thead><tbody>${regimeRows}</tbody></table></section><section class="panel quant-diagnostic"><p class="eyebrow">Portfolio controls</p><h2>Latest hypothetical exposure</h2><div class="quant-risk-list"><span>Largest name <b>${quantNumber(risk.largest_name_weight_pct,2,'%')}</b></span><span>Effective positions <b>${quantNumber(risk.effective_number_of_positions,2)}</b></span><span>Average correlation <b>${quantNumber(risk.average_abs_correlation_126_sessions,3)}</b></span></div><table><thead><tr><th>Symbol</th><th>Weight</th></tr></thead><tbody>${positionRows}</tbody></table></section></div><div class="quant-diagnostics-grid"><section class="panel quant-diagnostic"><p class="eyebrow">Chronological validation</p><h2>Development vs holdout</h2><p class="muted">${escapeHtml(validation.note || validation.message || '')}</p><div class="quant-validation-grid"><div><span>Development</span><b>${quantNumber(validation.development?.total_return_pct,2,'%')}</b><small>${escapeHtml(String(validation.development?.observations || '—'))} sessions</small></div><div><span>Holdout</span><b>${quantNumber(validation.holdout?.total_return_pct,2,'%')}</b><small>${escapeHtml(String(validation.holdout?.observations || '—'))} sessions</small></div></div></section><section class="panel quant-diagnostic"><p class="eyebrow">Data quality</p><h2>Universe coverage</h2><table><thead><tr><th>Symbol</th><th>Bars</th><th>Missing</th><th>Latest</th></tr></thead><tbody>${qualityRows}</tbody></table></section></div><section class="panel quant-method-card"><p class="eyebrow">Method & limitations</p><ul>${warnings}</ul></section>`;
+  results.hidden = false;
+}
+
+function renderQuantCurve(points) {
+  if (!Array.isArray(points) || points.length < 2) return '<span>Insufficient equity-curve data</span>';
+  const values = points.map(point => Number(point.value)).filter(Number.isFinite);
+  if (values.length < 2) return '<span>Insufficient equity-curve data</span>';
+  const width=420, height=92, low=Math.min(...values), high=Math.max(...values), range=Math.max(high-low,.001);
+  const line = values.map((value,index) => `${(index/(values.length-1)*width).toFixed(1)},${(height-(value-low)/range*height).toFixed(1)}`).join(' ');
+  return `<svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" aria-hidden="true"><polyline class="${values.at(-1) >= values[0] ? 'quant-curve-up' : 'quant-curve-down'}" points="${line}" /></svg>`;
+}
+
 async function initRuntimeCapabilities() {
   try {
     const runtime = await API.runtime();
     const privateResearch = Boolean(runtime?.private_research_routes);
     const backtestNav = document.getElementById('nav-backtest');
     const backtestPanel = document.getElementById('tab-backtest');
+    const quantNav = document.getElementById('nav-quant');
+    const quantPanel = document.getElementById('tab-quant');
     const devPanel = document.getElementById('devLabPanel');
     const betaBadge = document.querySelector('.beta-version-badge');
     if (!privateResearch) {
       if (backtestNav) backtestNav.hidden = true;
       if (backtestPanel) backtestPanel.hidden = true;
+      if (quantNav) quantNav.hidden = true;
+      if (quantPanel) quantPanel.hidden = true;
       if (devPanel) devPanel.hidden = true;
       if (betaBadge) {
         betaBadge.removeAttribute('role');
@@ -1723,8 +1824,23 @@ function initSettingsPage() {
     select.value = 'official';
     select.addEventListener('change', () => setAppEngine(select.value, {notice:true}));
   }
+  initQuantSettings();
   initThemeSettings();
   updateSettingsEngineDisplay();
+}
+
+function initQuantSettings() {
+  [['settingsQuantProvider', 'quantProvider', 'oryntra_quant_provider'], ['settingsQuantModel', 'quantModel', 'oryntra_quant_model']].forEach(([settingsId, quantId, storageKey]) => {
+    const settings = document.getElementById(settingsId), quant = document.getElementById(quantId);
+    if (!settings || !quant) return;
+    const saved = safeStorageGet(storageKey);
+    if (saved && Array.from(settings.options).some(option => option.value === saved)) {
+      settings.value = saved; quant.value = saved;
+      if (quantId === 'quantModel') quant.dispatchEvent(new Event('change'));
+    }
+    settings.addEventListener('change', () => { quant.value = settings.value; safeStorageSet(storageKey, settings.value); quant.dispatchEvent(new Event('change')); });
+    quant.addEventListener('change', () => { settings.value = quant.value; safeStorageSet(storageKey, quant.value); });
+  });
 }
 
 function updateSettingsEngineDisplay() {
