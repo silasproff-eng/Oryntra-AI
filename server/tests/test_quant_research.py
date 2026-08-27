@@ -18,6 +18,12 @@ class QuantResearchTests(unittest.TestCase):
         self.assertIn("defensive_low_volatility", [item["id"] for item in report["results"]])
         self.assertTrue(report["portfolio_risk"]["latest_positions"])
         self.assertEqual(len(report["data_quality"]["symbols"]), 4)
+        heatmap = report["visual_diagnostics"]["correlation"]
+        self.assertEqual(heatmap["symbols"], ["SPY", "QQQ", "IWM", "GLD"])
+        self.assertEqual(len(heatmap["values"]), 4)
+        self.assertEqual(len(heatmap["values"][0]), 4)
+        self.assertTrue(report["visual_diagnostics"]["monthly_returns"]["years"])
+        self.assertGreater(len(report["visual_diagnostics"]["performance"]["equity_curve"]), 1)
 
 
 if __name__ == "__main__":

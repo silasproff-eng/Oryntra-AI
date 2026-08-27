@@ -157,6 +157,57 @@ def _quality(prices: pd.DataFrame) -> dict[str, Any]:
     return {"symbols": [{"symbol": str(symbol), "bars": int(prices[symbol].notna().sum()), "first_bar": str(prices[symbol].dropna().index.min().date()) if prices[symbol].notna().any() else None, "last_bar": str(prices[symbol].dropna().index.max().date()) if prices[symbol].notna().any() else None, "missing_session_pct": round(float(prices[symbol].isna().mean()) * 100, 2)} for symbol in prices.columns], "complete_overlap_sessions": int(prices.dropna(how="any").shape[0])}
 
 
+def _correlation_heatmap(returns: pd.DataFrame) -> dict[str, Any]:
+    """Return a bounded, display-ready trailing correlation matrix."""
+    sample = returns.tail(126).dropna(axis=1, how="all")
+    correlation = sample.corr(min_periods=20)
+    values = []
+    for _, row in correlation.iterrows():
+        values.append([round(float(value), 3) if pd.notna(value) else None for value in row])
+    return {
+        "window_sessions": int(len(sample)),
+        "symbols": [str(symbol) for symbol in correlation.columns],
+        "values": values,
+        "note": "Pairwise daily-return correlations. Correlation is descriptive, not a diversification guarantee.",
+    }
+
+
+def _monthly_return_heatmap(net: pd.Series) -> dict[str, Any]:
+    """Aggregate net simulated returns by calendar month without changing the model."""
+    clean = net.replace([np.inf, -np.inf], np.nan).dropna()
+    if clean.empty:
+        return {"years": [], "months": list(range(1, 13)), "values": []}
+    monthly = (1 + clean).resample("ME").prod() - 1
+    years = list(dict.fromkeys(int(index.year) for index in monthly.index))[-5:]
+    matrix = []
+    for year in years:
+        row = []
+        for month in range(1, 13):
+            matched = monthly[(monthly.index.year == year) & (monthly.index.month == month)]
+            row.append(round(float(matched.iloc[-1]) * 100, 2) if not matched.empty else None)
+        matrix.append(row)
+    return {"years": years, "months": list(range(1, 13)), "values": matrix, "note": "Net simulated monthly return after the configured trading-cost model."}
+
+
+def _performance_diagnostics(net: pd.Series) -> dict[str, Any]:
+    """Supply downsampled equity, drawdown, and rolling-risk series for the research UI."""
+    clean = net.replace([np.inf, -np.inf], np.nan).dropna()
+    if clean.empty:
+        return {"equity_curve": [], "drawdown_curve": [], "rolling_volatility_63_pct": []}
+    equity = (1 + clean).cumprod()
+    drawdown = equity.div(equity.cummax()).sub(1)
+    rolling_volatility = clean.rolling(63, min_periods=21).std(ddof=0).mul(np.sqrt(252) * 100)
+    step = max(1, len(clean) // 260)
+    def points(series: pd.Series) -> list[dict[str, Any]]:
+        return [{"date": str(index.date()), "value": round(float(value), 4)} for index, value in series.iloc[::step].items() if pd.notna(value)][-260:]
+    return {
+        "equity_curve": points(equity),
+        "drawdown_curve": points(drawdown.mul(100)),
+        "rolling_volatility_63_pct": points(rolling_volatility),
+        "note": "Equity is indexed to 1.0. Drawdown and volatility use net simulated returns after configured costs.",
+    }
+
+
 def evaluate_strategies(histories: dict[str, pd.DataFrame], config: QuantConfig) -> dict[str, Any]:
     closes = {ticker: frame["Close"].astype(float).rename(ticker) for ticker, frame in histories.items() if frame is not None and "Close" in frame and len(frame) >= 2}
     if len(closes) < 2: raise ValueError("Quant Lab needs at least two symbols with usable daily closes.")
@@ -179,4 +230,4 @@ def evaluate_strategies(histories: dict[str, pd.DataFrame], config: QuantConfig)
     else:
         first = simulations[active[0]]; net, held = first["net"], first["held"]
     benchmark = returns.mean(axis=1, skipna=True)
-    return {"methodology": {"execution_timing": "signal at session close, held for the next session", "portfolio_construction": "weights are capped, rebalanced on the selected schedule, and may only scale down to the requested volatility target", "cash_rate": "0% for displayed Sharpe", "warnings": ["Research simulation only. It does not place orders or identify a best trade.", "Signals use the close of day t and returns begin on day t+1; costs are deducted from every weight change.", "This package does not include point-in-time fundamentals or delisted-security history, so results are not production-grade evidence."], "model_profile": MODEL_PROFILES.get(config.model, MODEL_PROFILES["v8_regime_diversified"])}, "universe": {"symbols": list(prices.columns), "start": str(prices.index.min().date()), "end": str(prices.index.max().date()), "sessions": int(len(prices))}, "results": results, "validation": _validation(net, config.walk_forward_folds), "regime_breakdown": _regime_breakdown(net, benchmark), "portfolio_risk": _risk_report(held, returns), "data_quality": _quality(prices)}
+    return {"methodology": {"execution_timing": "signal at session close, held for the next session", "portfolio_construction": "weights are capped, rebalanced on the selected schedule, and may only scale down to the requested volatility target", "cash_rate": "0% for displayed Sharpe", "warnings": ["Research simulation only. It does not place orders or identify a best trade.", "Signals use the close of day t and returns begin on day t+1; costs are deducted from every weight change.", "This package does not include point-in-time fundamentals or delisted-security history, so results are not production-grade evidence."], "model_profile": MODEL_PROFILES.get(config.model, MODEL_PROFILES["v8_regime_diversified"])}, "universe": {"symbols": list(prices.columns), "start": str(prices.index.min().date()), "end": str(prices.index.max().date()), "sessions": int(len(prices))}, "results": results, "validation": _validation(net, config.walk_forward_folds), "regime_breakdown": _regime_breakdown(net, benchmark), "portfolio_risk": _risk_report(held, returns), "data_quality": _quality(prices), "visual_diagnostics": {"correlation": _correlation_heatmap(returns), "monthly_returns": _monthly_return_heatmap(net), "performance": _performance_diagnostics(net)}}
