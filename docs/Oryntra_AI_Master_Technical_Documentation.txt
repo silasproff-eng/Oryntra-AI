@@ -1,0 +1,3164 @@
+ORYNTRA AI — MASTER TECHNICAL DOCUMENTATION
+SOURCE-DERIVED PLAIN-TEXT COMPENDIUM
+Generated: 2026-08-27 17:24 UTC
+Git commit: 03e12fdb6959af8335b38782ff1615dfb32f23f3
+Git branch: main
+
+Purpose: This reference explains the checked-out Oryntra AI repository as a software system. It combines an architecture narrative with a static inventory of every included documentation, application, client, test, and operator file. It deliberately excludes `.env`, local databases, cached market data, virtual environments, build products, and credentials. A file being documented here does not prove that a corresponding production server is currently deployed or healthy.
+
+Reading rule: material is separated into current-source facts, source-derived inventories, and historical context. The adjacent Notion workspace contains useful older NAS and Pattern Lab records, but those records describe different snapshots and must not be merged into current GitHub behaviour without a direct verification.
+
+
+========================================================================================
+1. SYSTEM PURPOSE AND SAFETY BOUNDARY
+========================================================================================
+Oryntra AI is a market-intelligence and systematic-research application. It accepts historical market data through a server-side repository, computes deterministic technical and pattern observations, exposes a policy-aware public scanner, and provides a private Quant Lab for transparent daily-bar simulations. It is research software: it does not connect to a brokerage, route an order, or provide an assurance that an observed historical relationship will persist.
+
+
+SYSTEM FLOW
+
+  Data providers / local cache
+              |
+              v
+  Market repository -> validation + provenance -> deterministic analysis
+              |                              |
+              v                              v
+  Private Quant Lab                    Derived scanner output
+              |                              |
+              v                              v
+  risk/return diagnostics             browser workspace + explanations
+
+
+========================================================================================
+2. CURRENT-SOURCE ARCHITECTURE
+========================================================================================
+The FastAPI composition root is `server/backend/main.py`. It initializes durable state, configures compression and response headers, mounts static assets, registers account/intelligence/watchlist/paper/AI routes, and mounts sensitive analysis, backtest, pattern, developer, Quant Lab, and Pro routes only when private research mode is enabled. `server/run.py` is the local Uvicorn launcher.
+
+The market repository is responsible for provider selection and data provenance. It normalizes symbols and periods, checks the local cache, validates returned daily bars, optionally uses Polygon or Twelve Data when configured, records provider/freshness metadata, and creates a dataset fingerprint for reproducibility. Provider credentials are an environment concern and are not captured in this document.
+
+Quant Lab is a transparent simulator, not a live-trading subsystem. It forms strategy signals using information through the session close, applies portfolio controls, holds next-session target weights, deducts configured transaction/borrow costs, and reports return and risk diagnostics. Its reported heatmaps and curves are generated from the exact simulated net-return series.
+
+
+========================================================================================
+3. PRIVATE QUANT LAB OPERATING MODEL
+========================================================================================
+Current strategy comparators are time-series trend, cross-sectional momentum, mean reversion, and defensive low volatility. Model profiles specify visible allocations across selected positive sleeves. Portfolio controls include gross-exposure and single-name caps, daily/weekly/monthly rebalancing, and volatility targeting that can reduce but not expand exposure. Research outputs include return, volatility, drawdown, turnover, historical VaR/expected shortfall, concentration, correlation, data coverage, chronological holdout, regime report, monthly net-return heatmap, equity path, drawdown path, and rolling volatility.
+
+Important limitations: the current model is based on historical daily closes and configured costs. It does not establish point-in-time fundamentals, delisted-security completeness, institutional liquidity, order-book dynamics, market impact, or executable alpha. A positive backtest is a hypothesis to investigate further, not a product claim.
+
+
+========================================================================================
+4. NOTION RECONCILIATION
+========================================================================================
+The connected Notion workspace contains a Project Intelligence hub, a Technical Map, Research & Sources standards, a historical system architecture snapshot, a historical V8/VAI/Pattern Lab handoff, and a Code Atlas. Those pages make clear that the prior NAS documentation centered on an August 1 `0.5.0 Optimized` snapshot and associated deployment paths. The current GitHub source is separately reconciled in the Notion child page `Oryntra — GitHub Source Reconciliation — 2026-08-27`. This compendium documents the current checkout only; it does not silently elevate historical deployment records into current production facts.
+
+
+========================================================================================
+5. REPOSITORY INVENTORY
+========================================================================================
+Included files: 155
+  - Automated regression test: 11
+  - Backend service or research engine: 27
+  - Browser application structure: 1
+  - Browser presentation or client behaviour: 4
+  - Deterministic pattern analysis: 8
+  - Flutter mobile application: 24
+  - HTTP API route: 13
+  - Legal and policy surface: 6
+  - Maintenance-mode application: 8
+  - Mobile application configuration or operator asset: 9
+  - Native iOS integration or build configuration: 22
+  - Operator or research utility: 12
+  - Product and operating model: 1
+  - Server configuration or operator asset: 9
+
+FILE LIST
+
+  - README.md (264 lines; Product and operating model)
+  - ios-app/analysis_options.yaml (6 lines; Mobile application configuration or operator asset)
+  - ios-app/build_ipa.sh (16 lines; Mobile application configuration or operator asset)
+  - ios-app/configure_admob.sh (39 lines; Mobile application configuration or operator asset)
+  - ios-app/configure_widget_target.rb (66 lines; Mobile application configuration or operator asset)
+  - ios-app/ios/Flutter/AppFrameworkInfo.plist (17 lines; Native iOS integration or build configuration)
+  - ios-app/ios/Flutter/Debug.xcconfig (3 lines; Native iOS integration or build configuration)
+  - ios-app/ios/Flutter/Flutter.podspec (19 lines; Native iOS integration or build configuration)
+  - ios-app/ios/Flutter/Release.xcconfig (3 lines; Native iOS integration or build configuration)
+  - ios-app/ios/OryntraWidget/Info.plist (28 lines; Native iOS integration or build configuration)
+  - ios-app/ios/OryntraWidget/OryntraWidget.entitlements (11 lines; Native iOS integration or build configuration)
+  - ios-app/ios/OryntraWidget/OryntraWidget.swift (110 lines; Native iOS integration or build configuration)
+  - ios-app/ios/Runner.xcodeproj/project.pbxproj (603 lines; Native iOS integration or build configuration)
+  - ios-app/ios/Runner.xcodeproj/project.xcworkspace/contents.xcworkspacedata (3 lines; Native iOS integration or build configuration)
+  - ios-app/ios/Runner.xcodeproj/xcshareddata/xcschemes/Runner.xcscheme (88 lines; Native iOS integration or build configuration)
+  - ios-app/ios/Runner.xcworkspace/contents.xcworkspacedata (11 lines; Native iOS integration or build configuration)
+  - ios-app/ios/Runner/AppDelegate.swift (324 lines; Native iOS integration or build configuration)
+  - ios-app/ios/Runner/Assets.xcassets/AppIcon.appiconset/Contents.json (24 lines; Native iOS integration or build configuration)
+  - ios-app/ios/Runner/Assets.xcassets/Contents.json (2 lines; Native iOS integration or build configuration)
+  - ios-app/ios/Runner/Assets.xcassets/LaunchImage.imageset/Contents.json (9 lines; Native iOS integration or build configuration)
+  - ios-app/ios/Runner/Base.lproj/LaunchScreen.storyboard (30 lines; Native iOS integration or build configuration)
+  - ios-app/ios/Runner/Base.lproj/Main.storyboard (20 lines; Native iOS integration or build configuration)
+  - ios-app/ios/Runner/GeneratedPluginRegistrant.h (20 lines; Native iOS integration or build configuration)
+  - ios-app/ios/Runner/GeneratedPluginRegistrant.m (43 lines; Native iOS integration or build configuration)
+  - ios-app/ios/Runner/Info.plist (81 lines; Native iOS integration or build configuration)
+  - ios-app/ios/Runner/Runner-Bridging-Header.h (2 lines; Native iOS integration or build configuration)
+  - ios-app/ios/Runner/Runner.entitlements (17 lines; Native iOS integration or build configuration)
+  - ios-app/lib/app_config.dart (71 lines; Flutter mobile application)
+  - ios-app/lib/main.dart (258 lines; Flutter mobile application)
+  - ios-app/lib/screens/account_screen.dart (693 lines; Flutter mobile application)
+  - ios-app/lib/screens/paper_screen.dart (242 lines; Flutter mobile application)
+  - ios-app/lib/screens/scanner_screen.dart (1393 lines; Flutter mobile application)
+  - ios-app/lib/screens/watchlist_screen.dart (277 lines; Flutter mobile application)
+  - ios-app/lib/services/api_service.dart (553 lines; Flutter mobile application)
+  - ios-app/lib/services/consent_service.dart (3 lines; Flutter mobile application)
+  - ios-app/lib/services/consent_service_mobile.dart (53 lines; Flutter mobile application)
+  - ios-app/lib/services/consent_service_web.dart (8 lines; Flutter mobile application)
+  - ios-app/lib/services/interstitial_ad_service.dart (3 lines; Flutter mobile application)
+  - ios-app/lib/services/interstitial_ad_service_mobile.dart (75 lines; Flutter mobile application)
+  - ios-app/lib/services/interstitial_ad_service_web.dart (8 lines; Flutter mobile application)
+  - ios-app/lib/services/notification_service.dart (216 lines; Flutter mobile application)
+  - ios-app/lib/services/session_store.dart (36 lines; Flutter mobile application)
+  - ios-app/lib/services/widget_service.dart (27 lines; Flutter mobile application)
+  - ios-app/lib/widgets/adaptive_banner.dart (3 lines; Flutter mobile application)
+  - ios-app/lib/widgets/adaptive_banner_mobile.dart (72 lines; Flutter mobile application)
+  - ios-app/lib/widgets/adaptive_banner_web.dart (24 lines; Flutter mobile application)
+  - ios-app/lib/widgets/common.dart (107 lines; Flutter mobile application)
+  - ios-app/lib/widgets/glass.dart (84 lines; Flutter mobile application)
+  - ios-app/lib/widgets/tradingview_chart.dart (3 lines; Flutter mobile application)
+  - ios-app/lib/widgets/tradingview_chart_mobile.dart (148 lines; Flutter mobile application)
+  - ios-app/lib/widgets/tradingview_chart_web.dart (47 lines; Flutter mobile application)
+  - ios-app/prepare_ios_project.sh (27 lines; Mobile application configuration or operator asset)
+  - ios-app/pubspec.yaml (29 lines; Mobile application configuration or operator asset)
+  - ios-app/web/flutter_bootstrap.js (12 lines; Mobile application configuration or operator asset)
+  - ios-app/web/index.html (55 lines; Mobile application configuration or operator asset)
+  - ios-app/web/manifest.json (23 lines; Mobile application configuration or operator asset)
+  - server/BACKFILL_MARKET_DATA_MAC.command (12 lines; Server configuration or operator asset)
+  - server/CHECK_MARKET_CACHE_MAC.command (11 lines; Server configuration or operator asset)
+  - server/QUANT_LAB.md (42 lines; Server configuration or operator asset)
+  - server/START_MAINTENANCE_MODE.command (5 lines; Server configuration or operator asset)
+  - server/START_MAINTENANCE_MODE.sh (5 lines; Server configuration or operator asset)
+  - server/START_ORYNTRA_MAC.command (28 lines; Server configuration or operator asset)
+  - server/backend/__init__.py (2 lines; Backend service or research engine)
+  - server/backend/analysis_access.py (192 lines; Backend service or research engine)
+  - server/backend/backtest.py (525 lines; Backend service or research engine)
+  - server/backend/database.py (1329 lines; Backend service or research engine)
+  - server/backend/documented_beta_counts.py (29 lines; Backend service or research engine)
+  - server/backend/fetcher.py (54 lines; Backend service or research engine)
+  - server/backend/indicators.py (480 lines; Backend service or research engine)
+  - server/backend/lab_grading.py (64 lines; Backend service or research engine)
+  - server/backend/main.py (317 lines; Backend service or research engine)
+  - server/backend/market_cache.py (559 lines; Backend service or research engine)
+  - server/backend/market_repository.py (839 lines; Backend service or research engine)
+  - server/backend/pattern_analyzer.py (1171 lines; Backend service or research engine)
+  - server/backend/pattern_lab.py (1099 lines; Backend service or research engine)
+  - server/backend/pattern_lab_jobs.py (312 lines; Backend service or research engine)
+  - server/backend/pattern_lab_worker.py (150 lines; Backend service or research engine)
+  - server/backend/patterns/__init__.py (5 lines; Deterministic pattern analysis)
+  - server/backend/patterns/candle_patterns.py (347 lines; Deterministic pattern analysis)
+  - server/backend/patterns/chart_patterns.py (249 lines; Deterministic pattern analysis)
+  - server/backend/patterns/fair_value_gaps.py (147 lines; Deterministic pattern analysis)
+  - server/backend/patterns/outcome_tracker.py (58 lines; Deterministic pattern analysis)
+  - server/backend/patterns/pattern_engine.py (348 lines; Deterministic pattern analysis)
+  - server/backend/patterns/structure_patterns.py (128 lines; Deterministic pattern analysis)
+  - server/backend/patterns/utils.py (128 lines; Deterministic pattern analysis)
+  - server/backend/polygon_client.py (185 lines; Backend service or research engine)
+  - server/backend/public_payload.py (119 lines; Backend service or research engine)
+  - server/backend/quant_research.py (234 lines; Backend service or research engine)
+  - server/backend/research_experiments.py (338 lines; Backend service or research engine)
+  - server/backend/research_training.py (175 lines; Backend service or research engine)
+  - server/backend/research_universe.py (111 lines; Backend service or research engine)
+  - server/backend/routes/__init__.py (2 lines; HTTP API route)
+  - server/backend/routes/ai_explain.py (236 lines; HTTP API route)
+  - server/backend/routes/analysis.py (403 lines; HTTP API route)
+  - server/backend/routes/auth.py (337 lines; HTTP API route)
+  - server/backend/routes/backtest.py (25 lines; HTTP API route)
+  - server/backend/routes/dev_tools.py (420 lines; HTTP API route)
+  - server/backend/routes/intelligence.py (145 lines; HTTP API route)
+  - server/backend/routes/paper_trading.py (188 lines; HTTP API route)
+  - server/backend/routes/patterns.py (31 lines; HTTP API route)
+  - server/backend/routes/pro.py (1145 lines; HTTP API route)
+  - server/backend/routes/pro_live.py (471 lines; HTTP API route)
+  - server/backend/routes/quant.py (114 lines; HTTP API route)
+  - server/backend/routes/watchlist.py (50 lines; HTTP API route)
+  - server/backend/setup_detector.py (1313 lines; Backend service or research engine)
+  - server/backend/trade_scorer.py (515 lines; Backend service or research engine)
+  - server/backend/twelvedata_client.py (155 lines; Backend service or research engine)
+  - server/backend/v8_engine.py (468 lines; Backend service or research engine)
+  - server/backend/vai2_model.py (621 lines; Backend service or research engine)
+  - server/backend/vai_model.py (373 lines; Backend service or research engine)
+  - server/frontend/index.html (168 lines; Browser application structure)
+  - server/frontend/legal/contact.html (11 lines; Legal and policy surface)
+  - server/frontend/legal/methodology.html (16 lines; Legal and policy surface)
+  - server/frontend/legal/privacy.html (16 lines; Legal and policy surface)
+  - server/frontend/legal/refund.html (12 lines; Legal and policy surface)
+  - server/frontend/legal/risk-disclaimer.html (15 lines; Legal and policy surface)
+  - server/frontend/legal/terms.html (17 lines; Legal and policy surface)
+  - server/frontend/static/css/main.css (3679 lines; Browser presentation or client behaviour)
+  - server/frontend/static/css/refined.css (544 lines; Browser presentation or client behaviour)
+  - server/frontend/static/js/app.js (3292 lines; Browser presentation or client behaviour)
+  - server/frontend/static/js/theme-init.js (26 lines; Browser presentation or client behaviour)
+  - server/maintenance_site/app.py (136 lines; Maintenance-mode application)
+  - server/maintenance_site/index.html (76 lines; Maintenance-mode application)
+  - server/maintenance_site/legal/methodology.html (405 lines; Maintenance-mode application)
+  - server/maintenance_site/static/css/main.css (3673 lines; Maintenance-mode application)
+  - server/maintenance_site/static/css/maintenance.css (375 lines; Maintenance-mode application)
+  - server/maintenance_site/static/css/refined.css (2257 lines; Maintenance-mode application)
+  - server/maintenance_site/static/js/maintenance.js (9 lines; Maintenance-mode application)
+  - server/maintenance_site/static/js/theme-init.js (26 lines; Maintenance-mode application)
+  - server/requirements.txt (12 lines; Server configuration or operator asset)
+  - server/run.py (54 lines; Server configuration or operator asset)
+  - server/shared/ad_slots.json (49 lines; Server configuration or operator asset)
+  - server/tests/conftest.py (10 lines; Automated regression test)
+  - server/tests/test_analysis_access_policy.py (51 lines; Automated regression test)
+  - server/tests/test_dev_tools_jobs.py (118 lines; Automated regression test)
+  - server/tests/test_intelligence_route.py (68 lines; Automated regression test)
+  - server/tests/test_market_cache.py (98 lines; Automated regression test)
+  - server/tests/test_market_repository.py (133 lines; Automated regression test)
+  - server/tests/test_pattern_lab_next.py (49 lines; Automated regression test)
+  - server/tests/test_public_payload_boundary.py (62 lines; Automated regression test)
+  - server/tests/test_quant_research.py (31 lines; Automated regression test)
+  - server/tests/test_research_pipeline.py (150 lines; Automated regression test)
+  - server/tests/test_v8_engine.py (100 lines; Automated regression test)
+  - server/tools/__init__.py (2 lines; Operator or research utility)
+  - server/tools/audit_v7_bias.py (244 lines; Operator or research utility)
+  - server/tools/cache_guard.py (95 lines; Operator or research utility)
+  - server/tools/check_cache_status.py (9 lines; Operator or research utility)
+  - server/tools/generate_master_docs.py (390 lines; Operator or research utility)
+  - server/tools/market_cache_cli.py (92 lines; Operator or research utility)
+  - server/tools/run_backtest_cli.py (119 lines; Operator or research utility)
+  - server/tools/run_pattern_lab_cli.py (101 lines; Operator or research utility)
+  - server/tools/seed_app_review_account.py (56 lines; Operator or research utility)
+  - server/tools/train_vai2_cli.py (120 lines; Operator or research utility)
+  - server/tools/vai_full_train_pipeline.py (41 lines; Operator or research utility)
+  - server/tools/warm_cache_cli.py (59 lines; Operator or research utility)
+
+========================================================================================
+6. ENVIRONMENT VARIABLE REFERENCE
+========================================================================================
+The following names were found in safe source/configuration files. Values are intentionally omitted. Keep populated environment files and service credentials out of source control and out of public documentation.
+
+  - ADMOB_ANDROID_APP_ID
+  - ADMOB_IOS_APP_ID
+  - ADSENSE_AUTO_ADS_ENABLED
+  - ADSENSE_CLIENT_ID
+  - ADSENSE_HEAD
+  - ADSENSE_PUBLISHER_ID
+  - ADSENSE_SITE_URL
+  - ADSENSE_SLOT
+  - ADSENSE_VERIFY_ENABLED
+  - APP_REVIEW_EMAIL
+  - APP_REVIEW_PASSWORD
+  - ORYNTRA_ALLOW_MANUAL_BETA_SUBSCRIPTIONS
+  - ORYNTRA_ANALYSIS_CACHE_MAX_ITEMS
+  - ORYNTRA_ANALYSIS_RESULT_TTL
+  - ORYNTRA_API_URL
+  - ORYNTRA_CACHE_MAX_STALE_DAYS
+  - ORYNTRA_CORS_ORIGINS
+  - ORYNTRA_DAILY_ANALYSIS_LIMIT
+  - ORYNTRA_DB_PATH
+  - ORYNTRA_ENABLE_TWELVEDATA_FALLBACK
+  - ORYNTRA_ENABLE_YFINANCE_FALLBACK
+  - ORYNTRA_HTTP_TIMEOUT
+  - ORYNTRA_LOG_LEVEL
+  - ORYNTRA_MAINTENANCE_HOST
+  - ORYNTRA_MAINTENANCE_PORT
+  - ORYNTRA_MARKET_CACHE_
+  - ORYNTRA_MARKET_CACHE_AUTO_BACKFILL
+  - ORYNTRA_MARKET_CACHE_AUTO_START
+  - ORYNTRA_MARKET_CACHE_EOD_READY_HOUR_ET
+  - ORYNTRA_MARKET_CACHE_HTTP_TIMEOUT
+  - ORYNTRA_MARKET_CACHE_INITIAL_DELAY_SECONDS
+  - ORYNTRA_MARKET_CACHE_LOOKBACK_DAYS
+  - ORYNTRA_MARKET_CACHE_MAX_CONSECUTIVE_FAILURES
+  - ORYNTRA_MARKET_CACHE_MIN_ROWS
+  - ORYNTRA_MARKET_CACHE_POLL_SECONDS
+  - ORYNTRA_MARKET_CACHE_REFERENCE_MAX_PAGES
+  - ORYNTRA_MARKET_CACHE_REFERENCE_REFRESH_DAYS
+  - ORYNTRA_MARKET_CACHE_RETENTION_DAYS
+  - ORYNTRA_MARKET_CACHE_SYNC_REFERENCE
+  - ORYNTRA_MARKET_CACHE_UPDATE_SESSIONS
+  - ORYNTRA_MARKET_DATA_LICENSE_MODE
+  - ORYNTRA_NEGATIVE_CACHE_HOURS
+  - ORYNTRA_OWNER_EMAILS
+  - ORYNTRA_PATTERN_LAB_CHECKPOINT_TICKERS
+  - ORYNTRA_PATTERN_LAB_CPU_SHARE
+  - ORYNTRA_PATTERN_LAB_JOB_ID
+  - ORYNTRA_PATTERN_LAB_MAX_BOOTSTRAP
+  - ORYNTRA_PATTERN_LAB_MAX_RETURNED_ROWS
+  - ORYNTRA_PATTERN_LAB_NICE
+  - ORYNTRA_PATTERN_LOOKBACK_BARS
+  - ORYNTRA_PLAN_DISPLAY_PRICE_USD
+  - ORYNTRA_POLYGON_CALLS_PER_MINUTE
+  - ORYNTRA_POLYGON_MAX_RETRIES
+  - ORYNTRA_POLYGON_MIN_GAP
+  - ORYNTRA_PREVIEW_MODE
+  - ORYNTRA_PRIVATE_RESEARCH_ROUTES
+  - ORYNTRA_PRO_ALERTS_AUTO_START
+  - ORYNTRA_PRO_ALERTS_INTERVAL_SECONDS
+  - ORYNTRA_PRO_LIVE_CACHE_SECONDS
+  - ORYNTRA_PRO_QUOTE_CACHE_MINUTES
+  - ORYNTRA_PUBLIC_DERIVED_ANALYSIS_ENABLED
+  - ORYNTRA_PUBLIC_SCANNER_WEBSITE
+  - ORYNTRA_RELOAD
+  - ORYNTRA_RESEARCH_MAX_UNIVERSE
+  - ORYNTRA_SCAN_CONCURRENCY
+  - ORYNTRA_SCAN_LOOKBACK_BARS
+  - ORYNTRA_SUBSCRIPTIONS_ENFORCED
+  - ORYNTRA_TWELVEDATA_CALLS_PER_MINUTE
+  - ORYNTRA_TWELVEDATA_MAX_RETRIES
+  - ORYNTRA_TWELVEDATA_MIN_GAP
+  - POLYGON_API_KEY
+  - POLYGON_BASE_URL
+  - PORT
+  - PUBLIC_ANALYSIS_DISABLED
+  - PUBLIC_BASE_URL
+  - PUBLIC_ENGINE_LABEL
+  - TWELVEDATA_API_KEY
+  - TWELVEDATA_BASE_URL
+  - TWELVE_DATA_BASE_URL
+  - WEB_ADS_ENABLED
+
+
+========================================================================================
+7. FILE-BY-FILE TECHNICAL REFERENCE
+========================================================================================
+
+[001] README.md
+Category: Product and operating model
+Lines: 264
+Role: Contributes configuration, implementation, or documentation to the Oryntra system.
+
+Content overview: <div align="center"> <img src="brand-assets/oryntra-ai-master-logo.png" width="220" alt="Oryntra AI logo"> # Oryntra AI ### Market Intelligence · Systematic Research · Explainable Analysis **A private-first quantitative research platform for inspecting historical market behaviour, testing transparent rules, and communicating evidence with appropriate limits.** </div> --- > **Research software, not an investment adviser.** Oryntra does not connect to a brokerage account, create orders, or tell a user what to buy or sell. Historical simulations are analytical outputs, not forecasts, recommendations, or a promise of performance. ## Executive summary Oryntra AI is an end-to-end market-intelligen
+
+
+[002] ios-app/analysis_options.yaml
+Category: Mobile application configuration or operator asset
+Lines: 6
+Role: Contributes configuration, implementation, or documentation to the Oryntra system.
+
+Content overview: include: package:flutter_lints/flutter.yaml linter: rules: avoid_print: true
+
+
+[003] ios-app/build_ipa.sh
+Category: Mobile application configuration or operator asset
+Lines: 16
+Role: Contributes configuration, implementation, or documentation to the Oryntra system.
+
+Content overview: #!/usr/bin/env bash set -euo pipefail cd "$(dirname "$0")" API_URL="${ORYNTRA_API_URL:-https://api.oryntraai.com}" ./prepare_ios_project.sh flutter analyze flutter test flutter build ipa --release \ --dart-define=ORYNTRA_API_URL="$API_URL" \ --dart-define=ORYNTRA_PREVIEW_MODE=false \ --dart-define=ADMOB_TEST_MODE=false echo "IPA built for API: $API_URL"
+
+
+[004] ios-app/configure_admob.sh
+Category: Mobile application configuration or operator asset
+Lines: 39
+Role: Contributes configuration, implementation, or documentation to the Oryntra system.
+
+Content overview: #!/usr/bin/env bash set -euo pipefail if [[ $# -ne 2 ]]; then echo "Usage: $0 'ca-app-pub-APP~ID' 'ca-app-pub-BANNER/ID'" exit 1 fi APP_ID="$1" BANNER_ID="$2" PLIST="ios/Runner/Info.plist" CONFIG="lib/app_config.dart" if [[ ! "$APP_ID" =~ ^ca-app-pub-[0-9]+~[0-9]+$ ]]; then echo "Invalid AdMob iOS App ID. It must contain ~." exit 1 fi if [[ ! "$BANNER_ID" =~ ^ca-app-pub-[0-9]+/[0-9]+$ ]]; then echo "Invalid banner ad-unit ID. It must contain /." exit 1 fi python3 - "$PLIST" "$CONFIG" "$APP_ID" "$BANNER_ID" <<'PY' from pathlib import Path import sys plist, config, app_id, banner_id = map(str, sys.argv[1:]) p = Path(plist) s = p.read_text() import re s = re.sub(r'(<key>GADApplicationIdentifier
+
+
+[005] ios-app/configure_widget_target.rb
+Category: Mobile application configuration or operator asset
+Lines: 66
+Role: Contributes configuration, implementation, or documentation to the Oryntra system.
+
+Content overview: #!/usr/bin/env ruby require 'xcodeproj' project_path = File.join(__dir__, 'ios', 'Runner.xcodeproj') project = Xcodeproj::Project.open(project_path) runner = project.targets.find { |target| target.name == 'Runner' } abort 'Runner target not found' unless runner runner_group = project.main_group.find_subpath('Runner', false) privacy_ref = runner_group.files.find { |f| f.path == 'PrivacyInfo.xcprivacy' } || runner_group.new_file('PrivacyInfo.xcprivacy') unless runner.resources_build_phase.files_references.include?(privacy_ref) runner.resources_build_phase.add_file_reference(privacy_ref) end widget = project.targets.find { |target| target.name == 'OryntraWidget' } unless widget widget = project
+
+
+[006] ios-app/ios/Flutter/AppFrameworkInfo.plist
+Category: Native iOS integration or build configuration
+Lines: 17
+Role: Contributes configuration, implementation, or documentation to the Oryntra system.
+
+Content overview: <plist version="1.0"> <dict> <key>CFBundleDevelopmentRegion</key><string>en</string> <key>CFBundleExecutable</key><string>App</string> <key>CFBundleIdentifier</key><string>io.flutter.flutter.app</string> <key>CFBundleInfoDictionaryVersion</key><string>6.0</string> <key>CFBundleName</key><string>App</string> <key>CFBundlePackageType</key><string>FMWK</string> <key>CFBundleShortVersionString</key><string>1.0</string> <key>CFBundleSignature</key><string>????</string> <key>CFBundleVersion</key><string>1.0</string> <key>MinimumOSVersion</key><string>13.0</string> </dict> </plist>
+
+
+[007] ios-app/ios/Flutter/Debug.xcconfig
+Category: Native iOS integration or build configuration
+Lines: 3
+Role: Contributes configuration, implementation, or documentation to the Oryntra system.
+
+Content overview: Empty or whitespace-only file.
+
+
+[008] ios-app/ios/Flutter/Flutter.podspec
+Category: Native iOS integration or build configuration
+Lines: 19
+Role: Contributes configuration, implementation, or documentation to the Oryntra system.
+
+Content overview: # # This podspec is NOT to be published. It is only used as a local source! # This is a generated file; do not edit or check into version control. # Pod::Spec.new do |s| s.name             = 'Flutter' s.version          = '1.0.0' s.summary          = 'A UI toolkit for beautiful and fast apps.' s.homepage         = 'https://flutter.dev' s.license          = { :type => 'BSD' } s.author           = { 'Flutter Dev Team' => 'flutter-dev@googlegroups.com' } s.source           = { :git => 'https://github.com/flutter/engine', :tag => s.version.to_s } s.ios.deployment_target = '13.0' # Framework linking is handled by Flutter tooling, not CocoaPods. # Add a placeholder to satisfy `s.dependency 'Flutte
+
+
+[009] ios-app/ios/Flutter/Release.xcconfig
+Category: Native iOS integration or build configuration
+Lines: 3
+Role: Contributes configuration, implementation, or documentation to the Oryntra system.
+
+Content overview: Empty or whitespace-only file.
+
+
+[010] ios-app/ios/OryntraWidget/Info.plist
+Category: Native iOS integration or build configuration
+Lines: 28
+Role: Contributes configuration, implementation, or documentation to the Oryntra system.
+
+Content overview: <plist version="1.0"> <dict> <key>CFBundleDisplayName</key> <string>Oryntra AI Widget</string> <key>CFBundleExecutable</key> <string>$(EXECUTABLE_NAME)</string> <key>CFBundleIdentifier</key> <string>$(PRODUCT_BUNDLE_IDENTIFIER)</string> <key>CFBundleInfoDictionaryVersion</key> <string>6.0</string> <key>CFBundleName</key> <string>$(PRODUCT_NAME)</string> <key>CFBundlePackageType</key> <string>$(PRODUCT_BUNDLE_PACKAGE_TYPE)</string> <key>CFBundleShortVersionString</key> <string>$(MARKETING_VERSION)</string> <key>CFBundleVersion</key> <string>$(CURRENT_PROJECT_VERSION)</string> <key>NSExtension</key> <dict> <key>NSExtensionPointIdentifier</key> <string>com.apple.widgetkit-extension</string> </d
+
+
+[011] ios-app/ios/OryntraWidget/OryntraWidget.entitlements
+Category: Native iOS integration or build configuration
+Lines: 11
+Role: Contributes configuration, implementation, or documentation to the Oryntra system.
+
+Content overview: <?xml version="1.0" encoding="UTF-8"?> <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"> <plist version="1.0"> <dict> <key>com.apple.security.application-groups</key> <array> <string>group.silascowles.oryntraai</string> </array> </dict> </plist>
+
+
+[012] ios-app/ios/OryntraWidget/OryntraWidget.swift
+Category: Native iOS integration or build configuration
+Lines: 110
+Role: Implements native iOS application or widget behaviour.
+
+No simple Swift class/function inventory was detected; inspect this configuration or declarative source directly.
+
+
+[013] ios-app/ios/Runner.xcodeproj/project.pbxproj
+Category: Native iOS integration or build configuration
+Lines: 603
+Role: Contributes configuration, implementation, or documentation to the Oryntra system.
+
+Content overview: { archiveVersion = 1; classes = { }; objectVersion = 54; objects = { 1498D2341E8E89220040F4C2  = {isa = PBXBuildFile; fileRef = 1498D2331E8E89220040F4C2 ; }; 3B80C3941E831B6300D905FE  = {isa = PBXBuildFile; fileRef = 3B80C3931E831B6300D905FE ; }; 738E6AB7FB81A1919A2BB2E8  = {isa = PBXBuildFile; fileRef = 9D5AE6A4E7FEC2578673C3F9 ; }; 74858FAF1ED2DC5600515810  = {isa = PBXBuildFile; fileRef = 74858FAE1ED2DC5600515810 ; }; 80D074608E83BBC4C9B82B12  = {isa = PBXBuildFile; fileRef = 1B4DD0D84452E52214A62D59 ; }; 97C146F31CF9000F007C117D  = {isa = PBXBuildFile; fileRef = 97C146F11CF9000F007C117D ; }; 97C146F51CF9000F007C117D  = {isa = PBXBuildFile; fileRef = 97C146F41CF9000F007C117D ; }; 97C146F7
+
+
+[014] ios-app/ios/Runner.xcodeproj/project.xcworkspace/contents.xcworkspacedata
+Category: Native iOS integration or build configuration
+Lines: 3
+Role: Contributes configuration, implementation, or documentation to the Oryntra system.
+
+Content overview: <?xml version="1.0" encoding="UTF-8"?> <Workspace version="1.0"><FileRef location="self:"></FileRef></Workspace>
+
+
+[015] ios-app/ios/Runner.xcodeproj/xcshareddata/xcschemes/Runner.xcscheme
+Category: Native iOS integration or build configuration
+Lines: 88
+Role: Contributes configuration, implementation, or documentation to the Oryntra system.
+
+Content overview: <?xml version="1.0" encoding="UTF-8"?> <Scheme LastUpgradeVersion = "2700" version = "1.3"> <BuildAction parallelizeBuildables = "YES" buildImplicitDependencies = "YES"> <BuildActionEntries> <BuildActionEntry buildForTesting = "YES" buildForRunning = "YES" buildForProfiling = "YES" buildForArchiving = "YES" buildForAnalyzing = "YES"> <BuildableReference BuildableIdentifier = "primary" BlueprintIdentifier = "97C146ED1CF9000F007C117D" BuildableName = "Runner.app" BlueprintName = "Runner" ReferencedContainer = "container:Runner.xcodeproj"> </BuildableReference> </BuildActionEntry> </BuildActionEntries> </BuildAction> <TestAction buildConfiguration = "Debug" selectedDebuggerIdentifier = "Xcode.D
+
+
+[016] ios-app/ios/Runner.xcworkspace/contents.xcworkspacedata
+Category: Native iOS integration or build configuration
+Lines: 11
+Role: Contributes configuration, implementation, or documentation to the Oryntra system.
+
+Content overview: <?xml version="1.0" encoding="UTF-8"?> <Workspace version = "1.0"> <FileRef location = "group:Runner.xcodeproj"> </FileRef> <FileRef location = "group:Pods/Pods.xcodeproj"> </FileRef> </Workspace>
+
+
+[017] ios-app/ios/Runner/AppDelegate.swift
+Category: Native iOS integration or build configuration
+Lines: 324
+Role: Implements native iOS application or widget behaviour.
+
+No simple Swift class/function inventory was detected; inspect this configuration or declarative source directly.
+
+
+[018] ios-app/ios/Runner/Assets.xcassets/AppIcon.appiconset/Contents.json
+Category: Native iOS integration or build configuration
+Lines: 24
+Role: Contributes configuration, implementation, or documentation to the Oryntra system.
+
+Top-level object keys: images, info.
+
+
+[019] ios-app/ios/Runner/Assets.xcassets/Contents.json
+Category: Native iOS integration or build configuration
+Lines: 2
+Role: Contributes configuration, implementation, or documentation to the Oryntra system.
+
+Top-level object keys: info.
+
+
+[020] ios-app/ios/Runner/Assets.xcassets/LaunchImage.imageset/Contents.json
+Category: Native iOS integration or build configuration
+Lines: 9
+Role: Contributes configuration, implementation, or documentation to the Oryntra system.
+
+Top-level object keys: images, info.
+
+
+[021] ios-app/ios/Runner/Base.lproj/LaunchScreen.storyboard
+Category: Native iOS integration or build configuration
+Lines: 30
+Role: Contributes configuration, implementation, or documentation to the Oryntra system.
+
+Content overview: <?xml version="1.0" encoding="UTF-8" standalone="no"?> <document type="com.apple.InterfaceBuilder3.CocoaTouch.Storyboard.XIB" version="3.0" toolsVersion="21762" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" launchScreen="YES" colorMatched="YES" initialViewController="01J-lp-oVM"> <device id="retina6_12" orientation="portrait" appearance="dark"/> <dependencies><deployment identifier="iOS"/><plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="21754"/><capability name="Safe area layout guides" minToolsVersion="9.0"/></dependencies> <scenes> <scene sceneID="EHf-IW-A2E"> <objects> <viewController id="01J-lp-oVM" sceneMemberID="viewControlle
+
+
+[022] ios-app/ios/Runner/Base.lproj/Main.storyboard
+Category: Native iOS integration or build configuration
+Lines: 20
+Role: Contributes configuration, implementation, or documentation to the Oryntra system.
+
+Content overview: <?xml version="1.0" encoding="UTF-8" standalone="no"?> <document type="com.apple.InterfaceBuilder3.CocoaTouch.Storyboard.XIB" version="3.0" toolsVersion="12120" systemVersion="16A323" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" launchScreen="NO" colorMatched="YES" initialViewController="BYZ-38-t0r"> <dependencies><deployment identifier="iOS"/><plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="12088"/></dependencies> <scenes> <scene sceneID="tne-QT-ifu"> <objects> <viewController id="BYZ-38-t0r" customClass="FlutterViewController" sceneMemberID="viewController"> <layoutGuides><viewControllerLayoutGuide type="top" id="y3c-jy-aDJ"/><v
+
+
+[023] ios-app/ios/Runner/GeneratedPluginRegistrant.h
+Category: Native iOS integration or build configuration
+Lines: 20
+Role: Contributes configuration, implementation, or documentation to the Oryntra system.
+
+Content overview: // //  Generated file. Do not edit. // // clang-format off #ifndef GeneratedPluginRegistrant_h #define GeneratedPluginRegistrant_h #import <Flutter/Flutter.h> NS_ASSUME_NONNULL_BEGIN @interface GeneratedPluginRegistrant : NSObject + (void)registerWithRegistry:(NSObject<FlutterPluginRegistry>*)registry; @end NS_ASSUME_NONNULL_END #endif /* GeneratedPluginRegistrant_h */
+
+
+[024] ios-app/ios/Runner/GeneratedPluginRegistrant.m
+Category: Native iOS integration or build configuration
+Lines: 43
+Role: Contributes configuration, implementation, or documentation to the Oryntra system.
+
+Content overview: // //  Generated file. Do not edit. // // clang-format off #import "GeneratedPluginRegistrant.h" #if __has_include(<google_mobile_ads/FLTGoogleMobileAdsPlugin.h>) #import <google_mobile_ads/FLTGoogleMobileAdsPlugin.h> #else @import google_mobile_ads; #endif #if __has_include(<shared_preferences_foundation/SharedPreferencesPlugin.h>) #import <shared_preferences_foundation/SharedPreferencesPlugin.h> #else @import shared_preferences_foundation; #endif #if __has_include(<url_launcher_ios/URLLauncherPlugin.h>) #import <url_launcher_ios/URLLauncherPlugin.h> #else @import url_launcher_ios; #endif #if __has_include(<webview_flutter_wkwebview/WebViewFlutterPlugin.h>) #import <webview_flutter_wkwebvie
+
+
+[025] ios-app/ios/Runner/Info.plist
+Category: Native iOS integration or build configuration
+Lines: 81
+Role: Contributes configuration, implementation, or documentation to the Oryntra system.
+
+Content overview: <plist version="1.0"> <dict> <key>CADisableMinimumFrameDurationOnPhone</key> <true/> <key>CFBundleDevelopmentRegion</key> <string>$(DEVELOPMENT_LANGUAGE)</string> <key>CFBundleDisplayName</key> <string>Oryntra AI</string> <key>CFBundleExecutable</key> <string>$(EXECUTABLE_NAME)</string> <key>CFBundleIdentifier</key> <string>$(PRODUCT_BUNDLE_IDENTIFIER)</string> <key>CFBundleInfoDictionaryVersion</key> <string>6.0</string> <key>CFBundleName</key> <string>oryntra_ai</string> <key>CFBundlePackageType</key> <string>APPL</string> <key>CFBundleShortVersionString</key> <string>$(FLUTTER_BUILD_NAME)</string> <key>CFBundleSignature</key> <string>????</string> <key>CFBundleURLTypes</key> <array> <dict
+
+
+[026] ios-app/ios/Runner/Runner-Bridging-Header.h
+Category: Native iOS integration or build configuration
+Lines: 2
+Role: Contributes configuration, implementation, or documentation to the Oryntra system.
+
+Content overview: #import "GeneratedPluginRegistrant.h"
+
+
+[027] ios-app/ios/Runner/Runner.entitlements
+Category: Native iOS integration or build configuration
+Lines: 17
+Role: Contributes configuration, implementation, or documentation to the Oryntra system.
+
+Content overview: <?xml version="1.0" encoding="UTF-8"?> <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"> <plist version="1.0"> <dict> <key>aps-environment</key> <string>development</string> <key>com.apple.security.application-groups</key> <array> <string>group.silascowles.oryntraai</string> </array> <key>keychain-access-groups</key> <array> <string>$(AppIdentifierPrefix)group.silascowles.oryntraai</string> </array> </dict> </plist>
+
+
+[028] ios-app/lib/app_config.dart
+Category: Flutter mobile application
+Lines: 71
+Role: Centralizes mobile application configuration and endpoint selection.
+
+Dart imports: package:flutter/foundation.dart
+
+Class inventory:
+  - AppConfig
+
+
+[029] ios-app/lib/main.dart
+Category: Flutter mobile application
+Lines: 258
+Role: Composes the Flutter mobile application and its navigation/runtime configuration.
+
+Dart imports: package:flutter/material.dart, package:flutter/services.dart, app_config.dart, screens/account_screen.dart, screens/paper_screen.dart, screens/scanner_screen.dart, screens/watchlist_screen.dart, services/api_service.dart, services/consent_service.dart, services/notification_service.dart, services/widget_service.dart, widgets/glass.dart
+
+Class inventory:
+  - OryntraApp
+  - _OryntraAppState
+
+Function inventory:
+  - main()
+  - initState()
+  - dispose()
+  - _refreshUser()
+  - _goTo(int value)
+  - _marketAlertsChanged()
+  - _openCreateAccount()
+  - _showPaperTrades()
+  - _scanFromWatchlist(String ticker)
+  - build(BuildContext context)
+
+
+[030] ios-app/lib/screens/account_screen.dart
+Category: Flutter mobile application
+Lines: 693
+Role: Implements a Flutter mobile screen, service, widget, or configuration component.
+
+Dart imports: package:flutter/material.dart, package:url_launcher/url_launcher.dart, ../app_config.dart, ../services/api_service.dart, ../services/consent_service.dart, ../services/notification_service.dart, ../widgets/common.dart, ../widgets/glass.dart
+
+Class inventory:
+  - AccountScreen
+  - AccountScreenState
+  - _AuthSheet
+  - _AuthSheetState
+
+Function inventory:
+  - initState()
+  - dispose()
+  - didChangeAppLifecycleState(AppLifecycleState state)
+  - didUpdateWidget(covariant AccountScreen oldWidget)
+  - _loadNotificationSettings()
+  - _loadAnalysisStatus()
+  - refreshProviderStatus()
+  - _toggleNotifications(bool enabled)
+  - _open(String url)
+  - _showAuth({bool create = false})
+  - showCreateAccount()
+  - refreshNotificationSettings()
+  - _deleteAccount()
+  - _removeMarketAlert(String ticker)
+  - _syncPushRegistration()
+  - _syncMarketAlertsFromServer()
+  - _buildAnalysisCard(BuildContext context)
+  - build(BuildContext context)
+  - _submit()
+  - build(BuildContext context)
+
+
+[031] ios-app/lib/screens/paper_screen.dart
+Category: Flutter mobile application
+Lines: 242
+Role: Implements a Flutter mobile screen, service, widget, or configuration component.
+
+Dart imports: package:flutter/material.dart, ../services/api_service.dart, ../widgets/adaptive_banner.dart, ../widgets/common.dart
+
+Class inventory:
+  - PaperScreen
+  - PaperScreenState
+  - _TradeMetric
+
+Function inventory:
+  - initState()
+  - didUpdateWidget(covariant PaperScreen oldWidget)
+  - _load()
+  - refresh()
+  - _price(dynamic value)
+  - _pnl(dynamic value)
+  - _successLabel(Map<String, dynamic> trade, dynamic pnl)
+  - build(BuildContext context)
+  - build(BuildContext context)
+
+
+[032] ios-app/lib/screens/scanner_screen.dart
+Category: Flutter mobile application
+Lines: 1393
+Role: Implements a Flutter mobile screen, service, widget, or configuration component.
+
+Dart imports: package:flutter/material.dart, package:url_launcher/url_launcher.dart, ../app_config.dart, ../services/api_service.dart, ../services/interstitial_ad_service.dart, ../services/notification_service.dart, ../services/widget_service.dart, ../widgets/adaptive_banner.dart, ../widgets/common.dart, ../widgets/tradingview_chart.dart
+
+Class inventory:
+  - ScannerScreen
+  - ScannerScreenState
+  - _ScanResult
+  - _MetricTile
+  - _IndicatorSummary
+  - _IndicatorPill
+  - _PatternCard
+  - _ScannerFeature
+  - _EmptyPanel
+
+Function inventory:
+  - initState()
+  - dispose()
+  - scanTicker(String ticker)
+  - _scan()
+  - _loadMarketAlerts()
+  - _read(Map<String, dynamic>? source,
+    List<String> keys, {
+    String fallback = '—',
+  })
+  - _setup()
+  - _entry()
+  - _scanCount()
+  - _openLegal(String url, String label)
+  - _notifyAboutResult()
+  - _trackResult()
+  - _openPaperTrade()
+  - build(BuildContext context)
+  - build(BuildContext context)
+  - build(BuildContext context)
+  - build(BuildContext context)
+  - build(BuildContext context)
+  - _confidence(Map<String, dynamic> pattern)
+  - build(BuildContext context)
+  - build(BuildContext context)
+  - build(BuildContext context)
+
+
+[033] ios-app/lib/screens/watchlist_screen.dart
+Category: Flutter mobile application
+Lines: 277
+Role: Implements a Flutter mobile screen, service, widget, or configuration component.
+
+Dart imports: package:flutter/material.dart, ../services/api_service.dart, ../widgets/adaptive_banner.dart, ../widgets/common.dart
+
+Class inventory:
+  - WatchlistScreen
+  - _WatchlistScreenState
+
+Function inventory:
+  - initState()
+  - didUpdateWidget(covariant WatchlistScreen oldWidget)
+  - _refresh()
+  - _add()
+  - _remove(Map<String, dynamic> map, dynamic item)
+  - build(BuildContext context)
+
+
+[034] ios-app/lib/services/api_service.dart
+Category: Flutter mobile application
+Lines: 553
+Role: Defines the mobile client interface to Oryntra API endpoints.
+
+Dart imports: dart:convert, dart:math, package:http/http.dart, ../app_config.dart, session_store.dart
+
+Class inventory:
+  - ApiException
+  - ApiService
+
+Function inventory:
+  - toString()
+  - _previewPause([int milliseconds = 280])
+  - deleteAccount(String password)
+  - logout()
+  - addWatchlist(String ticker)
+  - removeWatchlist(String ticker)
+  - registerPushDevice({
+    required String token,
+    required String environment,
+  })
+  - addStockAlertSubscription(String ticker)
+  - removeStockAlertSubscription(String ticker)
+
+
+[035] ios-app/lib/services/consent_service.dart
+Category: Flutter mobile application
+Lines: 3
+Role: Implements a Flutter mobile screen, service, widget, or configuration component.
+
+No simple Dart class/function inventory was detected; inspect this configuration or declarative source directly.
+
+
+[036] ios-app/lib/services/consent_service_mobile.dart
+Category: Flutter mobile application
+Lines: 53
+Role: Implements a Flutter mobile screen, service, widget, or configuration component.
+
+Dart imports: dart:async, package:google_mobile_ads/google_mobile_ads.dart
+
+Class inventory:
+  - ConsentService
+
+Function inventory:
+  - gatherConsentAndInitializeAds()
+  - privacyOptionsRequired()
+  - showPrivacyOptions()
+
+
+[037] ios-app/lib/services/consent_service_web.dart
+Category: Flutter mobile application
+Lines: 8
+Role: Implements a Flutter mobile screen, service, widget, or configuration component.
+
+Class inventory:
+  - ConsentService
+
+Function inventory:
+  - gatherConsentAndInitializeAds()
+  - privacyOptionsRequired()
+  - showPrivacyOptions()
+
+
+[038] ios-app/lib/services/interstitial_ad_service.dart
+Category: Flutter mobile application
+Lines: 3
+Role: Implements a Flutter mobile screen, service, widget, or configuration component.
+
+No simple Dart class/function inventory was detected; inspect this configuration or declarative source directly.
+
+
+[039] ios-app/lib/services/interstitial_ad_service_mobile.dart
+Category: Flutter mobile application
+Lines: 75
+Role: Implements a Flutter mobile screen, service, widget, or configuration component.
+
+Dart imports: dart:async, package:google_mobile_ads/google_mobile_ads.dart, ../app_config.dart
+
+Class inventory:
+  - InterstitialAdService
+
+Function inventory:
+  - initialize()
+  - recordSuccessfulScan()
+  - _load()
+  - dispose()
+
+
+[040] ios-app/lib/services/interstitial_ad_service_web.dart
+Category: Flutter mobile application
+Lines: 8
+Role: Implements a Flutter mobile screen, service, widget, or configuration component.
+
+Class inventory:
+  - InterstitialAdService
+
+Function inventory:
+  - initialize()
+  - recordSuccessfulScan()
+  - dispose()
+
+
+[041] ios-app/lib/services/notification_service.dart
+Category: Flutter mobile application
+Lines: 216
+Role: Implements a Flutter mobile screen, service, widget, or configuration component.
+
+Dart imports: package:flutter/foundation.dart, package:flutter/services.dart, package:shared_preferences/shared_preferences.dart
+
+Class inventory:
+  - NotificationService
+
+Function inventory:
+  - isEnabled()
+  - isDailyReminderEnabled()
+  - authorizationStatus()
+  - requestPermission()
+  - setEnabled(bool enabled)
+  - setDailyReminder(bool enabled, {
+    int hour = 9,
+    int minute = 30,
+  })
+  - addMarketAlert(String ticker)
+  - removeMarketAlert(String ticker)
+  - clearMarketAlerts()
+  - replaceMarketAlerts(List<String> tickers)
+  - _restoreSchedules()
+  - _syncMarketAlertReminders(List<String> tickers)
+  - showScanResult({
+    required String ticker,
+    required String signal,
+    required String quality,
+  })
+
+
+[042] ios-app/lib/services/session_store.dart
+Category: Flutter mobile application
+Lines: 36
+Role: Implements a Flutter mobile screen, service, widget, or configuration component.
+
+Dart imports: package:flutter_secure_storage/flutter_secure_storage.dart, package:shared_preferences/shared_preferences.dart
+
+Class inventory:
+  - SessionStore
+
+Function inventory:
+  - readToken()
+  - saveToken(String token)
+  - clear()
+
+
+[043] ios-app/lib/services/widget_service.dart
+Category: Flutter mobile application
+Lines: 27
+Role: Implements a Flutter mobile screen, service, widget, or configuration component.
+
+Dart imports: package:flutter/foundation.dart, package:flutter/services.dart
+
+Class inventory:
+  - WidgetService
+
+Function inventory:
+  - updateScan({
+    required String ticker,
+    required String signal,
+    required String price,
+    required String quality,
+  })
+
+
+[044] ios-app/lib/widgets/adaptive_banner.dart
+Category: Flutter mobile application
+Lines: 3
+Role: Implements a Flutter mobile screen, service, widget, or configuration component.
+
+No simple Dart class/function inventory was detected; inspect this configuration or declarative source directly.
+
+
+[045] ios-app/lib/widgets/adaptive_banner_mobile.dart
+Category: Flutter mobile application
+Lines: 72
+Role: Implements a Flutter mobile screen, service, widget, or configuration component.
+
+Dart imports: package:flutter/material.dart, package:google_mobile_ads/google_mobile_ads.dart, ../app_config.dart
+
+Class inventory:
+  - AdaptiveBanner
+  - _AdaptiveBannerState
+
+Function inventory:
+  - _load(int width)
+  - build(BuildContext context)
+  - dispose()
+
+
+[046] ios-app/lib/widgets/adaptive_banner_web.dart
+Category: Flutter mobile application
+Lines: 24
+Role: Implements a Flutter mobile screen, service, widget, or configuration component.
+
+Dart imports: package:flutter/material.dart
+
+Class inventory:
+  - AdaptiveBanner
+
+Function inventory:
+  - build(BuildContext context)
+
+
+[047] ios-app/lib/widgets/common.dart
+Category: Flutter mobile application
+Lines: 107
+Role: Implements a Flutter mobile screen, service, widget, or configuration component.
+
+Dart imports: package:flutter/material.dart
+
+Class inventory:
+  - AppCard
+  - EmptyState
+  - AccountRequiredState
+
+Function inventory:
+  - build(BuildContext context)
+  - build(BuildContext context)
+  - build(BuildContext context)
+
+
+[048] ios-app/lib/widgets/glass.dart
+Category: Flutter mobile application
+Lines: 84
+Role: Implements a Flutter mobile screen, service, widget, or configuration component.
+
+Dart imports: dart:ui, package:flutter/material.dart
+
+Class inventory:
+  - LiquidGlass
+  - GlassNavigationBar
+
+Function inventory:
+  - build(BuildContext context)
+  - build(BuildContext context)
+
+
+[049] ios-app/lib/widgets/tradingview_chart.dart
+Category: Flutter mobile application
+Lines: 3
+Role: Implements a Flutter mobile screen, service, widget, or configuration component.
+
+No simple Dart class/function inventory was detected; inspect this configuration or declarative source directly.
+
+
+[050] ios-app/lib/widgets/tradingview_chart_mobile.dart
+Category: Flutter mobile application
+Lines: 148
+Role: Implements a Flutter mobile screen, service, widget, or configuration component.
+
+Dart imports: dart:convert, package:flutter/material.dart, package:webview_flutter/webview_flutter.dart
+
+Class inventory:
+  - TradingViewChart
+  - _TradingViewChartState
+
+Function inventory:
+  - initState()
+  - didUpdateWidget(covariant TradingViewChart oldWidget)
+  - _html(String rawSymbol)
+  - build(BuildContext context)
+
+
+[051] ios-app/lib/widgets/tradingview_chart_web.dart
+Category: Flutter mobile application
+Lines: 47
+Role: Implements a Flutter mobile screen, service, widget, or configuration component.
+
+Dart imports: package:flutter/material.dart, package:url_launcher/url_launcher.dart
+
+Class inventory:
+  - TradingViewChart
+
+Function inventory:
+  - build(BuildContext context)
+
+
+[052] ios-app/prepare_ios_project.sh
+Category: Mobile application configuration or operator asset
+Lines: 27
+Role: Contributes configuration, implementation, or documentation to the Oryntra system.
+
+Content overview: #!/usr/bin/env bash set -euo pipefail cd "$(dirname "$0")" if ! command -v flutter >/dev/null 2>&1; then echo "Flutter is required. Install Flutter, then run this script again." >&2 exit 1 fi flutter pub get if ! ruby -e "require 'xcodeproj'" >/dev/null 2>&1; then if command -v pod >/dev/null 2>&1; then echo "The xcodeproj Ruby library is missing. CocoaPods normally installs it. Reinstall CocoaPods, then rerun." >&2 else echo "CocoaPods is required. Install it, then rerun." >&2 fi exit 1 fi ruby configure_widget_target.rb cd ios pod install --repo-update cd .. echo "Prepared ios/Runner.xcworkspace with the Oryntra widget target."
+
+
+[053] ios-app/pubspec.yaml
+Category: Mobile application configuration or operator asset
+Lines: 29
+Role: Contributes configuration, implementation, or documentation to the Oryntra system.
+
+Content overview: name: oryntra_ai description: Oryntra AI market intelligence and simulated paper-trading client for iOS with a safe Flutter web preview. publish_to: none version: 0.8.0+17 environment: sdk: '>=3.10.0 <4.0.0' dependencies: flutter: sdk: flutter cupertino_icons: ^1.0.8 google_mobile_ads: ^9.0.0 http: ^1.5.0 shared_preferences: ^2.5.3 flutter_secure_storage: ^10.3.1 webview_flutter: ^4.14.1 url_launcher: ^6.3.2 dev_dependencies: flutter_test: sdk: flutter flutter_lints: ^6.0.0 flutter: uses-material-design: true assets: - assets/oryntra-icon.png
+
+
+[054] ios-app/web/flutter_bootstrap.js
+Category: Mobile application configuration or operator asset
+Lines: 12
+Role: Contributes configuration, implementation, or documentation to the Oryntra system.
+
+No named JavaScript function declarations were detected by the static inventory.
+
+
+[055] ios-app/web/index.html
+Category: Mobile application configuration or operator asset
+Lines: 55
+Role: Defines the browser workspace structure, controls, panels, and accessibility hooks.
+
+HTML identifiers: 1. Forms: 0. Tab hooks: 0.
+
+Representative IDs (first 80):
+  - flutter_host
+
+
+[056] ios-app/web/manifest.json
+Category: Mobile application configuration or operator asset
+Lines: 23
+Role: Contributes configuration, implementation, or documentation to the Oryntra system.
+
+Top-level object keys: name, short_name, start_url, display, background_color, theme_color, description, orientation, icons.
+
+
+[057] server/BACKFILL_MARKET_DATA_MAC.command
+Category: Server configuration or operator asset
+Lines: 12
+Role: Contributes configuration, implementation, or documentation to the Oryntra system.
+
+Content overview: #!/bin/bash set -euo pipefail cd "$(dirname "$0")" if [ ! -x ".venv-mac/bin/python" ]; then echo "Run START_ORYNTRA_MAC.command once first so the Mac environment is installed." exit 1 fi source .venv-mac/bin/activate python tools/market_cache_cli.py backfill
+
+
+[058] server/CHECK_MARKET_CACHE_MAC.command
+Category: Server configuration or operator asset
+Lines: 11
+Role: Contributes configuration, implementation, or documentation to the Oryntra system.
+
+Content overview: #!/bin/bash set -euo pipefail cd "$(dirname "$0")" if [ -x ".venv-mac/bin/python" ]; then source .venv-mac/bin/activate python tools/market_cache_cli.py status else python3 tools/market_cache_cli.py status fi
+
+
+[059] server/QUANT_LAB.md
+Category: Server configuration or operator asset
+Lines: 42
+Role: Documents Quant Lab scope, provider configuration, and research limitations.
+
+Content overview: # Oryntra Quant Lab Quant Lab is a private, research-only systematic-analysis workspace. It does not connect to a broker, create orders, or identify a best trade. ## What a run evaluates - Time-series trend, cross-sectional momentum, mean reversion, and a defensive low-volatility comparator. - Next-session execution timing, configurable transaction costs, and annual short-borrow assumptions. - Gross-exposure and single-name caps, daily/weekly/monthly rebalancing, and volatility targeting that only reduces exposure; it never adds leverage. - Historical drawdown, VaR/expected shortfall, concentration, correlation, chronological holdout, regime slices, and source/data-coverage diagnostics. ## D
+
+
+[060] server/START_MAINTENANCE_MODE.command
+Category: Server configuration or operator asset
+Lines: 5
+Role: Contributes configuration, implementation, or documentation to the Oryntra system.
+
+Content overview: #!/bin/bash set -e cd "$(dirname "$0")" exec python3 maintenance_site/app.py --host 0.0.0.0 --port "${ORYNTRA_MAINTENANCE_PORT:-8000}"
+
+
+[061] server/START_MAINTENANCE_MODE.sh
+Category: Server configuration or operator asset
+Lines: 5
+Role: Contributes configuration, implementation, or documentation to the Oryntra system.
+
+Content overview: #!/usr/bin/env bash set -euo pipefail cd "$(dirname "$0")" exec python3 maintenance_site/app.py --host 0.0.0.0 --port "${ORYNTRA_MAINTENANCE_PORT:-8000}"
+
+
+[062] server/START_ORYNTRA_MAC.command
+Category: Server configuration or operator asset
+Lines: 28
+Role: Contributes configuration, implementation, or documentation to the Oryntra system.
+
+Content overview: #!/bin/bash set -euo pipefail cd "$(dirname "$0")" PYTHON_BIN="${PYTHON_BIN:-python3}" VENV_DIR=".venv-mac" if [ ! -x "$VENV_DIR/bin/python" ]; then echo "Creating Mac Python environment..." "$PYTHON_BIN" -m venv "$VENV_DIR" fi source "$VENV_DIR/bin/activate" if [ ! -f "$VENV_DIR/.oryntra_requirements_installed" ] || [ requirements.txt -nt "$VENV_DIR/.oryntra_requirements_installed" ]; then echo "Installing Oryntra requirements..." python -m pip install --upgrade pip python -m pip install -r requirements.txt touch "$VENV_DIR/.oryntra_requirements_installed" fi echo "Checking local market cache..." python tools/market_cache_cli.py status || true echo "Starting Oryntra at http://localhost:${PO
+
+
+[063] server/backend/__init__.py
+Category: Backend service or research engine
+Lines: 2
+Role: Contributes configuration, implementation, or documentation to the Oryntra system.
+
+No classes or functions were found at module scope. The file is likely declarative configuration, package initialization, or command glue.
+
+
+[064] server/backend/analysis_access.py
+Category: Backend service or research engine
+Lines: 192
+Role: Contributes configuration, implementation, or documentation to the Oryntra system.
+
+Imports: .database, .routes.auth, __future__, datetime, fastapi, os, typing
+
+Public code inventory:
+  - function env_bool(name, default) (line 13)
+  - function _csv(name) (line 20)
+  - function license_mode() (line 28)
+  - function daily_limit() (line 33)
+  - function _today_utc() (line 37)
+  - function is_owner(user) (line 41)
+  - function policy_status(user) (line 46)
+  - function require_analysis_user(request) (line 71)
+  - function usage_status(user_id) (line 110)
+  - function reserve_quota(user_id, cost) (line 131)
+  - function refund_quota(user_id, cost) (line 175)
+
+
+[065] server/backend/backtest.py
+Category: Backend service or research engine
+Lines: 525
+Role: Contributes configuration, implementation, or documentation to the Oryntra system.
+
+Imports: .indicators, .market_repository, .research_experiments, .setup_detector, .trade_scorer, __future__, asyncio, collections, fastapi, json, math, numpy, pandas, pydantic, sys, typing
+
+HTTP route decorators:
+  - line 511: router.post('/run') -> run_backtest
+
+Public code inventory:
+  - class BacktestRequest (line 22)
+  - class BacktestResult (line 41)
+  - function _finite(value, default) (line 49)
+  - function _clean_tickers(req) (line 57)
+  - function _adjust_entry(open_price, direction, slippage_pct) (line 71)
+  - function _adjust_exit(price, direction, slippage_pct) (line 77)
+  - function _plan_levels(plan, direction, signal_price, entry_price) (line 83)
+  - function _pnl_pct(trade, exit_price, commission_pct) (line 103)
+  - function _check_exit(trade, row, date, candle_idx, max_hold, slippage_pct, commission_pct, policy) (line 114)
+  - function _run_one(ticker, history, req, source) (line 171)
+  - function _enforce_portfolio_capacity(trades, max_concurrent) (line 288)
+  - function _bootstrap_trade_ci(trades, samples, seed) (line 304)
+  - function _calculate_stats(trades, initial_equity, position_size_pct) (line 330)
+  - function _run_backtest_sync(req) (line 408)
+  - async function run_backtest(req) (line 511) [decorators: router.post('/run')]
+
+
+[066] server/backend/database.py
+Category: Backend service or research engine
+Lines: 1329
+Role: Owns SQLite schema initialization and durable application-data helpers.
+
+Imports: __future__, datetime, json, math, os, pandas, sqlite3, typing
+
+Public code inventory:
+  - function get_connection() (line 18)
+  - function init_db() (line 32)
+  - function get_app_counter(key) (line 357)
+  - function increment_app_counter(key, amount) (line 370)
+  - function set_app_counter_min(key, minimum) (line 391)
+  - function store_ohlcv_bars(ticker, timeframe, hist, provider, adjusted) (line 412)
+  - function _period_cutoff_days(period) (line 473)
+  - function load_ohlcv_bars(ticker, timeframe, period) (line 487)
+  - function get_ohlcv_cache_summary(tickers, timeframe) (line 533)
+  - function get_ohlcv_cache_size_bytes() (line 563)
+  - function _maybe_int(value) (line 570)
+  - function set_market_cache_meta(key, value) (line 579)
+  - function get_market_cache_meta(key, default) (line 597)
+  - function get_successful_market_dates() (line 613)
+  - function mark_market_ingest_started(trading_date, endpoint) (line 624)
+  - function mark_market_ingest_failed(trading_date, error, status, rows_received, request_id) (line 648)
+  - function store_grouped_daily_bars(trading_date, results, provider, adjusted, request_id, minimum_rows) (line 686)
+  - function upsert_market_symbols(symbols, source) (line 806)
+  - function get_market_symbol(ticker) (line 865)
+  - function prune_ohlcv_before(cutoff_date) (line 877)
+  - function get_market_cache_status() (line 891)
+  - function store_pattern_events(ticker, timeframe, patterns) (line 944)
+  - function evaluate_and_store_pattern_outcomes(ticker, timeframe, hist, patterns, horizons) (line 1008)
+  - function rebuild_pattern_stats(ticker, timeframe) (line 1120)
+  - function rebuild_pattern_stats.win_rate(h) (line 1156)
+  - function rebuild_pattern_stats.avg_ret(h) (line 1163)
+  - function get_pattern_stats(pattern_name, ticker, timeframe, limit) (line 1221)
+  - function get_recent_pattern_events(ticker, limit) (line 1249)
+  - function _iso_timestamp(value) (line 1276)
+  - function _maybe_float(value) (line 1285)
+  - function store_vai_training_run(status, samples, horizon_days, threshold, validation, terminal_output) (line 1294)
+  - function get_recent_vai_training_runs(limit) (line 1311)
+
+
+[067] server/backend/documented_beta_counts.py
+Category: Backend service or research engine
+Lines: 29
+Role: Contributes configuration, implementation, or documentation to the Oryntra system.
+
+Imports: .database, __future__, datetime
+
+Public code inventory:
+  - function sync_documented_beta_counts() (line 10)
+
+
+[068] server/backend/fetcher.py
+Category: Backend service or research engine
+Lines: 54
+Role: Contributes configuration, implementation, or documentation to the Oryntra system.
+
+Imports: .market_repository, __future__, threading, time, typing
+
+Public code inventory:
+  - function fetch_ticker_data(ticker, period) (line 14)
+  - function clear_fetcher_memory_cache(ticker) (line 44)
+
+
+[069] server/backend/indicators.py
+Category: Backend service or research engine
+Lines: 480
+Role: Contributes configuration, implementation, or documentation to the Oryntra system.
+
+Imports: numpy, pandas, typing
+
+Public code inventory:
+  - function calculate_all_indicators(hist) (line 6)
+  - function _sma(series, period) (line 112)
+  - function _ema(series, period) (line 118)
+  - function _rsi(close, period) (line 125)
+  - function _macd(close) (line 138)
+  - function _bollinger_bands(close, period, std) (line 157)
+  - function _atr(high, low, close, period) (line 176)
+  - function _atr_percentile(high, low, close, period, lookback) (line 189)
+  - function _distance_pct(price, level) (line 206)
+  - function _adx(high, low, close, period) (line 217)
+  - function _williams_r(high, low, close, period) (line 258)
+  - function _obv(close, volume) (line 269)
+  - function _vwap(high, low, close, volume, period) (line 292)
+  - function _ichimoku(high, low, close) (line 301)
+  - function _ichimoku.mid(series_h, series_l, period) (line 311)
+  - function _ema_cross_signal(ind) (line 342)
+  - function _stochastic(high, low, close, k, d) (line 352)
+  - function _volume_trend(volume, window) (line 368)
+  - function _adx_trend_label(adx) (line 381)
+  - function _classify_trend(ind) (line 389)
+  - function _trend_strength(close, period) (line 430)
+  - function _pct_change(close, periods) (line 443)
+  - function _pivot_points(hist) (line 453)
+  - function _volume_price_divergence(close, volume, lookback) (line 470)
+
+
+[070] server/backend/lab_grading.py
+Category: Backend service or research engine
+Lines: 64
+Role: Contributes configuration, implementation, or documentation to the Oryntra system.
+
+Imports: .v8_engine, __future__, typing
+
+Public code inventory:
+  - function _grade(score) (line 10)
+  - function _top_pattern(pattern_report) (line 15)
+  - function lab_based_stock_grade(indicators, setup, pattern_report) (line 24)
+
+
+[071] server/backend/main.py
+Category: Backend service or research engine
+Lines: 317
+Role: Composes the FastAPI application, its middleware, route boundaries, static assets, and health surface.
+
+Imports: .database, .market_cache, .routes, contextlib, fastapi, fastapi.middleware.cors, fastapi.middleware.gzip, fastapi.responses, fastapi.staticfiles, html, json, os, re, sqlite3
+
+HTTP route decorators:
+  - line 191: app.get('/', include_in_schema=False) -> serve_frontend
+  - line 210: app.get('/legal/{page_name}', include_in_schema=False) -> serve_legal_page
+  - line 231: app.get('/health') -> health_check
+  - line 236: app.get('/api/app/version') -> app_version
+  - line 250: app.get('/api/app/stats') -> app_public_stats
+  - line 255: app.get('/api/app/market-cache') -> app_market_cache_status
+  - line 261: app.get('/api/app/ads') -> app_ads
+  - line 289: app.get('/api/app/ads/diagnostics') -> app_ads_diagnostics
+  - line 293: app.get('/ads.txt', include_in_schema=False) -> ads_txt
+  - line 301: app.get('/robots.txt', include_in_schema=False) -> robots_txt
+  - line 309: app.get('/sitemap.xml', include_in_schema=False) -> sitemap_xml
+
+Public code inventory:
+  - function env_bool(name, default) (line 41)
+  - function ad_slot_env(prefix) (line 47)
+  - function adsense_client_id() (line 52)
+  - function adsense_publisher_id() (line 58)
+  - function public_site_url() (line 65)
+  - function adsense_head_markup() (line 68)
+  - function inject_adsense_head(html) (line 79)
+  - function ads_diagnostics() (line 87)
+  - async function lifespan(app) (line 112) [decorators: asynccontextmanager]
+  - async function oryntra_release_headers(request, call_next) (line 156) [decorators: app.middleware('http')]
+  - async function serve_frontend() (line 191) [decorators: app.get('/', include_in_schema=False)]
+  - async function serve_legal_page(page_name) (line 210) [decorators: app.get('/legal/{page_name}', include_in_schema=False)]
+  - async function health_check() (line 231) [decorators: app.get('/health')]
+  - async function app_version() (line 236) [decorators: app.get('/api/app/version')]
+  - async function app_public_stats() (line 250) [decorators: app.get('/api/app/stats')]
+  - async function app_market_cache_status() (line 255) [decorators: app.get('/api/app/market-cache')]
+  - async function app_ads() (line 261) [decorators: app.get('/api/app/ads')]
+  - async function app_ads_diagnostics() (line 289) [decorators: app.get('/api/app/ads/diagnostics')]
+  - async function ads_txt() (line 293) [decorators: app.get('/ads.txt', include_in_schema=False)]
+  - async function robots_txt() (line 301) [decorators: app.get('/robots.txt', include_in_schema=False)]
+  - async function sitemap_xml() (line 309) [decorators: app.get('/sitemap.xml', include_in_schema=False)]
+
+
+[072] server/backend/market_cache.py
+Category: Backend service or research engine
+Lines: 559
+Role: Maintains cached market history and scheduled refresh behaviour.
+
+Imports: .database, .polygon_client, __future__, dataclasses, datetime, fcntl, json, os, pandas, pandas.tseries.holiday, pathlib, threading, time, typing, zoneinfo
+
+Public code inventory:
+  - class NyseHolidayCalendar (line 51)
+  - function _env_bool(name, default) (line 77)
+  - class MarketCacheConfig (line 85)
+  - function MarketCacheConfig.from_env(cls) (line 99) [decorators: classmethod]
+  - function trading_days(start, end) (line 131)
+  - function previous_trading_day(day) (line 144)
+  - function latest_completed_trading_day(now, ready_hour_et) (line 153)
+  - function planned_backfill_dates(lookback_calendar_days, end_date, newest_first) (line 172)
+  - function _validate_grouped_payload(payload, trading_date) (line 187)
+  - function import_grouped_day(trading_date, minimum_rows, dry_run) (line 197)
+  - function backfill_market_cache(lookback_calendar_days, max_dates, newest_first, dry_run, stop_event) (line 258)
+  - function update_recent_market_cache(lookback_sessions, max_dates, stop_event) (line 327)
+  - function _reference_sync_due(refresh_days) (line 376)
+  - function sync_ticker_reference(max_pages, stop_event) (line 390)
+  - function apply_retention(retention_days) (line 448)
+  - class MarketCacheWorker (line 458)
+  - function MarketCacheWorker.__init__(self, config) (line 459)
+  - function MarketCacheWorker.start(self) (line 465)
+  - function MarketCacheWorker.stop(self, timeout) (line 486)
+  - function MarketCacheWorker._wait(self, seconds) (line 499)
+  - function MarketCacheWorker._run_cycle(self, initial) (line 502)
+  - function MarketCacheWorker._run(self) (line 531)
+  - function start_market_cache_worker() (line 540)
+  - function status() (line 551)
+
+
+[073] server/backend/market_repository.py
+Category: Backend service or research engine
+Lines: 839
+Role: Normalizes cache and provider history into a provenance-carrying market-data interface.
+
+Imports: .database, .polygon_client, .twelvedata_client, __future__, dataclasses, datetime, hashlib, json, math, os, pandas, re, typing, yfinance
+
+Public code inventory:
+  - function _utc_now() (line 37)
+  - function _iso_now() (line 41)
+  - function normalize_ticker(value) (line 45)
+  - function normalize_period(value) (line 54)
+  - function normalize_provider_preference(value) (line 59)
+  - function period_calendar_days(period) (line 66)
+  - function _latest_reasonable_session_date(now) (line 71)
+  - function _frame_from_rows(rows) (line 79)
+  - function _polygon_frame(results) (line 114)
+  - function _twelvedata_frame(values) (line 152)
+  - class HistoryMetadata (line 179)
+  - class HistoryResult (line 197)
+  - function HistoryResult.as_fetcher_dict(self) (line 203)
+  - class MarketDataRepository (line 231)
+  - function MarketDataRepository.__init__(self) (line 232)
+  - function MarketDataRepository._ensure_schema() (line 236) [decorators: staticmethod]
+  - function MarketDataRepository.cached_tickers(self, minimum_bars) (line 271)
+  - function MarketDataRepository.cache_summary(self, ticker) (line 289)
+  - function MarketDataRepository.load_local(self, ticker, period, start_date, end_date) (line 315)
+  - function MarketDataRepository._history_quality(frame, minimum_bars, max_stale_days) (line 357) [decorators: staticmethod]
+  - function MarketDataRepository._negative_cache(self, ticker) (line 375)
+  - function MarketDataRepository._set_negative_cache(self, ticker, reason, provider, ttl_hours) (line 391)
+  - function MarketDataRepository._clear_negative_cache(self, ticker) (line 420)
+  - function MarketDataRepository._log_fetch(self, ticker, period, source, provider, status, rows, error) (line 431)
+  - function MarketDataRepository._info(ticker) (line 465) [decorators: staticmethod]
+  - function MarketDataRepository._metadata(self, ticker, frame, period, source, provider, from_cache, fallback_used, minimum_bars, max_stale_days, warning, details) (line 476)
+  - function MarketDataRepository._fetch_polygon(self, ticker, period) (line 513)
+  - function MarketDataRepository._fetch_twelvedata(self, ticker, period) (line 549)
+  - function MarketDataRepository._fetch_yfinance(self, ticker, period) (line 566)
+  - function MarketDataRepository.get_history(self, ticker, period, minimum_bars, allow_api, force_refresh, max_stale_days, allow_stale_on_error, provider_preference) (line 611)
+  - function MarketDataRepository.get_histories(self, tickers, period, minimum_bars, allow_api) (line 760)
+  - function MarketDataRepository.dataset_fingerprint(self, frames, configuration) (line 790)
+  - function get_market_repository() (line 815)
+  - function get_history(ticker, period, minimum_bars, allow_api, force_refresh, provider_preference) (line 822)
+
+
+[074] server/backend/pattern_analyzer.py
+Category: Backend service or research engine
+Lines: 1171
+Role: Contributes configuration, implementation, or documentation to the Oryntra system.
+
+Imports: .patterns, .v8_engine, copy, numpy, pandas, typing
+
+Public code inventory:
+  - function normalize_pattern_engine_mode(mode) (line 12)
+  - function _legacy_advanced_patterns(hist, ind) (line 37)
+  - function _experimental_advanced_patterns(hist, ind) (line 87)
+  - function _risky_advanced_patterns(hist, ind) (line 184)
+  - function _selective_advanced_patterns(hist, ind) (line 317)
+  - function _balanced_advanced_patterns(hist, ind, base) (line 493)
+  - function _official_v7_advanced_patterns(hist, ind, base) (line 626)
+  - function _v8_advanced_patterns(hist, ind, base) (line 776)
+  - function _vai_1_0_advanced_patterns(hist, ind) (line 848)
+  - function _vai_2_0_advanced_patterns(hist, ind) (line 869)
+  - function _compose_pattern_report(hist, ind, advanced, common) (line 890)
+  - function analyze_patterns_multi(hist, ind, modes) (line 930)
+  - function analyze_patterns(hist, ind, mode) (line 980)
+  - function _detect_rsi_divergence(close, hist) (line 985)
+  - function _detect_macd_divergence(ind) (line 1025)
+  - function _detect_volume_divergence(close, volume) (line 1037)
+  - function _analyze_sr_strength(high, low, close) (line 1051)
+  - function _analyze_volatility_regime(close, ind) (line 1066)
+  - function _identify_candle_patterns(hist) (line 1078)
+  - function _confirm_momentum(ind) (line 1111)
+
+
+[075] server/backend/pattern_lab.py
+Category: Backend service or research engine
+Lines: 1099
+Role: Contributes configuration, implementation, or documentation to the Oryntra system.
+
+Imports: .database, .indicators, .market_repository, .pattern_analyzer, .research_experiments, .research_universe, .setup_detector, __future__, asyncio, collections, datetime, hashlib, math, numpy, os, pandas, random, typing
+
+Public code inventory:
+  - function _get(request, name, default) (line 40)
+  - function _finite(value, default) (line 46)
+  - function _bool(value) (line 54)
+  - function _date_text(value) (line 60)
+  - function cached_tickers() (line 64)
+  - function resolve_tickers(request) (line 68)
+  - function _clean_modes(values) (line 127)
+  - async function _load_history(ticker, period, data_source) (line 142)
+  - function _candidate_indexes(history, ticker, min_history, horizon_days, horizon, step, max_tests, sampling_mode, seed, random_window_bars, start_date, end_date) (line 155)
+  - function _regime(indicators) (line 221)
+  - function _top_pattern(setup) (line 243)
+  - function _simulate_target_stop(direction, entry_price, future, target_pct, stop_pct, ambiguity_policy) (line 254)
+  - function _base_observation(ticker, history, index, horizon_days, source, window, lookback_bars) (line 317)
+  - function _evaluate_engine(mode, observation, indicators, signal_history, future, cost_pct, minimum_confidence, target_pct, stop_pct, ambiguity_policy, patterns_override) (line 367)
+  - function _summary(rows) (line 472)
+  - function _baseline_row(observation, direction, cost_pct) (line 496)
+  - function _confidence_buckets(mode_rows) (line 516)
+  - function _threshold_report(mode_rows) (line 527)
+  - function _bias_audit(mode_rows) (line 544)
+  - function _apply_confidence_threshold(rows, threshold) (line 578)
+  - function _cluster_bootstrap_ci(rows, samples, seed) (line 588)
+  - function _walk_forward_report(rows, folds, purge_days) (line 615)
+  - function _year_report(mode_rows) (line 671)
+  - async function run_pattern_lab(request, job, stop_event, checkpoint_callback, resume_state) (line 684)
+
+
+[076] server/backend/pattern_lab_jobs.py
+Category: Backend service or research engine
+Lines: 312
+Role: Contributes configuration, implementation, or documentation to the Oryntra system.
+
+Imports: __future__, datetime, json, math, os, pathlib, pickle, signal, subprocess, sys, tempfile, threading, time, typing
+
+Public code inventory:
+  - function _path(job_id, suffix) (line 24)
+  - function status_path(job_id) (line 31)
+  - function request_path(job_id) (line 35)
+  - function result_path(job_id) (line 39)
+  - function checkpoint_path(job_id) (line 43)
+  - function log_path(job_id) (line 47)
+  - function _atomic_bytes(path, data) (line 51)
+  - function _json_safe(value) (line 68)
+  - function write_json(path, payload) (line 78)
+  - function read_json(path, default) (line 83)
+  - function write_status(job_id, status) (line 91)
+  - function read_status(job_id) (line 95)
+  - function write_request(job_id, request) (line 100)
+  - function read_request(job_id) (line 104)
+  - function write_result(job_id, result) (line 109)
+  - function read_result(job_id) (line 113)
+  - function write_checkpoint(job_id, checkpoint) (line 118)
+  - function read_checkpoint(job_id) (line 122)
+  - function summarize_checkpoint(checkpoint) (line 131)
+  - function pid_is_alive(pid) (line 150)
+  - function request_stop(job_id) (line 160)
+  - function _iso_now() (line 175)
+  - function launch_worker(job_id) (line 179)
+  - function terminate_worker(job_id, force) (line 206)
+  - function status_with_result(job_id) (line 218)
+  - function list_jobs(limit) (line 256)
+  - class PersistentJob (line 267)
+  - function PersistentJob.__init__(self, job_id, initial, flush_interval) (line 268)
+  - function PersistentJob.__setitem__(self, key, value) (line 275)
+  - function PersistentJob.update(self, *args, **kwargs) (line 280)
+  - function PersistentJob.flush(self, force) (line 286)
+  - class FileStopEvent (line 297)
+  - function FileStopEvent.__init__(self, job_id, interval) (line 298)
+  - function FileStopEvent.is_set(self) (line 304)
+
+
+[077] server/backend/pattern_lab_worker.py
+Category: Backend service or research engine
+Lines: 150
+Role: Contributes configuration, implementation, or documentation to the Oryntra system.
+
+Imports: .database, .pattern_lab, .pattern_lab_jobs, __future__, argparse, asyncio, datetime, math, os, pathlib, signal, sys, traceback, typing
+
+Public code inventory:
+  - function _now() (line 15)
+  - function _configure_resources() (line 19)
+  - async function _run(job_id) (line 48)
+  - function _run.checkpoint_callback(state) (line 88)
+  - function main() (line 120)
+
+
+[078] server/backend/patterns/__init__.py
+Category: Deterministic pattern analysis
+Lines: 5
+Role: Implements a deterministic component of the pattern-detection layer.
+
+Imports: .pattern_engine
+
+No classes or functions were found at module scope. The file is likely declarative configuration, package initialization, or command glue.
+
+
+[079] server/backend/patterns/candle_patterns.py
+Category: Deterministic pattern analysis
+Lines: 347
+Role: Implements a deterministic component of the pattern-detection layer.
+
+Imports: .utils, __future__, pandas, typing
+
+Public code inventory:
+  - function detect_candle_patterns(hist, indicators) (line 23)
+  - function _ctx(hist, i, extra) (line 47)
+  - function _gap_up(a, b) (line 58)
+  - function _gap_down(a, b) (line 62)
+  - function _body_inside(inner, outer) (line 66)
+  - function _body_engulfs(engulfer, engulfed) (line 70)
+  - function _small(c, max_body) (line 74)
+  - function _long(c, min_body) (line 78)
+  - function _upper_tail_dominant(c) (line 82)
+  - function _lower_tail_dominant(c) (line 86)
+  - function _single_candle(hist, i) (line 90)
+  - function _two_candle(hist, i) (line 157)
+  - function _three_candle(hist, i) (line 220)
+  - function _four_candle(hist, i) (line 315)
+  - function _five_candle(hist, i) (line 325)
+
+
+[080] server/backend/patterns/chart_patterns.py
+Category: Deterministic pattern analysis
+Lines: 249
+Role: Implements a deterministic component of the pattern-detection layer.
+
+Imports: .utils, __future__, numpy, pandas, typing
+
+Public code inventory:
+  - function detect_chart_patterns(hist, indicators) (line 11)
+  - function _swings(hist, lr) (line 27)
+  - function _double_triple(hist, highs, lows) (line 39)
+  - function _channels_and_wedges(hist) (line 58)
+  - function _triangles(hist, highs, lows) (line 90)
+  - function _head_shoulders(hist, highs, lows) (line 116)
+  - function _flags(hist) (line 131)
+  - function _cup_and_rounding(hist) (line 152)
+  - function _breakout_retest_patterns(hist, highs, lows) (line 203)
+  - function _broadening_patterns(hist, highs, lows) (line 232)
+
+
+[081] server/backend/patterns/fair_value_gaps.py
+Category: Deterministic pattern analysis
+Lines: 147
+Role: Implements a deterministic component of the pattern-detection layer.
+
+Imports: .utils, __future__, pandas, typing
+
+Public code inventory:
+  - function detect_fair_value_gaps(hist, indicators) (line 10)
+  - function _valid_gap(gap_size, atr, middle, vr) (line 66)
+  - function _gap_confidence(gap_size, atr, middle, vr, fill_status) (line 76)
+  - function _fvg_fill_status(hist, i, low_zone, high_zone, direction) (line 94)
+  - function _detect_recent_fvg_interactions(hist, fvg_events) (line 113)
+  - function _atr_proxy(hist, period) (line 137)
+
+
+[082] server/backend/patterns/outcome_tracker.py
+Category: Deterministic pattern analysis
+Lines: 58
+Role: Implements a deterministic component of the pattern-detection layer.
+
+Imports: ..database, __future__, pandas, typing
+
+Public code inventory:
+  - function persist_pattern_scan(ticker, timeframe, hist, pattern_report) (line 10)
+  - function _select_persisted_patterns(pattern_report, max_items) (line 25)
+  - function _select_persisted_patterns.add(p) (line 35)
+
+
+[083] server/backend/patterns/pattern_engine.py
+Category: Deterministic pattern analysis
+Lines: 348
+Role: Implements a deterministic component of the pattern-detection layer.
+
+Imports: .candle_patterns, .chart_patterns, .fair_value_gaps, .structure_patterns, __future__, collections, pandas, typing
+
+Public code inventory:
+  - function detect_all_patterns(hist, indicators, ticker, timeframe, max_events) (line 14)
+  - function _select_display_patterns(patterns, candle_count) (line 79)
+  - function _parse_pattern_timestamp(pattern) (line 154)
+  - function _is_in_window(ts, idx, cutoff, fallback_index) (line 169)
+  - function _is_important_display_pattern(pattern) (line 175)
+  - function _compact_display_duplicates(patterns, max_items) (line 231)
+  - function summarize_patterns(patterns) (line 265)
+  - function _clean_pattern(p) (line 283)
+  - function _clean_pattern._float_or_none(value) (line 287)
+  - function _clean_pattern._int_or_zero(value) (line 295)
+  - function _clean_pattern._confidence(value) (line 301)
+  - function _choose_top_pattern(patterns) (line 329)
+  - function _dedupe_patterns(patterns) (line 335)
+
+
+[084] server/backend/patterns/structure_patterns.py
+Category: Deterministic pattern analysis
+Lines: 128
+Role: Implements a deterministic component of the pattern-detection layer.
+
+Imports: .utils, __future__, pandas, typing
+
+Public code inventory:
+  - function detect_structure_patterns(hist, indicators) (line 10)
+  - function _swings(hist, left_right) (line 24)
+  - function _equal_high_low(hist, swing_highs, swing_lows) (line 36)
+  - function _liquidity_sweeps(hist, swing_highs, swing_lows) (line 48)
+  - function _bos_choch(hist, swing_highs, swing_lows) (line 65)
+  - function _order_blocks(hist) (line 85)
+  - function _displacement(hist, indicators) (line 104)
+  - function _trend(hist, lookback) (line 117)
+
+
+[085] server/backend/patterns/utils.py
+Category: Deterministic pattern analysis
+Lines: 128
+Role: Implements a deterministic component of the pattern-detection layer.
+
+Imports: __future__, pandas, typing
+
+Public code inventory:
+  - function num(value, default) (line 8)
+  - function candle(hist, i) (line 17)
+  - function ts(hist, i) (line 47)
+  - function pattern(hist, i, name, family, direction, confidence, trigger_price, zone_low, zone_high, context) (line 54)
+  - function is_doji(c, threshold) (line 81)
+  - function is_long_body(c, threshold) (line 85)
+  - function body_high(c) (line 89)
+  - function body_low(c) (line 93)
+  - function near(a, b, tolerance_pct) (line 97)
+  - function trend_context(hist, i, lookback) (line 103)
+  - function volume_ratio(hist, i, window) (line 118)
+
+
+[086] server/backend/polygon_client.py
+Category: Backend service or research engine
+Lines: 185
+Role: Contributes configuration, implementation, or documentation to the Oryntra system.
+
+Imports: __future__, dotenv, fcntl, json, os, pathlib, requests, threading, time, typing
+
+Public code inventory:
+  - class PolygonAPIError (line 43)
+  - function PolygonAPIError.__init__(self, message, status_code) (line 44)
+  - function _redact_secret(value) (line 49)
+  - function _read_rate_state() (line 57)
+  - function _write_rate_state(payload) (line 65)
+  - function reserve_polygon_slot() (line 72)
+  - function _api_key() (line 94)
+  - function _safe_message(response) (line 101)
+  - function polygon_get(path_or_url, params, timeout, max_retries, session) (line 111)
+  - function rate_limit_info() (line 177)
+
+
+[087] server/backend/public_payload.py
+Category: Backend service or research engine
+Lines: 119
+Role: Contributes configuration, implementation, or documentation to the Oryntra system.
+
+Imports: __future__, copy, typing
+
+Public code inventory:
+  - function _clean(value) (line 16)
+  - function public_analysis_payload(raw, quota, policy) (line 32)
+  - function assert_no_raw_market_data(payload) (line 106)
+  - function assert_no_raw_market_data.walk(value, path) (line 107)
+
+
+[088] server/backend/quant_research.py
+Category: Backend service or research engine
+Lines: 234
+Role: Defines transparent strategy sleeves, portfolio controls, simulations, validation, and visual diagnostics for Quant Lab.
+
+Imports: __future__, dataclasses, numpy, pandas, typing
+
+Public code inventory:
+  - class QuantConfig (line 27)
+  - function QuantConfig.strategy_allocations_pct(self) (line 43)
+  - function QuantConfig.as_dict(self) (line 53)
+  - function _normalise_gross(signal) (line 57)
+  - function _trend(prices, config) (line 61)
+  - function _momentum(prices, config) (line 66)
+  - function _reversion(prices, config) (line 74)
+  - function _low_volatility(prices, config) (line 81)
+  - function _controls(target, returns, config) (line 89)
+  - function _summary(net, turnover, weights) (line 107)
+  - function _simulate(target, returns, config) (line 121)
+  - function _regime_breakdown(net, benchmark) (line 129)
+  - function _validation(net, folds) (line 142)
+  - function _risk_report(held, returns) (line 150)
+  - function _quality(prices) (line 156)
+  - function _correlation_heatmap(returns) (line 160) — Return a bounded, display-ready trailing correlation matrix.
+  - function _monthly_return_heatmap(net) (line 175) — Aggregate net simulated returns by calendar month without changing the model.
+  - function _performance_diagnostics(net) (line 192) — Supply downsampled equity, drawdown, and rolling-risk series for the research UI.
+  - function _performance_diagnostics.points(series) (line 201)
+  - function evaluate_strategies(histories, config) (line 211)
+
+
+[089] server/backend/research_experiments.py
+Category: Backend service or research engine
+Lines: 338
+Role: Contributes configuration, implementation, or documentation to the Oryntra system.
+
+Imports: .database, __future__, collections, datetime, hashlib, json, math, statistics, typing, uuid
+
+Public code inventory:
+  - function utc_now_iso() (line 18)
+  - function stable_json(value) (line 22)
+  - function fingerprint(value) (line 26)
+  - function dataset_key(row) (line 30)
+  - function rows_fingerprint(rows) (line 34)
+  - function engine_input_fingerprint(rows) (line 55)
+  - function compare_engine_inputs(mode_rows) (line 59)
+  - function chronological_split(rows, train_pct, validation_pct, purge_days) (line 97)
+  - function walk_forward_folds(rows, minimum_train_dates, test_dates_per_fold, purge_dates) (line 133)
+  - function _finite(value, default) (line 161)
+  - function return_metrics(rows) (line 169)
+  - function grouped_metrics(mode_rows, field, limit) (line 221)
+  - function ensure_experiment_schema() (line 239)
+  - function record_experiment(experiment_type, status, config, dataset_fingerprint, dataset_start, dataset_end, symbols, sample_count, artifact_path, metrics, notes, experiment_id) (line 272)
+
+
+[090] server/backend/research_training.py
+Category: Backend service or research engine
+Lines: 175
+Role: Contributes configuration, implementation, or documentation to the Oryntra system.
+
+Imports: .research_experiments, .vai2_model, __future__, collections, datetime, math, typing
+
+Public code inventory:
+  - function _finite(value) (line 32)
+  - function audit_training_rows(rows, minimum_rows) (line 39)
+  - function train_vai2_research(rows, horizon_days, min_samples, force_promote, run_label) (line 114)
+
+
+[091] server/backend/research_universe.py
+Category: Backend service or research engine
+Lines: 111
+Role: Contributes configuration, implementation, or documentation to the Oryntra system.
+
+Imports: __future__, random, re, typing
+
+Public code inventory:
+  - function clean_tickers(values, max_count) (line 48)
+  - function select_unseen_tickers(cached_tickers, count, seed, additional_exclusions) (line 66)
+  - function universe_metadata(cached_tickers, count, seed) (line 93)
+
+
+[092] server/backend/routes/__init__.py
+Category: HTTP API route
+Lines: 2
+Role: Defines request validation and API behaviour for the named capability.
+
+No classes or functions were found at module scope. The file is likely declarative configuration, package initialization, or command glue.
+
+
+[093] server/backend/routes/ai_explain.py
+Category: HTTP API route
+Lines: 236
+Role: Defines request validation and API behaviour for the named capability.
+
+Imports: fastapi, httpx, json, os, pydantic, typing
+
+HTTP route decorators:
+  - line 24: router.post('/explain') -> explain_trade
+  - line 48: router.post('/explain-indicator') -> explain_indicator
+
+Public code inventory:
+  - class ExplainRequest (line 17)
+  - async function explain_trade(req) (line 24) [decorators: router.post('/explain')]
+  - async function explain_indicator(payload) (line 48) [decorators: router.post('/explain-indicator')]
+  - function _build_prompt(ticker, analysis, question) (line 72)
+  - async function _call_claude(prompt) (line 108)
+  - async function _call_openai(prompt) (line 127)
+  - function _rule_based_explanation(analysis) (line 154)
+  - function _explain_rsi(val) (line 215)
+  - function _explain_macd(context) (line 223)
+  - function _explain_volume(ratio) (line 230)
+
+
+[094] server/backend/routes/analysis.py
+Category: HTTP API route
+Lines: 403
+Role: Defines request validation and API behaviour for the named capability.
+
+Imports: ..database, ..fetcher, ..indicators, ..lab_grading, ..pattern_analyzer, ..patterns.outcome_tracker, ..setup_detector, ..trade_scorer, asyncio, copy, datetime, fastapi, json, os, pydantic, time, traceback, weakref
+
+HTTP route decorators:
+  - line 103: router.post('/scan') -> scan_ticker
+  - line 221: router.post('/scan-multiple') -> scan_multiple
+  - line 230: router.post('/screener') -> screener
+  - line 254: router.post('/compare') -> compare_tickers
+  - line 270: router.get('/stats') -> get_analysis_stats
+  - line 302: router.get('/history/{ticker}') -> get_analysis_history
+
+Public code inventory:
+  - function _start_analysis_task(coro) (line 34)
+  - function _cache_key(req) (line 41)
+  - function _cached_result(key) (line 45)
+  - class ScanRequest (line 60)
+  - function ScanRequest.clean_ticker(cls, v) (line 67) [decorators: field_validator('ticker'), classmethod]
+  - function ScanRequest.valid_period(cls, v) (line 72) [decorators: field_validator('period'), classmethod]
+  - function ScanRequest.valid_pattern_mode(cls, v) (line 80) [decorators: field_validator('pattern_mode'), classmethod]
+  - class WatchlistScanRequest (line 84)
+  - class ScreenerRequest (line 89)
+  - class CompareRequest (line 97)
+  - async function scan_ticker(req) (line 103) [decorators: router.post('/scan')]
+  - function _compute_scan_artifacts(hist, ticker, pattern_mode) (line 107)
+  - async function _persist_scan_side_effects(key, ticker, timeframe, hist, provider, pattern_report, result, should_store_bars) (line 118)
+  - async function _attach_counter(result) (line 138)
+  - async function _run_scan_pipeline(req) (line 147)
+  - async function _scan_many(tickers, period, pattern_mode) (line 207)
+  - async function _scan_many.one(ticker) (line 210)
+  - async function scan_multiple(req) (line 221) [decorators: router.post('/scan-multiple')]
+  - async function screener(req) (line 230) [decorators: router.post('/screener')]
+  - async function compare_tickers(req) (line 254) [decorators: router.post('/compare')]
+  - async function get_analysis_stats() (line 270) [decorators: router.get('/stats')]
+  - async function get_analysis_history(ticker, limit) (line 302) [decorators: router.get('/history/{ticker}')]
+  - function _price_history(hist, max_points) (line 314)
+  - function _build_result(ticker, info, provider, timeframe, ind, setup, plan, pattern_report, persistence, hist) (line 345)
+  - function _period_to_timeframe(period) (line 386)
+  - function _cache_result(ticker, result) (line 390)
+
+
+[095] server/backend/routes/auth.py
+Category: HTTP API route
+Lines: 337
+Role: Defines request validation and API behaviour for the named capability.
+
+Imports: ..database, __future__, datetime, fastapi, hashlib, hmac, os, pydantic, secrets, typing
+
+HTTP route decorators:
+  - line 183: router.post('/signup') -> signup
+  - line 223: router.post('/login') -> login
+  - line 247: router.post('/logout') -> logout
+  - line 261: router.get('/me') -> me
+  - line 276: router.delete('/account') -> delete_account
+  - line 297: router.post('/subscribe') -> subscribe
+
+Public code inventory:
+  - class SignupRequest (line 22)
+  - function SignupRequest.valid_email(cls, v) (line 30) [decorators: field_validator('email'), classmethod]
+  - function SignupRequest.strong_enough(cls, v) (line 38) [decorators: field_validator('password'), classmethod]
+  - class LoginRequest (line 44)
+  - function LoginRequest.valid_email(cls, v) (line 50) [decorators: field_validator('email'), classmethod]
+  - class SubscribeRequest (line 57)
+  - class DeleteAccountRequest (line 61)
+  - function _utc_now() (line 65)
+  - function _expires_at() (line 69)
+  - function _cookie_is_secure(request) (line 72)
+  - function _set_session_cookies(response, request, token) (line 77)
+  - function _clear_session_cookies(response, request) (line 99)
+  - function _hash_password(password, salt_hex) (line 105)
+  - function _verify_password(password, salt_hex, password_hash) (line 111)
+  - function _public_user(row) (line 116)
+  - function _active_subscription_for(conn, user_id) (line 125)
+  - function get_auth_token(request) (line 137)
+  - function get_current_user_optional(request) (line 144)
+  - function require_current_user(request) (line 168)
+  - function require_active_subscription(request) (line 175)
+  - async function signup(req, request, response) (line 183) [decorators: router.post('/signup')]
+  - async function login(req, request, response) (line 223) [decorators: router.post('/login')]
+  - async function logout(request, response) (line 247) [decorators: router.post('/logout')]
+  - async function me(request, response) (line 261) [decorators: router.get('/me')]
+  - async function delete_account(req, request, response) (line 276) [decorators: router.delete('/account')]
+  - async function subscribe(request, req) (line 297) [decorators: router.post('/subscribe')]
+
+
+[096] server/backend/routes/backtest.py
+Category: HTTP API route
+Lines: 25
+Role: Defines request validation and API behaviour for the named capability.
+
+Imports: ..backtest, fastapi
+
+HTTP route decorators:
+  - line 8: router.post('/run') -> backtest_endpoint
+  - line 18: router.get('/quick/{ticker}') -> quick_backtest
+
+Public code inventory:
+  - async function backtest_endpoint(req) (line 8) [decorators: router.post('/run')]
+  - async function quick_backtest(ticker, period, min_score) (line 18) [decorators: router.get('/quick/{ticker}')]
+
+
+[097] server/backend/routes/dev_tools.py
+Category: HTTP API route
+Lines: 420
+Role: Defines request validation and API behaviour for the named capability.
+
+Imports: ..database, ..documented_beta_counts, ..fetcher, ..pattern_lab, ..pattern_lab_jobs, ..research_training, ..research_universe, ..vai2_model, ..vai_model, __future__, asyncio, datetime, fastapi, json, pydantic, typing, uuid
+
+HTTP route decorators:
+  - line 141: router.get('/pattern-modes') -> pattern_modes
+  - line 155: router.get('/pattern-lab/universe') -> pattern_lab_universe
+  - line 160: router.post('/counters/sync-beta-counts') -> sync_beta_counts
+  - line 165: router.get('/cache/status') -> cache_status
+  - line 181: router.post('/cache/warm-start') -> cache_warm_start
+  - line 197: router.get('/cache/warm-status/{job_id}') -> cache_warm_status
+  - line 247: router.get('/vai/model/status') -> vai_model_status
+  - line 254: router.get('/vai2/model/status') -> vai2_model_status
+  - line 259: router.post('/vai/train/start') -> vai_train_start
+  - line 274: router.get('/vai/train/status/{job_id}') -> vai_train_status
+  - line 344: router.post('/pattern-lab/run') -> run_pattern_lab_route
+  - line 355: router.post('/pattern-lab/start') -> pattern_lab_start
+  - line 397: router.get('/pattern-lab/jobs') -> pattern_lab_jobs
+  - line 402: router.get('/pattern-lab/status/{job_id}') -> pattern_lab_status
+  - line 407: router.post('/pattern-lab/stop/{job_id}') -> pattern_lab_stop
+  - line 412: router.post('/pattern-lab/resume/{job_id}') -> pattern_lab_resume
+
+Public code inventory:
+  - function _start_background_task(coroutine) (line 52)
+  - class PatternLabRequest (line 59)
+  - class VAITrainRequest (line 91)
+  - class CacheWarmStartRequest (line 104)
+  - function _clean_tickers(tickers, max_count) (line 112)
+  - function _clean_period(period) (line 125)
+  - function _clean_engine_modes(values) (line 130)
+  - async function pattern_modes() (line 141) [decorators: router.get('/pattern-modes')]
+  - async function pattern_lab_universe(count, seed) (line 155) [decorators: router.get('/pattern-lab/universe')]
+  - async function sync_beta_counts() (line 160) [decorators: router.post('/counters/sync-beta-counts')]
+  - async function cache_status(tickers) (line 165) [decorators: router.get('/cache/status')]
+  - async function cache_warm_start(req) (line 181) [decorators: router.post('/cache/warm-start')]
+  - async function cache_warm_status(job_id) (line 197) [decorators: router.get('/cache/warm-status/{job_id}')]
+  - async function _run_cache_warm_job(job, stop_on_rate_limit) (line 201)
+  - async function vai_model_status() (line 247) [decorators: router.get('/vai/model/status')]
+  - async function vai2_model_status() (line 254) [decorators: router.get('/vai2/model/status')]
+  - async function vai_train_start(req) (line 259) [decorators: router.post('/vai/train/start')]
+  - async function vai_train_status(job_id) (line 274) [decorators: router.get('/vai/train/status/{job_id}')]
+  - async function _run_vai_training_job(job_id, req) (line 278)
+  - async function run_pattern_lab_route(req) (line 344) [decorators: router.post('/pattern-lab/run')]
+  - async function pattern_lab_start(req) (line 355) [decorators: router.post('/pattern-lab/start')]
+  - async function pattern_lab_jobs(limit) (line 397) [decorators: router.get('/pattern-lab/jobs')]
+  - async function pattern_lab_status(job_id) (line 402) [decorators: router.get('/pattern-lab/status/{job_id}')]
+  - async function pattern_lab_stop(job_id) (line 407) [decorators: router.post('/pattern-lab/stop/{job_id}')]
+  - async function pattern_lab_resume(job_id) (line 412) [decorators: router.post('/pattern-lab/resume/{job_id}')]
+
+
+[098] server/backend/routes/intelligence.py
+Category: HTTP API route
+Lines: 145
+Role: Defines request validation and API behaviour for the named capability.
+
+Imports: ..analysis_access, ..public_payload, .analysis, __future__, asyncio, datetime, fastapi, pydantic
+
+HTTP route decorators:
+  - line 74: router.get('/status') -> intelligence_status
+  - line 86: router.get('/quota') -> quota_status
+  - line 92: router.post('/scan') -> scan
+  - line 107: router.post('/scan-multiple') -> scan_multiple
+
+Public code inventory:
+  - class IntelligenceScanRequest (line 22)
+  - function IntelligenceScanRequest.clean_ticker(cls, value) (line 28) [decorators: field_validator('ticker'), classmethod]
+  - function IntelligenceScanRequest.valid_period(cls, value) (line 38) [decorators: field_validator('period'), classmethod]
+  - class IntelligenceMultiScanRequest (line 44)
+  - function IntelligenceMultiScanRequest.clean_tickers(cls, values) (line 50) [decorators: field_validator('tickers'), classmethod]
+  - function IntelligenceMultiScanRequest.valid_period(cls, value) (line 62) [decorators: field_validator('period'), classmethod]
+  - async function _one_scan(ticker, period, quota, policy) (line 66)
+  - async function intelligence_status(request) (line 74) [decorators: router.get('/status')]
+  - async function quota_status(request) (line 86) [decorators: router.get('/quota')]
+  - async function scan(req, request) (line 92) [decorators: router.post('/scan')]
+  - async function scan_multiple(req, request) (line 107) [decorators: router.post('/scan-multiple')]
+  - async function scan_multiple.run_one(ticker) (line 114)
+
+
+[099] server/backend/routes/paper_trading.py
+Category: HTTP API route
+Lines: 188
+Role: Defines request validation and API behaviour for the named capability.
+
+Imports: ..database, .auth, __future__, fastapi, pydantic, typing
+
+HTTP route decorators:
+  - line 54: router.get('/trades') -> get_open_trades
+  - line 68: router.get('/trades/all') -> get_all_trades
+  - line 82: router.post('/open') -> open_trade
+  - line 112: router.post('/close') -> close_trade
+  - line 154: router.get('/stats') -> get_paper_stats
+
+Public code inventory:
+  - class OpenTradeRequest (line 14)
+  - class CloseTradeRequest (line 26)
+  - async function _augment_trade_rows(rows) (line 32)
+  - async function get_open_trades(request) (line 54) [decorators: router.get('/trades')]
+  - async function get_all_trades(request) (line 68) [decorators: router.get('/trades/all')]
+  - async function open_trade(req, request) (line 82) [decorators: router.post('/open')]
+  - async function close_trade(req, request) (line 112) [decorators: router.post('/close')]
+  - async function get_paper_stats(request) (line 154) [decorators: router.get('/stats')]
+
+
+[100] server/backend/routes/patterns.py
+Category: HTTP API route
+Lines: 31
+Role: Defines request validation and API behaviour for the named capability.
+
+Imports: ..database, __future__, fastapi
+
+HTTP route decorators:
+  - line 11: router.get('/events') -> pattern_events
+  - line 19: router.get('/stats') -> pattern_stats
+
+Public code inventory:
+  - async function pattern_events(ticker, limit) (line 11) [decorators: router.get('/events')]
+  - async function pattern_stats(pattern_name, ticker, timeframe, limit) (line 19) [decorators: router.get('/stats')]
+
+
+[101] server/backend/routes/pro.py
+Category: HTTP API route
+Lines: 1145
+Role: Defines request validation and API behaviour for the named capability.
+
+Imports: ..database, .analysis, .auth, .pro_live, __future__, asyncio, datetime, fastapi, json, math, operator, os, pydantic, threading, time, typing
+
+HTTP route decorators:
+  - line 742: router.get('/snapshot/{ticker}') -> pro_snapshot
+  - line 760: router.get('/live/{ticker}') -> pro_live
+  - line 772: router.get('/chart/{ticker}') -> pro_chart
+  - line 778: router.get('/cache/{ticker}') -> pro_cache
+  - line 806: router.get('/alerts') -> list_alerts
+  - line 820: router.post('/alerts') -> create_alert
+  - line 838: router.patch('/alerts/{alert_id}') -> update_alert
+  - line 862: router.delete('/alerts/{alert_id}') -> delete_alert
+  - line 874: router.get('/alert-events') -> alert_events
+  - line 933: router.post('/alerts/evaluate/{ticker}') -> evaluate_alerts
+  - line 968: router.get('/paper/trades') -> pro_paper_trades
+  - line 988: router.post('/paper/open') -> pro_paper_open
+  - line 1017: router.post('/paper/{trade_id}/close') -> pro_paper_close
+  - line 1041: router.get('/paper/stats') -> pro_paper_stats
+  - line 1068: router.post('/alerts/evaluate-all') -> evaluate_all_alerts
+
+Public code inventory:
+  - function _utc_now() (line 21)
+  - function _scope(request) (line 25)
+  - function _safe_float(value, default) (line 30)
+  - function _json(value) (line 38)
+  - function ensure_pro_tables() (line 42)
+  - function _cache_summary(ticker) (line 123)
+  - function _chart_bars(ticker, period) (line 158)
+  - function _mean(values) (line 179)
+  - function _pct_change(current, reference) (line 184)
+  - function _bar_statistics(bars) (line 190)
+  - function _bar_statistics.sma(window) (line 216)
+  - function _bar_statistics.avg_volume(window) (line 220)
+  - function _candle_pattern_items(bars) (line 286)
+  - function _candle_pattern_items.add(index, name, direction, confidence, description, family) (line 292)
+  - function _pattern_items(scan, bars) (line 372)
+  - function _ai_view(scan, patterns, stats) (line 431)
+  - function _metric(label, value, key, suffix, description, favorable) (line 520)
+  - function _metrics(scan, stats, live) (line 537)
+  - function _metric_map(snapshot) (line 666)
+  - function _snapshot_from_scan(scan, period, live) (line 694)
+  - async function pro_snapshot(ticker, period, pattern_mode) (line 742) [decorators: router.get('/snapshot/{ticker}')]
+  - async function pro_live(ticker, timeframe, limit) (line 760) [decorators: router.get('/live/{ticker}')]
+  - async function pro_chart(ticker, period) (line 772) [decorators: router.get('/chart/{ticker}')]
+  - async function pro_cache(ticker) (line 778) [decorators: router.get('/cache/{ticker}')]
+  - class AlertCreate (line 782)
+  - function AlertCreate.clean_ticker(cls, value) (line 793) [decorators: field_validator('ticker'), classmethod]
+  - class AlertUpdate (line 797)
+  - async function list_alerts(request, ticker) (line 806) [decorators: router.get('/alerts')]
+  - async function create_alert(req, request) (line 820) [decorators: router.post('/alerts')]
+  - async function update_alert(alert_id, req, request) (line 838) [decorators: router.patch('/alerts/{alert_id}')]
+  - async function delete_alert(alert_id, request) (line 862) [decorators: router.delete('/alerts/{alert_id}')]
+  - async function alert_events(request, limit) (line 874) [decorators: router.get('/alert-events')]
+  - function _evaluate_alerts_for_snapshot(snapshot, user_id) (line 887)
+  - async function evaluate_alerts(ticker, request, period) (line 933) [decorators: router.post('/alerts/evaluate/{ticker}')]
+  - class PaperTradeOpen (line 940)
+  - function PaperTradeOpen.clean_ticker(cls, value) (line 957) [decorators: field_validator('ticker'), classmethod]
+  - class PaperTradeClose (line 961)
+  - async function pro_paper_trades(request, status) (line 968) [decorators: router.get('/paper/trades')]
+  - async function pro_paper_open(req, request) (line 988) [decorators: router.post('/paper/open')]
+  - async function pro_paper_close(trade_id, req, request) (line 1017) [decorators: router.post('/paper/{trade_id}/close')]
+  - async function pro_paper_stats(request) (line 1041) [decorators: router.get('/paper/stats')]
+  - async function evaluate_all_alerts(request, period) (line 1068) [decorators: router.post('/alerts/evaluate-all')]
+  - async function evaluate_all_alerts.evaluate_one(ticker) (line 1082)
+  - function _env_bool(name, default) (line 1098)
+  - function _server_alert_worker() (line 1106)
+  - function _server_alert_worker.loop() (line 1116)
+
+
+[102] server/backend/routes/pro_live.py
+Category: HTTP API route
+Lines: 471
+Role: Defines request validation and API behaviour for the named capability.
+
+Imports: __future__, asyncio, datetime, json, math, os, threading, typing, urllib.error, urllib.parse, urllib.request, zoneinfo
+
+Public code inventory:
+  - class LiveDataError (line 25)
+  - function _safe_float(value, default) (line 29)
+  - function _api_key() (line 37)
+  - function configuration() (line 46)
+  - function _request_json(path, params) (line 61)
+  - function _parse_exchange_time(value) (line 97)
+  - function _normalized_bar(raw) (line 110)
+  - function _market_state(now_et, is_market_open) (line 124)
+  - function _session_progress(now_et) (line 139)
+  - function _pct_change(current, reference) (line 152)
+  - function _momentum_minutes(bars, minutes) (line 158)
+  - function _rolling_vwap(bars, count) (line 175)
+  - function _apply_cumulative_vwap(bars) (line 191)
+  - function _opening_range(session_bars) (line 235)
+  - function _vwap_state(price, vwap, upper, lower, bars) (line 253)
+  - function _cached_quote(ticker, now_utc) (line 271)
+  - function _fetch_live_sync(ticker, timeframe, limit) (line 282)
+  - function _locked_fetch(ticker, timeframe, limit) (line 453)
+  - async function fetch_live(ticker, timeframe, limit) (line 458)
+
+
+[103] server/backend/routes/quant.py
+Category: HTTP API route
+Lines: 114
+Role: Defines request validation and API behaviour for the named capability.
+
+Imports: ..market_repository, ..quant_research, __future__, asyncio, datetime, fastapi, pydantic
+
+HTTP route decorators:
+  - line 77: router.get('/catalog') -> catalog
+  - line 82: router.post('/run') -> run_research
+
+Public code inventory:
+  - class QuantResearchRequest (line 15)
+  - function QuantResearchRequest.validate_period(cls, value) (line 37) [decorators: field_validator('period'), classmethod]
+  - function QuantResearchRequest.validate_provider(cls, value) (line 44) [decorators: field_validator('data_provider'), classmethod]
+  - function QuantResearchRequest.validate_model(cls, value) (line 51) [decorators: field_validator('model'), classmethod]
+  - function QuantResearchRequest.validate_rebalance(cls, value) (line 58) [decorators: field_validator('rebalance_frequency'), classmethod]
+  - function QuantResearchRequest.validate_weights(cls, value) (line 65) [decorators: field_validator('strategy_weights'), classmethod]
+  - async function catalog() (line 77) [decorators: router.get('/catalog')]
+  - async function run_research(request) (line 82) [decorators: router.post('/run')]
+
+
+[104] server/backend/routes/watchlist.py
+Category: HTTP API route
+Lines: 50
+Role: Defines request validation and API behaviour for the named capability.
+
+Imports: ..database, .auth, fastapi, pydantic
+
+HTTP route decorators:
+  - line 13: router.get('/') -> get_watchlist
+  - line 24: router.post('/add') -> add_to_watchlist
+  - line 39: router.delete('/{ticker}') -> remove_from_watchlist
+
+Public code inventory:
+  - class WatchlistItem (line 8)
+  - async function get_watchlist(request) (line 13) [decorators: router.get('/')]
+  - async function add_to_watchlist(item, request) (line 24) [decorators: router.post('/add')]
+  - async function remove_from_watchlist(ticker, request) (line 39) [decorators: router.delete('/{ticker}')]
+
+
+[105] server/backend/setup_detector.py
+Category: Backend service or research engine
+Lines: 1313
+Role: Contributes configuration, implementation, or documentation to the Oryntra system.
+
+Imports: .pattern_analyzer, .v8_engine, .vai2_model, .vai_model, pandas, typing
+
+Public code inventory:
+  - function detect_setup(ind, hist, pattern_mode, patterns_override) (line 16)
+  - function _score_breakout(ind, patterns) (line 97)
+  - function _score_pullback(ind, patterns) (line 198)
+  - function _score_trend_continuation(ind, patterns) (line 282)
+  - function _score_reversal(ind, patterns) (line 389)
+  - function _score_overextended(ind, patterns) (line 485)
+  - function _score_no_trade(ind, patterns) (line 541)
+  - function _pattern_direction_bonus(patterns, desired_direction) (line 593)
+  - function _apply_risky_engine_adjustments(results, ind, patterns) (line 626)
+  - function _apply_selective_engine_adjustments(results, ind, patterns) (line 684)
+  - function _apply_balanced_shortfix_engine_adjustments(results, ind, patterns) (line 827)
+  - function _apply_official_v7_engine_adjustments(results, ind, patterns) (line 937)
+  - function _apply_v7_symmetric_candidate_foundation(results, ind, patterns) (line 1046)
+  - function _apply_v8_engine_adjustments(results, ind, patterns) (line 1140)
+  - function _apply_vai_1_0_engine_adjustments(results, ind, patterns) (line 1189)
+  - function _apply_vai_2_0_engine_adjustments(results, ind, patterns) (line 1241)
+
+
+[106] server/backend/trade_scorer.py
+Category: Backend service or research engine
+Lines: 515
+Role: Contributes configuration, implementation, or documentation to the Oryntra system.
+
+Imports: typing
+
+Public code inventory:
+  - function calculate_trade_plan(ind, setup) (line 6)
+  - function _long_plan(ind, setup) (line 30)
+  - function _short_plan(ind, setup) (line 90)
+  - function _no_trade_plan(price, atr, ind, setup) (line 142)
+  - function _calculate_quality_score(ind, setup, plan) (line 160)
+  - function _grade(score) (line 231)
+  - function _conviction_label(score) (line 240)
+  - function _position_size_suggestion(plan, price) (line 248)
+  - function _five_level_signal(ind, setup, plan) (line 269)
+  - function _generate_predictions(ind, setup, plan) (line 307)
+  - function _generate_predictions.pred(mult) (line 343)
+  - function _pattern_projection_modifier(setup, direction) (line 364)
+  - function _safe_float(value, default) (line 459)
+  - function _confidence_strength(confidence) (line 466)
+  - function _pattern_family_weight(family) (line 471)
+  - function _pattern_context_intensity(family, context) (line 476)
+  - function _no_trade_predictions() (line 507)
+
+
+[107] server/backend/twelvedata_client.py
+Category: Backend service or research engine
+Lines: 155
+Role: Provides rate-limited, server-side Twelve Data access when configured.
+
+Module statement: Private Twelve Data client with conservative shared rate limiting.
+
+Imports: __future__, dotenv, fcntl, json, os, pathlib, requests, threading, time, typing
+
+Public code inventory:
+  - class TwelveDataAPIError (line 40)
+  - function TwelveDataAPIError.__init__(self, message, status_code) (line 41)
+  - function _redact_secret(value) (line 46)
+  - function _read_rate_state() (line 52)
+  - function _write_rate_state(payload) (line 60)
+  - function reserve_twelvedata_slot() (line 67)
+  - function _api_key() (line 84)
+  - function twelvedata_available() (line 91)
+  - function _safe_message(response) (line 96)
+  - function twelvedata_get(path_or_url, params, timeout, max_retries, session) (line 106)
+
+
+[108] server/backend/v8_engine.py
+Category: Backend service or research engine
+Lines: 468
+Role: Contributes configuration, implementation, or documentation to the Oryntra system.
+
+Imports: __future__, math, typing
+
+Public code inventory:
+  - function finite(value, default) (line 22)
+  - function clamp(value, low, high) (line 30)
+  - function canonical_direction(value) (line 34)
+  - function _signed(candidate_direction, market_value) (line 43)
+  - function _pct_distance(price, level) (line 48)
+  - function _squash(value, scale) (line 53)
+  - function _factor(name, alignment, confidence, explanation, raw) (line 57)
+  - function _trend_structure(ind, direction) (line 80)
+  - function _trend_strength(ind, direction) (line 132)
+  - function _momentum(ind, direction) (line 156)
+  - function _macd(ind, direction) (line 175)
+  - function _vwap(ind, direction) (line 200)
+  - function _relative_volume(ind, direction) (line 219)
+  - function _stochastic(ind, direction) (line 242)
+  - function _price_levels(ind, direction) (line 265)
+  - function _rsi_context(ind, direction) (line 308)
+  - function _pattern_confirmation(direction, pattern_direction, pattern_confidence) (line 324)
+  - function _atr_penalty(ind, direction) (line 350)
+  - function directional_alignment(indicators, direction, pattern_direction, pattern_confidence) (line 375)
+  - function v8_candidate_score(base_score, indicators, direction, pattern_direction, pattern_confidence) (line 435)
+
+
+[109] server/backend/vai2_model.py
+Category: Backend service or research engine
+Lines: 621
+Role: Contributes configuration, implementation, or documentation to the Oryntra system.
+
+Imports: __future__, datetime, json, math, numpy, pathlib, typing
+
+Public code inventory:
+  - function _f(value, default) (line 26)
+  - function _b(value) (line 40)
+  - function _sigmoid(x) (line 48)
+  - function _safe_upper(value, default) (line 52)
+  - function _regime_from_ind(ind) (line 57)
+  - function _top_pattern(patterns) (line 76)
+  - function _setup_type(setup) (line 85)
+  - function _direction(row_or_setup) (line 89)
+  - function _row_numeric(row) (line 98)
+  - function _current_numeric(ind, setup) (line 146)
+  - function _build_categories(rows, max_per_field) (line 152)
+  - function _feature_names(cats) (line 163)
+  - function _vector_from_numeric_and_categories(vals, row, cats) (line 170)
+  - function _vector(row, cats) (line 179)
+  - function _vector_current(ind, setup, patterns, cats) (line 183)
+  - function _quality_metrics(row) (line 193)
+  - function _fit_logistic(X, y, sample_weight, epochs, lr, l2) (line 218)
+  - function _fit_ridge(X, y, l2) (line 233)
+  - function _summarize_taken(mask, ret, mfe, mae_abs, stop, target) (line 246)
+  - function _promotion_score(summary) (line 268)
+  - function _load_promoted_model() (line 292)
+  - function _promote_if_better(model, run_dir, force_promote) (line 301)
+  - function train_vai2_from_lab_rows(rows, horizon_days, min_samples, force_promote, run_label) (line 325)
+  - function _training_terminal(model, promotion) (line 461)
+  - function load_vai2_model() (line 511)
+  - function get_vai2_model_status() (line 515)
+  - function predict_vai2_setup(ind, setup, patterns) (line 546)
+
+
+[110] server/backend/vai_model.py
+Category: Backend service or research engine
+Lines: 373
+Role: Contributes configuration, implementation, or documentation to the Oryntra system.
+
+Imports: __future__, datetime, json, math, numpy, os, pathlib, typing
+
+Public code inventory:
+  - function _f(value, default) (line 25)
+  - function _sigmoid(x) (line 34)
+  - function _safe_upper(value, default) (line 38)
+  - function _grade(prob, expected_return, stop_risk) (line 43)
+  - function _row_numeric(row) (line 54)
+  - function _current_numeric(ind, setup) (line 77)
+  - function _top_pattern(patterns) (line 83)
+  - function _regime_from_ind(ind) (line 92)
+  - function _setup_type(setup) (line 111)
+  - function _direction(setup) (line 115)
+  - function _build_categories(rows, max_per_field) (line 122)
+  - function _vector(row, cats) (line 133)
+  - function _vector_current(ind, setup, patterns, cats) (line 143)
+  - function _feature_names(cats) (line 158)
+  - function _good_label(row) (line 165)
+  - function train_vai_from_lab_rows(rows, horizon_days, min_samples) (line 179)
+  - function _training_terminal(model) (line 276)
+  - function load_vai_model() (line 311)
+  - function get_vai_model_status() (line 320)
+  - function predict_vai_setup(ind, setup, patterns) (line 339)
+
+
+[111] server/frontend/index.html
+Category: Browser application structure
+Lines: 168
+Role: Defines the browser workspace structure, controls, panels, and accessibility hooks.
+
+HTML identifiers: 115. Forms: 0. Tab hooks: 6.
+
+Representative IDs (first 80):
+  - addToWatchlistBtn
+  - authCancel
+  - authEmail
+  - authError
+  - authModal
+  - authModalTitle
+  - authName
+  - authNameField
+  - authOpenBtn
+  - authPassword
+  - authStateText
+  - authSubmit
+  - btExitReasons
+  - btLoading
+  - btMinScore
+  - btPeriod
+  - btResults
+  - btRunBtn
+  - btSetup
+  - btSetupBreakdown
+  - btStatsGrid
+  - btTicker
+  - btTradeCount
+  - btTradeLog
+  - confluenceDir
+  - convictionLabel
+  - devLabCloseBtn
+  - devLabPanel
+  - errorBanner
+  - errorText
+  - loadingScreen
+  - mainContent
+  - modalCancel
+  - modalConfirm
+  - modalDir
+  - modalEntry
+  - modalNotes
+  - modalSize
+  - modalStop
+  - modalTarget
+  - modalTicker
+  - nav-backtest
+  - nav-paper
+  - nav-quant
+  - nav-scanner
+  - nav-settings
+  - nav-watchlist
+  - pageCrumb
+  - paperModal
+  - paperStats
+  - paperTradeBtn
+  - paperTradesGrid
+  - patternCacheStatus
+  - patternCacheStatusBtn
+  - patternCount
+  - patternEngineSelect
+  - patternLabOutput
+  - patternList
+  - patternSummaryRow
+  - planRR
+  - posSizeRow
+  - quantAllocationStatus
+  - quantBorrow
+  - quantCost
+  - quantLongShort
+  - quantLookback
+  - quantMaxGross
+  - quantMaxName
+  - quantModel
+  - quantPeriod
+  - quantProvider
+  - quantRebalance
+  - quantResults
+  - quantRunBtn
+  - quantStatus
+  - quantTargetVol
+  - quantTickers
+  - quantWalkForward
+  - rDataSource
+  - resultsGrid
+
+Tab identifiers: backtest, paper, quant, scanner, settings, watchlist.
+
+
+[112] server/frontend/legal/contact.html
+Category: Legal and policy surface
+Lines: 11
+Role: Defines a rendered document or browser surface and its semantic structure.
+
+HTML identifiers: 0. Forms: 0. Tab hooks: 0.
+
+
+[113] server/frontend/legal/methodology.html
+Category: Legal and policy surface
+Lines: 16
+Role: Defines a rendered document or browser surface and its semantic structure.
+
+HTML identifiers: 8. Forms: 0. Tab hooks: 0.
+
+Representative IDs (first 80):
+  - boundary
+  - features
+  - limits
+  - patterns
+  - pipeline
+  - plan
+  - scoring
+  - validation
+
+
+[114] server/frontend/legal/privacy.html
+Category: Legal and policy surface
+Lines: 16
+Role: Defines a rendered document or browser surface and its semantic structure.
+
+HTML identifiers: 8. Forms: 0. Tab hooks: 0.
+
+Representative IDs (first 80):
+  - children
+  - choices
+  - collect
+  - market
+  - retention
+  - security
+  - share
+  - use
+
+
+[115] server/frontend/legal/refund.html
+Category: Legal and policy surface
+Lines: 12
+Role: Defines a rendered document or browser surface and its semantic structure.
+
+HTML identifiers: 0. Forms: 0. Tab hooks: 0.
+
+
+[116] server/frontend/legal/risk-disclaimer.html
+Category: Legal and policy surface
+Lines: 15
+Role: Defines a rendered document or browser surface and its semantic structure.
+
+HTML identifiers: 7. Forms: 0. Tab hooks: 0.
+
+Representative IDs (first 80):
+  - advice
+  - data
+  - market
+  - model
+  - responsibility
+  - simulation
+  - technology
+
+
+[117] server/frontend/legal/terms.html
+Category: Legal and policy surface
+Lines: 17
+Role: Defines a rendered document or browser surface and its semantic structure.
+
+HTML identifiers: 9. Forms: 0. Tab hooks: 0.
+
+Representative IDs (first 80):
+  - accounts
+  - analysis
+  - conduct
+  - data
+  - plans
+  - service
+  - termination
+  - thirdparty
+  - warranty
+
+
+[118] server/frontend/static/css/main.css
+Category: Browser presentation or client behaviour
+Lines: 3679
+Role: Defines visual layout, typography, responsive behaviour, and component states.
+
+Approximate stylesheet selector blocks: 803. The first selectors are: :root; html; body; background: var(--bg-void); color: var(--text-primary); font-family: var(--font-mono); min-height: 100vh; overflow-x: hidden; position: relative; } .scanlines; .logo; .logo-accent; .market-status; display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-secondary); letter-spacing: 0.1em; } .status-dot; 0%,100%; 50%; } .header-github-link > img.header-github-avatar, img.header-github-avatar; display: flex; gap: 2px; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 3px; } .tab-btn; .tab-btn.active; background: var(--accent-primary); color: var(--bg-void); font-weight: 600; } .app-main; .tab-panel; .tab-panel.active; .search-bar; display: flex; align-items: center; gap: 10px; margin-bottom: 20px; animation: fade-up 0.4s ease both; } .search-input-wrap; border-color: var(--accent-primary); box-shadow: 0 0 0 2px var(--accent-primary-glow); } .search-label; font-size: 10px; color: var(--text-dim); letter-spacing: 0.15em; white-space: nowrap; } .ticker-input; .search-shortcut; color: var(--text-dim); font-size: 16px; } .scan-btn; .scan-btn:active; .btn-icon; .watchlist-add-btn; .loading-screen; display: flex; align-items: center; justify-content: center; padding: 80px 0; } .loading-inner; display: flex; flex-direction: column; align-items: center; gap: 24px; } .loading-ring; .loading-steps; .l-step; font-size: 12px; color: var(--text-dim); letter-spacing: 0.1em; transition: color 0.3s; } .l-step.active; .l-step.done; .error-banner; .error-close; .results-grid; display: grid; grid-template-columns: 1fr 1fr 1fr; grid-template-rows: auto; gap: 12px; animation: fade-up 0.4s ease both; } @keyframes fade-up; from; to; } .card; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 18px; transition: border-color 0.2s; } .card:hover.
+
+
+[119] server/frontend/static/css/refined.css
+Category: Browser presentation or client behaviour
+Lines: 544
+Role: Provides the current restrained blue research-desk visual system.
+
+Approximate stylesheet selector blocks: 469. The first selectors are: :root; html; body; button, input, select; button; button:focus-visible, input:focus-visible, select:focus-visible; .icon; .brand-line; .brand-logo; .eyebrow; .muted; .page-copy; h1, h2, h3, p; h1, h2, h3; h1; h2; h3; .auth-layout; .auth-story; .auth-story .brand-logo; .story-content; .story-content .eyebrow; .story-content h1; .story-content h1 em; .story-copy; .story-note; .note-dot; .story-footer; .auth-panel; .auth-mascot; .auth-card; .auth-card h2; .auth-card > .muted; .mobile-brand; .form-stack; .form-stack label, .timezone-field; .form-stack input, .form-stack select, .timezone-field select, .mapping-list select; .form-stack input::placeholder; .button; .button:hover:not(:disabled).
+
+
+[120] server/frontend/static/js/app.js
+Category: Browser presentation or client behaviour
+Lines: 3292
+Role: Implements browser interactions, API calls, result rendering, navigation, and private Quant Desk behaviour.
+
+Client function inventory:
+  - apiFetch(url, options = {})
+  - getCookie(name)
+  - setClientCookie(name, value, days = 30)
+  - deleteClientCookie(name)
+  - safeStorageGet(key)
+  - safeStorageSet(key, value)
+  - safeStorageRemove(key)
+  - getThemePreference()
+  - resolveTheme(preference = getThemePreference()
+  - updateThemeControls(preference)
+  - applyTheme(preference, options = {})
+  - initThemeSettings()
+  - applyReleaseClientReset()
+  - authHeaders(json=true)
+  - apiJson(response)
+  - sanitizeTickerSymbol(raw)
+  - clearTickerIfAutofilledEmail()
+  - adSlotAllowed(el)
+  - hideAdSlot(el)
+  - showAdPreview(el)
+  - renderAdsenseSlot(el, config)
+  - initAdSlots()
+  - visibleDialog()
+  - openAccessibleDialog(modal, preferredFocus)
+  - closeAccessibleDialog(modal)
+  - initAccessibility()
+  - initAuth()
+  - loadCachedAuthUser()
+  - storeCachedAuthUser(user)
+  - refreshAuthState()
+  - setAuthUI(user)
+  - openAuthModal(mode='login')
+  - closeAuthModal()
+  - submitAuth()
+  - applyAuthResponse(res)
+  - logoutUser()
+  - showSubscriptionModal()
+  - closeSubscriptionModal()
+  - initTabs()
+  - initQuantLab()
+  - updateQuantAllocationUI()
+  - quantNumber(value, digits=2, suffix='')
+  - quantHeatColor(value, scale=1)
+  - renderCorrelationHeatmap(correlation)
+  - renderMonthlyHeatmap(monthly)
+  - renderQuantSeries(points, kind='equity')
+  - runQuantResearch()
+  - renderQuantReport(report)
+  - renderQuantCurve(points)
+  - initRuntimeCapabilities()
+  - normalizeAnalysisAccess(payload)
+  - renderAnalysisAccess()
+  - refreshAnalysisAccess(options = {})
+  - requireAnalysisAccess(intent = null)
+  - resumePendingAnalysisIntent()
+  - initAnalysisAccess()
+  - initScanner()
+  - runScan(ticker = null, period = null)
+  - loadSearchCounter()
+  - updateSearchCounter(value, options = {})
+  - renderLabBasedGrade(grade)
+  - renderResults(d)
+  - renderPatterns(patterns)
+  - formatPatternDate(value)
+  - focusPatternOnChart(p)
+  - loadTradingView(ticker, interval, exchange = "")
+  - normalizeTVSymbol(ticker, exchange = "")
+  - generateAI(analysis, question = null)
+  - formatAIText(text)
+  - initDevTools()
+  - toggleDevLab()
+  - updatePatternModePill()
+  - engineLabel(mode)
+  - setAppEngine(mode, opts={})
+  - initSettingsPage()
+  - initQuantSettings()
+  - updateSettingsEngineDisplay()
+  - copyTerminalText(elementId)
+  - fallbackCopyText(text)
+  - showCopyToast(message)
+  - terminalBlock(id, text, title='COPY TERMINAL')
+  - syncDocumentedBetaCounter()
+  - getSelectedPatternLabEngines()
+  - selectedPatternLabEnginesLabel(engineModes)
+  - runPatternLab()
+  - pollPatternLabJob(jobId)
+  - stopPatternLab()
+  - resumePatternLab()
+  - renderPatternLabProgress(job)
+  - renderPatternLabProgressCard(job)
+  - applyPatternLabCounterUpdate(res)
+  - buildPatternLabTerminal(res)
+  - renderPatternLabResults(res)
+  - renderLabSection(title, tableHtml)
+  - renderLabMiniRows(items, keys, labels, limit = 80)
+  - formatLabCell(key, value)
+  - loadTraining150Tickers()
+  - buildVAITrainingPayload()
+  - trainVAIModel()
+  - pollVAITrainingJob(jobId)
+  - renderVAITrainingStatus(job)
+  - showVAIModelStatus()
+  - warmPatternCache()
+  - pollCacheWarmJob(jobId)
+  - renderCacheWarmStatus(job)
+  - showPatternCacheStatus()
+  - fmtNum(v)
+  - escapeHtml(value)
+  - loadWatchlist()
+  - initWatchlist()
+  - addToWatchlist(ticker)
+  - scanAllWatchlist()
+  - renderScannerResults(results)
+  - initPaperTrades()
+  - paperCacheKey()
+  - storePaperCache(trades, stats)
+  - loadPaperCache()
+  - loadPaperTrades()
+  - renderPaperStats(stats)
+  - fmtPct(val)
+  - fmtTradeDate(value)
+  - buildTradeLevelStrip(entry, current, target)
+  - renderPaperGrid(trades)
+  - initModal()
+  - openPaperModal(analysis)
+  - closeModal()
+  - confirmPaperTrade()
+  - renderMARow(id, name, maPrice, price)
+  - renderGauge(id, val, min=0, max=100)
+  - renderOscSignal(id, text, cssClass)
+  - renderPred(horizon, pred)
+  - renderMomentumBars(data)
+  - rsiSignalText(rsi)
+  - rsiSignalClass(rsi)
+  - oscClass(signal)
+  - bbSignalText(pct)
+  - bbSignalClass(pct)
+  - macdClass(cross)
+  - setupColorMap(type, direction)
+  - fmt$(val)
+  - fmtVol(val)
+  - fmtPnl(val)
+  - escHtml(s)
+  - setText(id, val)
+  - showLoading(show)
+  - hideResults()
+  - showResults()
+  - showError(msg)
+  - hideError()
+  - animateLoadingSteps()
+  - runBacktest()
+  - renderBacktestResults(data)
+  - kpi(name, value)
+
+Referenced browser API namespaces or methods: auth, dev, explain, intelligence, paper, quant, runtime, scan, scanMultiple, stats, watchlist.
+
+
+[121] server/frontend/static/js/theme-init.js
+Category: Browser presentation or client behaviour
+Lines: 26
+Role: Contributes configuration, implementation, or documentation to the Oryntra system.
+
+No named JavaScript function declarations were detected by the static inventory.
+
+
+[122] server/maintenance_site/app.py
+Category: Maintenance-mode application
+Lines: 136
+Role: Contributes configuration, implementation, or documentation to the Oryntra system.
+
+Imports: __future__, argparse, http, http.server, json, mimetypes, os, pathlib, urllib.parse
+
+Public code inventory:
+  - class MaintenanceHandler (line 18)
+  - function MaintenanceHandler.__init__(self, *args, **kwargs) (line 21)
+  - function MaintenanceHandler.end_headers(self) (line 24)
+  - function MaintenanceHandler.do_GET(self) (line 37)
+  - function MaintenanceHandler.do_HEAD(self) (line 79)
+  - function MaintenanceHandler.do_POST(self) (line 82)
+  - function MaintenanceHandler.do_PUT(self) (line 85)
+  - function MaintenanceHandler.do_DELETE(self) (line 88)
+  - function MaintenanceHandler._serve_file(self, path, content_type) (line 91)
+  - function MaintenanceHandler.log_message(self, format, *args) (line 105)
+  - function parse_args() (line 109)
+  - function main() (line 120)
+
+
+[123] server/maintenance_site/index.html
+Category: Maintenance-mode application
+Lines: 76
+Role: Defines the browser workspace structure, controls, panels, and accessibility hooks.
+
+HTML identifiers: 2. Forms: 0. Tab hooks: 0.
+
+Representative IDs (first 80):
+  - currentYear
+  - status-title
+
+
+[124] server/maintenance_site/legal/methodology.html
+Category: Maintenance-mode application
+Lines: 405
+Role: Defines a rendered document or browser surface and its semantic structure.
+
+HTML identifiers: 9. Forms: 0. Tab hooks: 0.
+
+Representative IDs (first 80):
+  - ai
+  - analysis
+  - backtesting
+  - inputs
+  - limitations
+  - overview
+  - scores
+  - simulation
+  - verification
+
+
+[125] server/maintenance_site/static/css/main.css
+Category: Maintenance-mode application
+Lines: 3673
+Role: Defines visual layout, typography, responsive behaviour, and component states.
+
+Approximate stylesheet selector blocks: 799. The first selectors are: :root; html; body; background: var(--bg-void); color: var(--text-primary); font-family: var(--font-mono); min-height: 100vh; overflow-x: hidden; position: relative; } .scanlines; .logo; .logo-accent; .market-status; display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-secondary); letter-spacing: 0.1em; } .status-dot; 0%,100%; 50%; } .header-github-link > img.header-github-avatar, img.header-github-avatar; display: flex; gap: 2px; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 3px; } .tab-btn; .tab-btn.active; background: var(--accent-primary); color: var(--bg-void); font-weight: 600; } .app-main; .tab-panel; .tab-panel.active; .search-bar; display: flex; align-items: center; gap: 10px; margin-bottom: 20px; animation: fade-up 0.4s ease both; } .search-input-wrap; border-color: var(--accent-primary); box-shadow: 0 0 0 2px var(--accent-primary-glow); } .search-label; font-size: 10px; color: var(--text-dim); letter-spacing: 0.15em; white-space: nowrap; } .ticker-input; .search-shortcut; color: var(--text-dim); font-size: 16px; } .scan-btn; .scan-btn:active; .btn-icon; .watchlist-add-btn; .loading-screen; display: flex; align-items: center; justify-content: center; padding: 80px 0; } .loading-inner; display: flex; flex-direction: column; align-items: center; gap: 24px; } .loading-ring; .loading-steps; .l-step; font-size: 12px; color: var(--text-dim); letter-spacing: 0.1em; transition: color 0.3s; } .l-step.active; .l-step.done; .error-banner; .error-close; .results-grid; display: grid; grid-template-columns: 1fr 1fr 1fr; grid-template-rows: auto; gap: 12px; animation: fade-up 0.4s ease both; } @keyframes fade-up; from; to; } .card; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 18px; transition: border-color 0.2s; } .card:hover.
+
+
+[126] server/maintenance_site/static/css/maintenance.css
+Category: Maintenance-mode application
+Lines: 375
+Role: Defines visual layout, typography, responsive behaviour, and component states.
+
+Approximate stylesheet selector blocks: 45. The first selectors are: :root; html; body; color: inherit; text-decoration: none; } a:focus-visible, button:focus-visible; outline: 3px solid rgba(56, 207, 243, 0.65); outline-offset: 4px; } .ambient; position: fixed; z-index: -2; width: 30rem; height: 30rem; border-radius: 50%; filter: blur(100px); pointer-events: none; } .ambient-one; top: -12rem; right: -7rem; background: rgba(56, 207, 243, 0.10); } .ambient-two; bottom: -15rem; left: -8rem; background: rgba(19, 132, 185, 0.09); } .site-header; display: inline-flex; align-items: center; gap: 11px; min-width: max-content; } .brand-mark; width: 38px; height: 38px; object-fit: contain; filter: drop-shadow(0 0 18px rgba(56, 207, 243, 0.26)); } .brand-name; color: #fff; font-family: var(--font-display); font-size: 1.05rem; font-weight: 800; letter-spacing: 0.12em; } .brand-name span; .site-nav; .site-nav a:hover; .page-shell; width: min(1050px, calc(100% - 36px)); min-height: calc(100vh - 166px); margin: 0 auto; display: grid; align-items: center; padding: 64px 0; } .status-card; margin: 0 0 10px; color: var(--accent); font-size: 0.76rem; font-weight: 800; letter-spacing: 0.17em; text-transform: uppercase; } h1; max-width: 800px; margin: 30px 0 0; color: rgba(255, 255, 255, 0.91); font-size: clamp(1.08rem, 2.2vw, 1.38rem); line-height: 1.65; } .supporting-copy; max-width: 760px; margin: 14px 0 0; color: var(--muted); font-size: 0.98rem; line-height: 1.72; } .action-row; display: flex; flex-wrap: wrap; gap: 12px; margin-top: 34px; } .primary-action, .secondary-action; transform: translateY(-2px); } .secondary-action:hover; border-color: var(--border-strong); background: rgba(56, 207, 243, 0.06); } .methodology-callout; max-width: 620px; margin: 7px 0 0; color: var(--muted); font-size: 0.91rem; line-height: 1.62; } .methodology-callout > a; flex: 0 0 auto; color: var(--accent); font-size: 0.82rem; font-weight: 800; letter-spacing: 0.055em; text-transform: uppercase; } .site-footer; @keyframes statusPulse; 0%; 70%; 100%; } @media (prefers-reduced-motion: reduce); *, *::before, *::after; scroll-behavior: auto ; animation-duration: 0.01ms ; animation-iteration-count: 1 ; transition-duration: 0.01ms ; } } @media (max-width: 720px); .site-header; min-height: auto; padding: 18px 0; align-items: flex-start; } .site-nav; gap: 13px; flex-wrap: wrap; justify-content: flex-end; font-size: 0.68rem; } .brand-name; .page-shell; .status-card; .status-row; .methodology-callout; .site-footer; } @media (max-width: 440px); .site-header, .page-shell, .site-footer.
+
+
+[127] server/maintenance_site/static/css/refined.css
+Category: Maintenance-mode application
+Lines: 2257
+Role: Provides the current restrained blue research-desk visual system.
+
+Approximate stylesheet selector blocks: 211. The first selectors are: :root, html[data-theme="dark"]; scrollbar-color: var(--border-bright) transparent; } html; background: var(--bg-void); scroll-behavior: smooth; } body; display: none ; } button, input, select, textarea; font: inherit; } button, a, input, select, textarea; -webkit-tap-highlight-color: transparent; } a; color: var(--accent-primary); text-underline-offset: 3px; } :where(button, a, input, select, textarea, [tabindex]):focus-visible; outline: none ; box-shadow: var(--focus-ring) ; } ::selection; background: color-mix(in srgb, var(--accent-primary), transparent 68%); color: var(--text-primary); } .skip-link; gap: 12px; } .logo; gap: 9px; } .logo-image; width: 31px; height: 31px; filter: saturate(0.72) contrast(0.96); box-shadow: 0 8px 20px rgba(0, 0, 0, 0.18); } .header-github-avatar; border: 1px solid color-mix(in srgb, var(--accent-primary), transparent 62%); } .logo-text; color: var(--text-primary); font-family: var(--font-display); font-size: 15px; font-weight: 670; letter-spacing: -0.02em; } .logo-accent; color: var(--accent-primary); } .beta-badge, .pattern-mode-pill, .header-version-display, .data-source-badge, .meta-chip; border-color: var(--border-blue-soft); background: var(--surface-blue); color: var(--accent-primary); text-shadow: none; } .beta-badge:hover; border-color: var(--border-bright); background: var(--bg-card-hover); color: var(--text-primary); box-shadow: none; } .market-status; color: var(--text-dim); font-family: var(--font-body); font-size: 10px; font-weight: 600; letter-spacing: 0.055em; } .status-dot; width: 6px; height: 6px; background: var(--bull); box-shadow: 0 0 0 4px color-mix(in srgb, var(--bull), transparent 84%); animation: none; } .tab-nav; display: none; } .tab-btn:hover; background: var(--surface-raised); color: var(--text-primary); } .tab-btn.active, .tab-btn[aria-selected="true"]; border-color: var(--border); background: var(--surface-blue); box-shadow: 0 8px 22px rgba(0, 0, 0, 0.09); } .app-main; width: min(100% - 36px, 1440px); margin: 0 auto; padding: clamp(32px, 5vw, 70px) 0 92px; } .tab-panel; animation: refined-panel-in 300ms cubic-bezier(0.2, 0.72, 0.25, 1); } @keyframes refined-panel-in; from; opacity: 0; transform: translateY(7px); } to; opacity: 1; transform: translateY(0); } } .card, .settings-category, .settings-hero, .bio-card, .dev-lab-panel, .modal-box, .auth-modal-box; display: none ; } .card:hover; border-color: var(--border-blue-soft); } .card-patterns, .card-predictions, .card-oscillators; background: var(--surface-steel); } .card-title, .panel-title, .settings-category-title, .scanner-results-title, .all-scores-title; color: var(--accent-primary); } .search-bar; border-color: var(--border-bright); box-shadow: var(--shadow-card), var(--focus-ring); } .search-input-wrap; border-color: transparent; box-shadow: none; } .search-label; color: var(--text-dim); font-family: var(--font-body); font-size: 10px; font-weight: 650; letter-spacing: 0.07em; } .ticker-input; color: color-mix(in srgb, var(--text-dim), transparent 28%); } .search-shortcut; border: 1px solid var(--border); border-radius: 7px; background: var(--surface-muted); color: var(--text-dim); box-shadow: none; } .scan-btn, .scan-button; display: none; } .scan-btn:hover, .scan-button:hover; transform: scale(0.985); } .watchlist-add-btn, .dev-close-btn, .refresh-ai-btn, .paper-trade-btn, .scan-all-btn, .modal-cancel, .modal-confirm, .tv-period-btn; width: min(100%, 900px); margin: 14px auto 28px; color: var(--text-dim); font-family: var(--font-body); font-size: 11px; line-height: 1.55; } .quick-picks; gap: 8px; margin: 16px auto 0; } .quick-picks-label.
+
+
+[128] server/maintenance_site/static/js/maintenance.js
+Category: Maintenance-mode application
+Lines: 9
+Role: Contributes configuration, implementation, or documentation to the Oryntra system.
+
+No named JavaScript function declarations were detected by the static inventory.
+
+
+[129] server/maintenance_site/static/js/theme-init.js
+Category: Maintenance-mode application
+Lines: 26
+Role: Contributes configuration, implementation, or documentation to the Oryntra system.
+
+No named JavaScript function declarations were detected by the static inventory.
+
+
+[130] server/requirements.txt
+Category: Server configuration or operator asset
+Lines: 12
+Role: Contributes configuration, implementation, or documentation to the Oryntra system.
+
+Content overview: fastapi==0.128.2 uvicorn[standard]==0.48.0 yfinance==1.5.1 pandas==2.3.3 numpy==2.3.5 aiohttp==3.13.3 requests==2.32.5 python-multipart==0.0.29 httpx==0.28.1 python-dotenv==1.2.2 cryptography==46.0.4
+
+
+[131] server/run.py
+Category: Server configuration or operator asset
+Lines: 54
+Role: Loads local environment configuration and starts the Uvicorn service.
+
+Imports: dotenv, os, sys, uvicorn
+
+Public code inventory:
+  - function env_bool(name, default) (line 16)
+
+
+[132] server/shared/ad_slots.json
+Category: Server configuration or operator asset
+Lines: 49
+Role: Contributes configuration, implementation, or documentation to the Oryntra system.
+
+Top-level object keys: version, slots, build.
+
+
+[133] server/tests/conftest.py
+Category: Automated regression test
+Lines: 10
+Role: Exercises a focused behavioural or regression contract for the named subsystem.
+
+Imports: __future__, pathlib, sys
+
+No classes or functions were found at module scope. The file is likely declarative configuration, package initialization, or command glue.
+
+
+[134] server/tests/test_analysis_access_policy.py
+Category: Automated regression test
+Lines: 51
+Role: Exercises a focused behavioural or regression contract for the named subsystem.
+
+Imports: __future__, backend.analysis_access, backend.database, fastapi, pytest
+
+Public code inventory:
+  - function test_personal_mode_is_owner_only(monkeypatch) (line 10)
+  - function test_business_mode_requires_explicit_public_enable(monkeypatch) (line 20)
+  - function test_daily_quota_reserve_and_refund(monkeypatch, tmp_path) (line 29)
+
+
+[135] server/tests/test_dev_tools_jobs.py
+Category: Automated regression test
+Lines: 118
+Role: Exercises a focused behavioural or regression contract for the named subsystem.
+
+Imports: __future__, asyncio, backend, backend.pattern_lab_jobs, backend.routes, pandas, unittest, unittest.mock
+
+Public code inventory:
+  - class DevToolJobStateTests (line 13)
+  - function DevToolJobStateTests.tearDown(self) (line 14)
+  - async function DevToolJobStateTests.test_terminal_pattern_stop_returns_existing_job(self) (line 19)
+  - async function DevToolJobStateTests.test_pattern_lab_start_launches_isolated_worker(self) (line 29)
+  - async function DevToolJobStateTests.test_cache_warm_reports_failure_when_every_ticker_fails(self) (line 46)
+  - async function DevToolJobStateTests.test_cache_warm_reports_partial(self) (line 62)
+  - class BackgroundTaskRetentionTests (line 81)
+  - async function BackgroundTaskRetentionTests.test_background_task_is_retained_until_completion(self) (line 82)
+  - async function BackgroundTaskRetentionTests.test_background_task_is_retained_until_completion.worker() (line 84)
+  - class PatternLabFailureTests (line 95)
+  - async function PatternLabFailureTests.test_empty_cache_fails_clearly_without_api(self) (line 96)
+  - async function PatternLabFailureTests.test_empty_cache_fails_clearly_without_api.empty_history(_ticker, _period, _data_source) (line 97)
+
+
+[136] server/tests/test_intelligence_route.py
+Category: Automated regression test
+Lines: 68
+Role: Exercises a focused behavioural or regression contract for the named subsystem.
+
+Imports: __future__, backend.database, backend.main, backend.routes.intelligence, fastapi.testclient
+
+Public code inventory:
+  - function test_authenticated_owner_scan_returns_only_derived_payload(monkeypatch, tmp_path) (line 10)
+  - async function test_authenticated_owner_scan_returns_only_derived_payload.fake_scan(_request) (line 16)
+  - function test_legacy_public_analysis_route_is_not_mounted() (line 63)
+
+
+[137] server/tests/test_market_cache.py
+Category: Automated regression test
+Lines: 98
+Role: Exercises a focused behavioural or regression contract for the named subsystem.
+
+Imports: __future__, backend, backend.market_cache, datetime, pandas, pathlib, tempfile, unittest, unittest.mock
+
+Public code inventory:
+  - class MarketCalendarTests (line 18)
+  - function MarketCalendarTests.test_weekends_and_major_holidays_are_excluded(self) (line 19)
+  - function MarketCalendarTests.test_before_eod_cutoff_uses_previous_session(self) (line 23)
+  - class GroupedDailyDatabaseTests (line 31)
+  - function GroupedDailyDatabaseTests.setUp(self) (line 32)
+  - function GroupedDailyDatabaseTests.tearDown(self) (line 38)
+  - function GroupedDailyDatabaseTests._bars(self, close_a) (line 42)
+  - function GroupedDailyDatabaseTests.test_grouped_store_is_atomic_and_idempotent(self) (line 49)
+  - function GroupedDailyDatabaseTests.test_undersized_payload_does_not_change_existing_rows(self) (line 80)
+
+
+[138] server/tests/test_market_repository.py
+Category: Automated regression test
+Lines: 133
+Role: Exercises a focused behavioural or regression contract for the named subsystem.
+
+Imports: __future__, backend, backend.market_repository, pandas, pathlib, tempfile, types, unittest, unittest.mock
+
+Public code inventory:
+  - class MarketRepositoryTests (line 15)
+  - function MarketRepositoryTests.setUp(self) (line 16)
+  - function MarketRepositoryTests.tearDown(self) (line 24)
+  - function MarketRepositoryTests._frame(rows) (line 30) [decorators: staticmethod]
+  - function MarketRepositoryTests.test_cache_hit_does_not_call_provider(self) (line 46)
+  - function MarketRepositoryTests.test_missing_ticker_uses_one_fallback_then_persists(self) (line 68)
+  - function MarketRepositoryTests.test_cache_only_never_calls_provider(self) (line 118)
+
+
+[139] server/tests/test_pattern_lab_next.py
+Category: Automated regression test
+Lines: 49
+Role: Exercises a focused behavioural or regression contract for the named subsystem.
+
+Imports: __future__, backend.pattern_lab, numpy, pandas, unittest
+
+Public code inventory:
+  - class PatternLabNextTests (line 10)
+  - function PatternLabNextTests.test_candidate_indexes_do_not_overlap_holding_windows(self) (line 11)
+  - function PatternLabNextTests.test_walk_forward_selects_threshold_on_prior_dates(self) (line 24)
+  - function PatternLabNextTests.test_cluster_bootstrap_returns_intervals(self) (line 36)
+
+
+[140] server/tests/test_public_payload_boundary.py
+Category: Automated regression test
+Lines: 62
+Role: Exercises a focused behavioural or regression contract for the named subsystem.
+
+Imports: __future__, backend.public_payload
+
+Public code inventory:
+  - function test_public_payload_removes_raw_market_data_and_keeps_derived_analysis() (line 6)
+
+
+[141] server/tests/test_quant_research.py
+Category: Automated regression test
+Lines: 31
+Role: Exercises a focused behavioural or regression contract for the named subsystem.
+
+Imports: backend.quant_research, numpy, pandas, unittest
+
+Public code inventory:
+  - class QuantResearchTests (line 9)
+  - function QuantResearchTests.test_regime_profile_returns_auditable_diagnostics(self) (line 10)
+
+
+[142] server/tests/test_research_pipeline.py
+Category: Automated regression test
+Lines: 150
+Role: Exercises a focused behavioural or regression contract for the named subsystem.
+
+Imports: __future__, backend.backtest, backend.pattern_lab, backend.research_experiments, backend.research_training, datetime, numpy, pandas, unittest
+
+Public code inventory:
+  - function _history(rows) (line 15)
+  - function _training_row(ticker, signal, bad_entry) (line 34)
+  - class ResearchPipelineTests (line 57)
+  - function ResearchPipelineTests.test_pattern_features_do_not_look_into_future(self) (line 58)
+  - function ResearchPipelineTests.test_engine_comparison_requires_identical_observations(self) (line 91)
+  - function ResearchPipelineTests.test_training_audit_rejects_non_future_and_duplicate_rows(self) (line 104)
+  - function ResearchPipelineTests.test_chronological_split_has_ordered_non_overlapping_dates(self) (line 115)
+  - function ResearchPipelineTests.test_backtest_is_deterministic_and_enters_after_signal(self) (line 128)
+
+
+[143] server/tests/test_v8_engine.py
+Category: Automated regression test
+Lines: 100
+Role: Exercises a focused behavioural or regression contract for the named subsystem.
+
+Imports: __future__, backend.setup_detector, backend.v8_engine, unittest
+
+Public code inventory:
+  - function bullish_indicators() (line 8)
+  - class V8EngineTests (line 23)
+  - function V8EngineTests.test_bullish_analytics_favor_long(self) (line 24)
+  - function V8EngineTests.test_atr_penalty_is_same_for_long_and_short(self) (line 32)
+  - function V8EngineTests.test_candidate_requires_multiple_positive_factor_families(self) (line 40)
+  - class V8SetupIntegrationTests (line 46)
+  - function V8SetupIntegrationTests._base_results(self, preferred_direction) (line 47)
+  - function V8SetupIntegrationTests.test_v8_gate_can_pass_strong_long_candidate(self) (line 58)
+  - function V8SetupIntegrationTests.test_v8_foundation_is_mirrored_for_strong_short_candidate(self) (line 70)
+
+
+[144] server/tools/__init__.py
+Category: Operator or research utility
+Lines: 2
+Role: Provides a command-line or maintenance workflow for the named subsystem.
+
+No classes or functions were found at module scope. The file is likely declarative configuration, package initialization, or command glue.
+
+
+[145] server/tools/audit_v7_bias.py
+Category: Operator or research utility
+Lines: 244
+Role: Provides a command-line or maintenance workflow for the named subsystem.
+
+Imports: __future__, argparse, backend.database, backend.indicators, backend.setup_detector, collections, concurrent.futures, datetime, json, math, numpy, os, pathlib, sqlite3, sys
+
+Public code inventory:
+  - function _finite(value, default) (line 32)
+  - function _cached_tickers(db_path) (line 40)
+  - function _candidate_indexes(length, horizon, max_tests, seed, ticker) (line 50)
+  - function _evaluate_ticker(ticker, horizon, max_tests, seed) (line 60)
+  - function _summary(rows) (line 99)
+  - function _temporal_summaries(rows) (line 116)
+  - function _ticker_concentration(rows) (line 129)
+  - function run_audit(horizon, max_tests, seed, sample_per_group) (line 141)
+  - function main() (line 218)
+
+
+[146] server/tools/cache_guard.py
+Category: Operator or research utility
+Lines: 95
+Role: Provides a command-line or maintenance workflow for the named subsystem.
+
+Imports: __future__, argparse, datetime, json, pathlib, shutil, sqlite3
+
+Public code inventory:
+  - function cache_counts(db_path) (line 15)
+  - function backup_db(label) (line 29)
+  - function restore_backup(backup_dir) (line 40)
+  - function assert_not_shrunk(before, after, restore_from) (line 49)
+  - function main() (line 59)
+
+
+[147] server/tools/check_cache_status.py
+Category: Operator or research utility
+Lines: 9
+Role: Provides a command-line or maintenance workflow for the named subsystem.
+
+Imports: __future__, pathlib, sys, tools.cache_guard
+
+No classes or functions were found at module scope. The file is likely declarative configuration, package initialization, or command glue.
+
+
+[148] server/tools/generate_master_docs.py
+Category: Operator or research utility
+Lines: 390
+Role: Provides a command-line or maintenance workflow for the named subsystem.
+
+Module statement: Generate a plain-text Oryntra technical reference from the checked-out source. The output is intentionally source-derived: it inventories public modules, functions, classes, routes, environment-variable names, browser hooks, and tests without reading private `.env` values or loca
+
+Imports: __future__, ast, collections, datetime, json, pathlib, re, subprocess, typing
+
+Public code inventory:
+  - function source_files() (line 32)
+  - function rel(path) (line 47)
+  - function git_value(*args) (line 51)
+  - function line_count(text) (line 58)
+  - function section(title, level) (line 62)
+  - function paragraph(text) (line 66)
+  - function category_for(path) (line 70)
+  - function purpose_for(path) (line 103)
+  - function safe_docstring(node) (line 142)
+  - function format_args(node) (line 147)
+  - function decorator_name(decorator) (line 157)
+  - class SymbolVisitor (line 164)
+  - function SymbolVisitor.__init__(self) (line 165)
+  - function SymbolVisitor.visit_Import(self, node) (line 171)
+  - function SymbolVisitor.visit_ImportFrom(self, node) (line 174)
+  - function SymbolVisitor.visit_ClassDef(self, node) (line 178)
+  - function SymbolVisitor._function(self, node) (line 185)
+  - function python_entry(path, text) (line 201)
+  - function js_entry(text) (line 229)
+  - function language_entry(text, language) (line 244)
+  - function html_entry(text) (line 258)
+  - function css_entry(text) (line 270)
+  - function json_entry(text) (line 280)
+  - function text_entry(path, text) (line 292)
+  - function environment_inventory(files) (line 311)
+  - function main() (line 322)
+
+
+[149] server/tools/market_cache_cli.py
+Category: Operator or research utility
+Lines: 92
+Role: Provides a command-line or maintenance workflow for the named subsystem.
+
+Imports: __future__, argparse, backend.database, backend.market_cache, datetime, dotenv, json, pathlib, sys
+
+Public code inventory:
+  - function build_parser() (line 29)
+  - function main() (line 60)
+
+
+[150] server/tools/run_backtest_cli.py
+Category: Operator or research utility
+Lines: 119
+Role: Provides a command-line or maintenance workflow for the named subsystem.
+
+Imports: __future__, argparse, asyncio, backend.backtest, backend.database, backend.market_repository, datetime, json, pathlib, sys
+
+Public code inventory:
+  - function _tickers(text) (line 18)
+  - async function run(args) (line 31)
+  - function main() (line 90)
+
+
+[151] server/tools/run_pattern_lab_cli.py
+Category: Operator or research utility
+Lines: 101
+Role: Provides a command-line or maintenance workflow for the named subsystem.
+
+Imports: __future__, argparse, asyncio, backend.database, backend.pattern_lab, backend.routes.dev_tools, json, pathlib, sys, tools.warm_cache_cli
+
+Public code inventory:
+  - function _ascii_bar(pct, width) (line 12)
+  - async function _progress_monitor(job, stop_event, label) (line 18)
+  - function parse_tickers(text, max_tickers) (line 45)
+  - async function main_async(args) (line 53)
+  - function main() (line 83)
+
+
+[152] server/tools/seed_app_review_account.py
+Category: Operator or research utility
+Lines: 56
+Role: Provides a command-line or maintenance workflow for the named subsystem.
+
+Imports: argparse, backend.database, backend.routes.auth, os, pathlib, sys
+
+Public code inventory:
+  - function main() (line 13)
+
+
+[153] server/tools/train_vai2_cli.py
+Category: Operator or research utility
+Lines: 120
+Role: Provides a command-line or maintenance workflow for the named subsystem.
+
+Imports: __future__, argparse, asyncio, backend.database, backend.routes.dev_tools, backend.vai2_model, json, pathlib, sys, tools.cache_guard, tools.warm_cache_cli
+
+Public code inventory:
+  - function _ascii_bar(pct, width) (line 13)
+  - async function _progress_monitor(job, stop_event, label) (line 19)
+  - function parse_tickers(text, max_tickers) (line 46)
+  - async function main_async(args) (line 55)
+  - function main() (line 100)
+
+
+[154] server/tools/vai_full_train_pipeline.py
+Category: Operator or research utility
+Lines: 41
+Role: Provides a command-line or maintenance workflow for the named subsystem.
+
+Imports: __future__, argparse, pathlib, subprocess, sys
+
+Public code inventory:
+  - function run(cmd) (line 7)
+  - function main() (line 12)
+
+
+[155] server/tools/warm_cache_cli.py
+Category: Operator or research utility
+Lines: 59
+Role: Provides a command-line or maintenance workflow for the named subsystem.
+
+Imports: __future__, argparse, backend.database, backend.fetcher, pathlib, sys, time
+
+Public code inventory:
+  - function parse_tickers(args) (line 11)
+  - function main() (line 26)
+
+
+========================================================================================
+8. TEST AND REVIEW GUIDANCE
+========================================================================================
+Run tests from `server/` so imports resolve from the application root: `PYTHONPATH=. .venv/bin/python3 -m unittest discover -s tests -v`. For a focused Quant Lab check, run `PYTHONPATH=. .venv/bin/python3 -m unittest tests.test_quant_research`. Validate the browser client with `node --check frontend/static/js/app.js`. A release candidate should also be started locally and checked through the actual `/health` endpoint and intended access modes.
+
+The document is a static audit aid. It should be regenerated after architectural changes, and the resulting commit ID should be recorded with any environment-specific deployment evidence. Do not treat this document as legal, investment, tax, security, or market-data licensing advice.
+
