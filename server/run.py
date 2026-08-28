@@ -27,6 +27,8 @@ if __name__ == "__main__":
     public_ui = env_bool("ORYNTRA_PUBLIC_SCANNER_WEBSITE", private)
     license_mode = os.getenv("ORYNTRA_MARKET_DATA_LICENSE_MODE", "personal_research")
     public_analysis = env_bool("ORYNTRA_PUBLIC_DERIVED_ANALYSIS_ENABLED", False)
+    browser_direct = env_bool("ORYNTRA_BROWSER_DIRECT_ANALYSIS_ENABLED", False)
+    access_label = "browser-direct enabled" if browser_direct else ("enabled" if public_analysis else "owner/private only")
     print(
         f"""
 ╔══════════════════════════════════════════════════╗
@@ -37,7 +39,7 @@ if __name__ == "__main__":
 ║  Health     →  http://localhost:{port}/health       ║
 ║  Polygon    →  {'configured' if polygon_ready else 'API key required':<27}║
 ║  License    →  {license_mode:<27}║
-║  Public AI  →  {'enabled' if public_analysis else 'owner/private only':<27}║
+║  Public AI  →  {access_label:<27}║
 ║  Public UI  →  {'enabled' if public_ui else 'disabled':<27}║
 ╚══════════════════════════════════════════════════╝
 """
