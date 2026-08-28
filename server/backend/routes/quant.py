@@ -1,13 +1,18 @@
 from __future__ import annotations
 
 import asyncio
+import os
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, HTTPException
+import pandas as pd
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field, field_validator
 
+from ..corporate_repository import get_corporate_repository
 from ..market_repository import get_market_repository, normalize_ticker
+from ..provider_credentials import decrypted_credentials
 from ..quant_research import MODEL_PROFILES, STRATEGIES, QuantConfig, evaluate_strategies
+from .auth import require_current_user
 
 router = APIRouter()
 
@@ -17,7 +22,7 @@ class QuantResearchRequest(BaseModel):
     period: str = "2y"
     data_source: str = "cache_first"
     data_provider: str | None = "auto"
-    model: str = "v8_regime_diversified"
+    model: str = "v1_corporate_quant_system"
     strategy_weights: dict[str, float] = Field(default_factory=dict)
     strategies: list[str] = Field(default_factory=lambda: list(STRATEGIES))
     trend_lookback: int = Field(default=126, ge=21, le=252)
@@ -31,6 +36,11 @@ class QuantResearchRequest(BaseModel):
     max_single_name_weight: float = Field(default=.35, ge=.02, le=1)
     rebalance_frequency: str = "weekly"
     walk_forward_folds: int = Field(default=3, ge=2, le=6)
+    regime_conditioned_weights: bool = True
+    liquidity_aware_costs: bool = True
+    portfolio_value_assumption: float = Field(default=1_000_000, ge=10_000, le=10_000_000_000)
+    impact_coefficient_bps: float = Field(default=18, ge=0, le=500)
+    max_adv_participation_pct: float = Field(default=2, ge=.01, le=25)
 
     @field_validator("period")
     @classmethod
@@ -73,13 +83,41 @@ class QuantResearchRequest(BaseModel):
         return clean
 
 
+class CorporateImportRequest(BaseModel):
+    documents: list[dict] = Field(default_factory=list, max_length=5000)
+    facts: list[dict] = Field(default_factory=list, max_length=10000)
+    macro_observations: list[dict] = Field(default_factory=list, max_length=10000)
+
+
 @router.get("/catalog")
 async def catalog():
-    return {"strategies": [{"id": key, **value} for key, value in STRATEGIES.items()], "models": [{"id": key, **value} for key, value in MODEL_PROFILES.items()], "providers": [{"id": "cache_only", "label": "Local database only"}, {"id": "auto", "label": "Smart fallback"}, {"id": "polygon", "label": "Polygon fallback"}, {"id": "twelvedata", "label": "Twelve Data fallback"}], "guardrails": ["No broker execution or order creation.", "Performance is net of configured turnover and borrow assumptions.", "Volatility targeting can reduce exposure only; it does not apply leverage.", "Chronological holdout and regime reports are diagnostics, not proof of future profitability."]}
+    return {"strategies": [{"id": key, **value} for key, value in STRATEGIES.items()], "models": [{"id": key, **value} for key, value in MODEL_PROFILES.items()], "providers": [{"id": "cache_only", "label": "Local database only"}, {"id": "auto", "label": "Automatic (cache, then saved eligible provider)"}, {"id": "polygon", "label": "Polygon / Massive (EOD daily bars; Basic: 5 calls/min)"}, {"id": "twelvedata", "label": "Twelve Data (1-minute capability; Basic: 8 credits/min and 800/day; daily lab only)"}], "guardrails": ["No broker execution or order creation.", "Performance is net of configured turnover, borrow, and liquidity assumptions.", "Volatility targeting can reduce exposure only; it does not apply leverage.", "Corporate inputs must have an auditable public availability timestamp.", "Provider-plan capability does not grant redistribution or commercial rights.", "Chronological holdout and regime reports are diagnostics, not proof of future profitability."]}
+
+
+@router.post("/corporate/import")
+async def import_corporate_data(request: CorporateImportRequest, http_request: Request):
+    require_current_user(http_request)
+    repository = get_corporate_repository()
+    try:
+        return {"ok": True, "documents_imported": await asyncio.to_thread(repository.import_documents, request.documents), "facts_imported": await asyncio.to_thread(repository.import_facts, request.facts), "macro_observations_imported": await asyncio.to_thread(repository.import_macro, request.macro_observations)}
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.get("/corporate/{ticker}")
+async def corporate_snapshot(ticker: str, http_request: Request):
+    require_current_user(http_request)
+    repository = get_corporate_repository()
+    snapshot = await asyncio.to_thread(repository.latest_snapshot, ticker)
+    macro = await asyncio.to_thread(repository.macro_snapshot)
+    return {"ok": True, "corporate": snapshot, "macro": macro, "research_only": True}
 
 
 @router.post("/run")
-async def run_research(request: QuantResearchRequest):
+async def run_research(request: QuantResearchRequest, http_request: Request):
+    user = require_current_user(http_request)
+    require_user_keys = os.getenv("ORYNTRA_REQUIRE_USER_PROVIDER_KEYS", "true").strip().lower() in {"1", "true", "yes", "on"}
+    provider_api_keys = decrypted_credentials(user["id"]) if os.getenv("ORYNTRA_CREDENTIAL_ENCRYPTION_KEY", "").strip() else {}
     tickers: list[str] = []
     for raw in request.tickers[:40]:
         try:
@@ -94,19 +132,26 @@ async def run_research(request: QuantResearchRequest):
     if not strategy_ids:
         raise HTTPException(status_code=400, detail="Choose at least one supported research strategy.")
     provider = request.data_provider or ("cache_only" if request.data_source == "cache_only" else "auto")
-    config = QuantConfig(strategies=strategy_ids, trend_lookback=request.trend_lookback, momentum_lookback=request.momentum_lookback, reversal_lookback=request.reversal_lookback, cost_bps=request.cost_bps, borrow_bps_annual=request.borrow_bps_annual, long_short=request.long_short, model=request.model, strategy_weights=request.strategy_weights, target_annual_volatility=request.target_annual_volatility, max_gross_exposure=request.max_gross_exposure, max_single_name_weight=request.max_single_name_weight, rebalance_frequency=request.rebalance_frequency, walk_forward_folds=request.walk_forward_folds)
+    config = QuantConfig(strategies=strategy_ids, trend_lookback=request.trend_lookback, momentum_lookback=request.momentum_lookback, reversal_lookback=request.reversal_lookback, cost_bps=request.cost_bps, borrow_bps_annual=request.borrow_bps_annual, long_short=request.long_short, model=request.model, strategy_weights=request.strategy_weights, target_annual_volatility=request.target_annual_volatility, max_gross_exposure=request.max_gross_exposure, max_single_name_weight=request.max_single_name_weight, rebalance_frequency=request.rebalance_frequency, walk_forward_folds=request.walk_forward_folds, regime_conditioned_weights=request.regime_conditioned_weights, liquidity_aware_costs=request.liquidity_aware_costs, portfolio_value_assumption=request.portfolio_value_assumption, impact_coefficient_bps=request.impact_coefficient_bps, max_adv_participation_pct=request.max_adv_participation_pct)
     repository, histories, metadata, errors = get_market_repository(), {}, {}, []
     minimum_bars = max(config.trend_lookback, config.momentum_lookback, 63) + 5
     for ticker in tickers:
         try:
-            item = await asyncio.to_thread(repository.get_history, ticker, period=request.period, minimum_bars=minimum_bars, allow_api=provider != "cache_only", provider_preference=provider)
+            item = await asyncio.to_thread(repository.get_history, ticker, period=request.period, minimum_bars=minimum_bars, allow_api=provider != "cache_only", provider_preference=provider, provider_api_keys=provider_api_keys, allow_platform_provider_keys=not require_user_keys)
             histories[ticker], metadata[ticker] = item.history, item.metadata.__dict__
         except Exception as exc:
             errors.append({"ticker": ticker, "error": str(exc)})
     if len(histories) < 2:
         raise HTTPException(status_code=400, detail={"message": "Not enough usable histories for a comparison.", "errors": errors})
     try:
-        report = await asyncio.to_thread(evaluate_strategies, histories, config)
+        index = pd.DatetimeIndex(sorted({timestamp for history in histories.values() for timestamp in history.index}))
+        corporate_repository = get_corporate_repository()
+        corporate_scores, corporate_metadata = await asyncio.to_thread(corporate_repository.factor_panel, list(histories), index)
+        macro_features, macro_metadata = await asyncio.to_thread(corporate_repository.macro_panel, index)
+        report = await asyncio.to_thread(evaluate_strategies, histories, config, corporate_scores, macro_features)
+        report["corporate_data"].update(corporate_metadata)
+        report["macro_data"].update(macro_metadata)
+        report["macro_context"] = await asyncio.to_thread(corporate_repository.macro_snapshot, index.max() if len(index) else None)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     report.update({"ok": True, "run_at": datetime.now(timezone.utc).isoformat(), "configuration": config.as_dict(), "data_source": request.data_source, "data_provider": provider, "source_metadata": metadata, "errors": errors, "dataset_fingerprint": repository.dataset_fingerprint(histories, configuration=config.as_dict())})

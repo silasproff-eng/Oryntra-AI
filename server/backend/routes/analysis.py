@@ -17,6 +17,7 @@ from ..database import get_connection, store_ohlcv_bars, increment_app_counter, 
 from ..patterns.outcome_tracker import persist_pattern_scan
 from ..pattern_analyzer import normalize_pattern_engine_mode
 from ..lab_grading import lab_based_stock_grade
+from ..corporate_repository import get_corporate_repository
 
 router = APIRouter()
 
@@ -144,7 +145,12 @@ async def _attach_counter(result: dict) -> dict:
     return result
 
 
-async def _run_scan_pipeline(req: ScanRequest) -> dict:
+async def _run_scan_pipeline(
+    req: ScanRequest,
+    *,
+    provider_api_keys: dict[str, str] | None = None,
+    allow_platform_provider_keys: bool = True,
+) -> dict:
     key = _cache_key(req)
     cached = _cached_result(key)
     if cached is not None:
@@ -160,7 +166,13 @@ async def _run_scan_pipeline(req: ScanRequest) -> dict:
             cached["response_cache"] = True
             return await _attach_counter(cached)
         try:
-            data = await asyncio.to_thread(fetch_ticker_data, req.ticker, req.period)
+            data = await asyncio.to_thread(
+                fetch_ticker_data,
+                req.ticker,
+                req.period,
+                provider_api_keys=provider_api_keys,
+                allow_platform_provider_keys=allow_platform_provider_keys,
+            )
             hist = data["history"]
             info = data["info"]
             provider = data.get("provider", "unknown")
@@ -343,6 +355,15 @@ def _price_history(hist, max_points: int = 140) -> list[dict]:
     return points
 
 def _build_result(ticker, info, provider, timeframe, ind, setup, plan, pattern_report, persistence, hist) -> dict:
+    corporate_snapshot = get_corporate_repository().latest_snapshot(ticker)
+    corporate_facts = corporate_snapshot.get("facts", {})
+    corporate_context = {
+        "status": "available" if corporate_facts else "not_yet_loaded",
+        "coverage": corporate_snapshot.get("coverage", 0.0),
+        "as_of": corporate_snapshot.get("as_of"),
+        "facts": [{"metric": metric, "value": item.get("value"), "units": item.get("units"), "available_at": item.get("available_at"), "source_class": item.get("source_class")} for metric, item in sorted(corporate_facts.items())],
+        "note": "Public corporate facts provide structured context only. They do not alter the scanner's deterministic numeric score.",
+    }
     return {
         "ticker": ticker,
         "company_name": info.get("company_name", ticker),
@@ -380,6 +401,7 @@ def _build_result(ticker, info, provider, timeframe, ind, setup, plan, pattern_r
         "lab_based_grade": lab_based_stock_grade(ind, setup, pattern_report),
         "trade_plan": plan,
         "predictions": plan.get("predictions", {}),
+        "corporate_context": corporate_context,
     }
 
 
@@ -399,4 +421,3 @@ def _cache_result(ticker: str, result: dict):
         conn.close()
     except Exception as exc:
         print(f"[Oryntra] nonfatal cache failed: {exc}")
-

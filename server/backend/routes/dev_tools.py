@@ -144,9 +144,9 @@ async def pattern_modes():
         "default_lab_tickers": DEFAULT_PATTERN_LAB_TICKERS,
         "training_tickers_150": TRAINING_TICKERS_150,
         "modes": [
-            {"id": "official", "label": "V7 Official Momentum", "description": "Existing production candidate engine."},
-            {"id": "v8", "label": "V8 Analytics Evidence", "description": "V7-derived candidates scored symmetrically with Oryntra Pro analytics."},
-            {"id": "vai2", "label": "VAI 2.1 Experimental", "description": "Optional promoted local model layer retained for controlled comparison."},
+            {"id": "official", "label": "V1.0 Official Momentum", "description": "Current production candidate engine."},
+            {"id": "v8", "label": "V1.0 Analytics Research", "description": "Directional candidates scored symmetrically with Oryntra analytics."},
+            {"id": "vai2", "label": "V1.0 Quant Experimental", "description": "Optional promoted local model layer retained for controlled comparison."},
         ],
     }
 
@@ -285,7 +285,7 @@ async def _run_vai_training_job(job_id: str, req: VAITrainRequest):
             step=req.step, min_history=req.min_history, max_tests_per_ticker=req.max_tests_per_ticker,
             data_source=req.data_source, engine_modes=["official"], include_rows=True,
         )
-        job.update({"status": "running", "phase": "building_dataset", "message": "Building causal V7 rows in an isolated worker.", "updated_at": datetime.now(timezone.utc).isoformat()})
+        job.update({"status": "running", "phase": "building_dataset", "message": "Building causal V1.0 rows in an isolated worker.", "updated_at": datetime.now(timezone.utc).isoformat()})
         lab_job = await pattern_lab_start(lab_request)
         lab_job_id = lab_job["job_id"]
         while True:
@@ -416,4 +416,3 @@ async def pattern_lab_resume(job_id: str):
     resumed = dict(original)
     resumed["resume_from_job_id"] = job_id
     return await pattern_lab_start(PatternLabRequest(**resumed))
-

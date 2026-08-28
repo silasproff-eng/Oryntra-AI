@@ -8,6 +8,8 @@ from typing import Any
 
 import numpy as np
 
+from .research_experiments import chronological_split
+
 APP_DIR = Path(__file__).resolve().parents[1]
 MODEL_ROOT = APP_DIR / "data" / "models" / "vai2"
 RUNS_DIR = MODEL_ROOT / "runs"
@@ -15,12 +17,15 @@ PROMOTED_MODEL_PATH = MODEL_ROOT / "model.json"
 PROMOTED_META_PATH = MODEL_ROOT / "metadata.json"
 
 NUMERIC_FEATURES = [
-    "confidence", "rsi14", "adx14", "di_spread", "vol_ratio", "atr_pct",
+    "rsi14", "adx14", "di_spread", "vol_ratio", "atr_pct",
     "momentum_5d", "momentum_20d", "momentum_60d",
     "above_ma20", "above_ma50", "above_ma200", "ma_stack",
     "risk_reward_hint", "trend_quality_hint", "volume_quality_hint",
 ]
-CATEGORICAL_FIELDS = ["ticker", "regime", "top_pattern", "setup_type"]
+# The ticker must never become a learned shortcut: it does not generalize to a
+# new issuer and can encode a particular historical period.  Categories are
+# fit on the training partition only.
+CATEGORICAL_FIELDS = ["regime", "top_pattern", "setup_type"]
 
 
 def _f(value: Any, default: float = 0.0) -> float:
@@ -124,7 +129,6 @@ def _row_numeric(row: dict[str, Any]) -> dict[str, float]:
         volume_quality = 0.38
     risk_reward_hint = max(0.0, min(1.0, (12.0 - atr) / 12.0))
     return {
-        "confidence": _f(row.get("confidence"), 50.0) / 100.0,
         "rsi14": (_f(row.get("rsi14"), 50.0) - 50.0) / 50.0,
         "adx14": adx / 60.0,
         "di_spread": di_spread / 60.0,
@@ -145,7 +149,6 @@ def _row_numeric(row: dict[str, Any]) -> dict[str, float]:
 
 def _current_numeric(ind: dict[str, Any], setup: dict[str, Any]) -> dict[str, float]:
     row = dict(ind or {})
-    row["confidence"] = setup.get("score") or setup.get("confidence") or 50
     return _row_numeric(row)
 
 
@@ -183,7 +186,6 @@ def _vector(row: dict[str, Any], cats: dict[str, list[str]]) -> list[float]:
 def _vector_current(ind: dict[str, Any], setup: dict[str, Any], patterns: dict[str, Any], cats: dict[str, list[str]]) -> list[float]:
     vals = _current_numeric(ind or {}, setup or {})
     row = {name: vals[name] for name in NUMERIC_FEATURES}
-    row["ticker"] = _safe_upper(ind.get("ticker") or setup.get("ticker") or "UNKNOWN")
     row["regime"] = _regime_from_ind(ind or {})
     row["top_pattern"] = _top_pattern(patterns)
     row["setup_type"] = _setup_type(setup or {})
@@ -302,11 +304,11 @@ def _promote_if_better(model: dict[str, Any], run_dir: Path, *, force_promote: b
     MODEL_ROOT.mkdir(parents=True, exist_ok=True)
     current = _load_promoted_model()
     current_version = str((current or {}).get("version") or "")
-    legacy_current = bool(current and "2.1" not in current_version)
-    current_score = -999.0 if legacy_current else float(((current or {}).get("validation") or {}).get("promotion_score") or -999)
-    new_score = float((model.get("validation") or {}).get("promotion_score") or -999)
+    legacy_current = bool(current and "2.2" not in current_version)
+    current_score = -999.0 if legacy_current else float(((current or {}).get("test") or {}).get("promotion_score") or -999)
+    new_score = float((model.get("test") or {}).get("promotion_score") or -999)
     promoted = bool(force_promote or current is None or legacy_current or new_score >= current_score + 0.10)
-    reason = "force_promote" if force_promote else ("first_vai2_1_model_replaces_legacy_vai2" if legacy_current else ("first_model" if current is None else ("score_improved" if promoted else "kept_existing_model")))
+    reason = "force_promote" if force_promote else ("first_vai2_2_model_replaces_legacy_vai2" if legacy_current else ("first_model" if current is None else ("untouched_test_score_improved" if promoted else "kept_existing_model")))
     model["promotion"] = {
         "promoted": promoted,
         "previous_score": None if legacy_current else (current_score if current is not None else None),
@@ -317,7 +319,7 @@ def _promote_if_better(model: dict[str, Any], run_dir: Path, *, force_promote: b
     (run_dir / "candidate_model.json").write_text(json.dumps(model, indent=2), encoding="utf-8")
     if promoted:
         PROMOTED_MODEL_PATH.write_text(json.dumps(model, indent=2), encoding="utf-8")
-        meta = {k: model.get(k) for k in ["version", "created_at", "horizon_days", "samples", "positive_rate_pct", "validation", "promotion", "top_positive_features", "top_negative_features"]}
+        meta = {k: model.get(k) for k in ["version", "created_at", "horizon_days", "samples", "positive_rate_pct", "validation", "test", "split", "promotion", "top_positive_features", "top_negative_features"]}
         PROMOTED_META_PATH.write_text(json.dumps(meta, indent=2), encoding="utf-8")
     return model["promotion"]
 
@@ -325,15 +327,32 @@ def _promote_if_better(model: dict[str, Any], run_dir: Path, *, force_promote: b
 def train_vai2_from_lab_rows(rows: list[dict[str, Any]], horizon_days: int = 10, min_samples: int = 80, *, force_promote: bool = False, run_label: str | None = None) -> dict[str, Any]:
     rows = [dict(r) for r in rows or [] if not r.get("error")]
     rows = [r for r in rows if _direction(r) in {"LONG", "SHORT", "NEUTRAL"}]
+    rows.sort(key=lambda row: (str(row.get("date") or ""), str(row.get("ticker") or "")))
     if len(rows) < int(min_samples or 80):
-        return {"ok": False, "status": "not_enough_data", "samples": len(rows), "required": int(min_samples or 80), "terminal_output": f"VAI 2.1 TRAINING FAILED\nSamples: {len(rows)}\nRequired: {int(min_samples or 80)}"}
+        return {"ok": False, "status": "not_enough_data", "samples": len(rows), "required": int(min_samples or 80), "terminal_output": f"VAI 2.2 TRAINING FAILED\nSamples: {len(rows)}\nRequired: {int(min_samples or 80)}"}
 
     metrics = [_quality_metrics(r) for r in rows]
     y_accept = np.asarray([m["good"] for m in metrics], dtype=float)
     if len(set(y_accept.tolist())) < 2:
-        return {"ok": False, "status": "single_class", "samples": len(rows), "positive_rate_pct": round(float(y_accept.mean() * 100), 2), "terminal_output": "VAI 2.1 TRAINING FAILED\nLabels had only one class. Use more varied data."}
+        return {"ok": False, "status": "single_class", "samples": len(rows), "positive_rate_pct": round(float(y_accept.mean() * 100), 2), "terminal_output": "VAI 2.2 TRAINING FAILED\nLabels had only one class. Use more varied data."}
 
-    cats = _build_categories(rows)
+    # Dates, rather than individual rows, define the partitions.  A purge gap
+    # equal to the outcome horizon prevents overlapping future windows from
+    # leaking from train into validation or test.
+    partition = chronological_split(rows, train_pct=0.65, validation_pct=0.15, purge_days=max(1, int(horizon_days or 10)))
+    train_idx = np.asarray(partition["train"], dtype=int)
+    validation_idx = np.asarray(partition["validation"], dtype=int)
+    test_idx = np.asarray(partition["test"], dtype=int)
+    if min(len(train_idx), len(validation_idx), len(test_idx)) < 8:
+        return {
+            "ok": False,
+            "status": "insufficient_chronological_partitions",
+            "samples": len(rows),
+            "partition_sizes": {key: len(value) for key, value in partition.items()},
+            "terminal_output": "VAI 2.2 TRAINING FAILED\nA date-based train/validation/test split with a purge gap needs more independent history.",
+        }
+
+    cats = _build_categories([rows[i] for i in train_idx])
     X = np.asarray([_vector(r, cats) for r in rows], dtype=float)
     ret = np.asarray([m["return"] for m in metrics], dtype=float)
     mfe = np.asarray([m["mfe"] for m in metrics], dtype=float)
@@ -341,18 +360,15 @@ def train_vai2_from_lab_rows(rows: list[dict[str, Any]], horizon_days: int = 10,
     stop = np.asarray([1.0 if m["stop"] else 0.0 for m in metrics], dtype=float)
     target = np.asarray([1.0 if m["target"] else 0.0 for m in metrics], dtype=float)
     quality = np.asarray([m["quality"] for m in metrics], dtype=float)
-    row_confidence = np.asarray([min(1.0, max(0.20, _f(r.get("confidence"), 50.0) / 100.0)) for r in rows], dtype=float)
-
     n = len(rows)
-    split = max(1, int(n * 0.76))
-    X_train, X_val = X[:split], X[split:]
-    ya_train = y_accept[:split]
-    ret_train, ret_val = ret[:split], ret[split:]
-    stop_train, stop_val = stop[:split], stop[split:]
-    target_train = target[:split]
-    quality_train = quality[:split]
-    confidence_train, confidence_val = row_confidence[:split], row_confidence[split:]
-    mfe_val, mae_val, target_val = mfe[split:], mae_abs[split:], target[split:]
+    X_train, X_val, X_test = X[train_idx], X[validation_idx], X[test_idx]
+    ya_train = y_accept[train_idx]
+    ret_train, ret_val, ret_test = ret[train_idx], ret[validation_idx], ret[test_idx]
+    stop_train, stop_val, stop_test = stop[train_idx], stop[validation_idx], stop[test_idx]
+    target_train = target[train_idx]
+    quality_train = quality[train_idx]
+    mfe_val, mae_val, target_val = mfe[validation_idx], mae_abs[validation_idx], target[validation_idx]
+    mfe_test, mae_test, target_test = mfe[test_idx], mae_abs[test_idx], target[test_idx]
 
     mu = X_train.mean(axis=0)
     sigma = X_train.std(axis=0)
@@ -361,14 +377,10 @@ def train_vai2_from_lab_rows(rows: list[dict[str, Any]], horizon_days: int = 10,
     Xv = (X_val - mu) / sigma
 
     good_return = (ret_train > 0).astype(float)
-    sample_weight = 0.75 + (confidence_train * 1.10)
-    sample_weight += target_train * confidence_train * 0.55
-    sample_weight += good_return * np.clip(ret_train, 0, 8) * confidence_train * 0.10
-    sample_weight += stop_train * (0.80 + confidence_train * 2.10)
-    sample_weight += (ret_train < 0).astype(float) * confidence_train * 0.70
-    sample_weight += np.clip(-quality_train, 0, 5) * (0.22 + confidence_train * 0.12)
-
-    stop_weight = 1.0 + stop_train * (0.95 + confidence_train * 1.30)
+    # Labels can shape training weights; a previous model's confidence cannot.
+    sample_weight = 1.0 + target_train * 0.55 + good_return * np.clip(ret_train, 0, 8) * 0.10
+    sample_weight += stop_train * 0.80 + (ret_train < 0).astype(float) * 0.70 + np.clip(-quality_train, 0, 5) * 0.22
+    stop_weight = 1.0 + stop_train * 0.95
 
     accept_w, accept_b = _fit_logistic(Xt, ya_train, sample_weight, epochs=1200, lr=0.065, l2=0.0045)
     stop_w, stop_b = _fit_logistic(Xt, stop_train, stop_weight, epochs=900, lr=0.055, l2=0.0045)
@@ -380,19 +392,18 @@ def train_vai2_from_lab_rows(rows: list[dict[str, Any]], horizon_days: int = 10,
     pred_ret = np.asarray(Xv @ ret_w + ret_b, dtype=float) if len(Xv) else np.array([])
     pred_quality = np.asarray(Xv @ quality_w + quality_b, dtype=float) if len(Xv) else np.array([])
 
-    best = {"threshold": 0.60, "min_expected_return": 0.20, "max_stop_probability": 0.72, "min_confidence_edge": 0.0, "promotion_score": -999.0}
+    best = {"threshold": 0.60, "min_expected_return": 0.20, "max_stop_probability": 0.72, "min_decision_edge": 0.0, "promotion_score": -999.0}
     for th in np.arange(0.40, 0.86, 0.025):
         for min_er in [-0.05, 0.0, 0.15, 0.30, 0.50, 0.75, 1.00]:
             for max_sp in [0.50, 0.58, 0.64, 0.70, 0.76]:
-                confidence_edge = (
+                decision_edge = (
                     (p_accept - th) * 1.35
                     + (pred_ret - min_er) * 0.075
                     + (max_sp - p_stop) * 0.95
                     + pred_quality * 0.045
-                    + (confidence_val - 0.50) * 0.18
                 )
                 for min_edge in [-0.10, 0.0, 0.10, 0.20, 0.30]:
-                    take = (p_accept >= th) & (pred_ret >= min_er) & (p_stop <= max_sp) & (pred_quality > -0.70) & (confidence_edge >= min_edge)
+                    take = (p_accept >= th) & (pred_ret >= min_er) & (p_stop <= max_sp) & (pred_quality > -0.70) & (decision_edge >= min_edge)
                     if take.sum() < max(8, len(p_accept) * 0.035):
                         continue
                     summary = _summarize_taken(take, ret_val, mfe_val, mae_val, stop_val, target_val)
@@ -403,7 +414,7 @@ def train_vai2_from_lab_rows(rows: list[dict[str, Any]], horizon_days: int = 10,
                             "threshold": round(float(th), 3),
                             "min_expected_return": round(float(min_er), 3),
                             "max_stop_probability": round(float(max_sp), 3),
-                            "min_confidence_edge": round(float(min_edge), 3),
+                            "min_decision_edge": round(float(min_edge), 3),
                             "promotion_score": score,
                         })
 
@@ -412,8 +423,9 @@ def train_vai2_from_lab_rows(rows: list[dict[str, Any]], horizon_days: int = 10,
             "ok": False,
             "status": "no_valid_threshold",
             "samples": int(n),
-            "validation_samples": int(max(0, n - split)),
-            "terminal_output": "VAI 2.1 TRAINING FAILED\nNo validation threshold produced enough clean signals. Use more samples, more tickers, or less restrictive data.",
+            "validation_samples": int(len(validation_idx)),
+            "test_samples": int(len(test_idx)),
+            "terminal_output": "VAI 2.2 TRAINING FAILED\nNo validation threshold produced enough clean signals. Use more samples, more tickers, or less restrictive data.",
         }
 
     feature_names = _feature_names(cats)
@@ -426,7 +438,7 @@ def train_vai2_from_lab_rows(rows: list[dict[str, Any]], horizon_days: int = 10,
     run_dir = RUNS_DIR / run_id
     run_dir.mkdir(parents=True, exist_ok=True)
     model = {
-        "version": "VAI 2.1 Confidence-Weighted Experimental",
+        "version": "VAI 2.2 Chronological PIT Experimental",
         "created_at": datetime.utcnow().isoformat(),
         "run_id": run_id,
         "horizon_days": int(horizon_days or 10),
@@ -440,18 +452,25 @@ def train_vai2_from_lab_rows(rows: list[dict[str, Any]], horizon_days: int = 10,
         "threshold": float(best.get("threshold") or 0.60),
         "min_expected_return": float(best.get("min_expected_return") or 0.20),
         "max_stop_probability": float(best.get("max_stop_probability") or 0.72),
-        "min_confidence_edge": float(best.get("min_confidence_edge") or 0.0),
-        "samples": int(n), "train_samples": int(split), "validation_samples": int(max(0, n - split)),
+        "min_decision_edge": float(best.get("min_decision_edge") or 0.0),
+        "samples": int(n), "train_samples": int(len(train_idx)), "validation_samples": int(len(validation_idx)), "test_samples": int(len(test_idx)),
         "positive_rate_pct": round(float(y_accept.mean() * 100), 2),
-        "confidence_weighting": {
-            "avg_training_confidence": round(float(confidence_train.mean() * 100), 2) if len(confidence_train) else 0.0,
-            "policy": "Bet-size learning: confident winners get more weight; confident losers/stops get stronger penalty; prediction exposes suggested_position_size_pct.",
-        },
         "validation": best,
+        "test": {},
+        "split": {"method": "chronological_dates_with_horizon_purge", "purge_days": max(1, int(horizon_days or 10)), "partition_sizes": {key: len(value) for key, value in partition.items()}},
         "top_positive_features": top_positive,
         "top_negative_features": top_negative,
-        "training_policy": "VAI2.1 trains accept, return, stop-risk, path-quality, and confidence-weighted sizing models. High-confidence winners get more influence; high-confidence stops/losses get penalized harder. It promotes only if validation score beats the currently promoted model.",
+        "training_policy": "VAI2.2 fits features and category vocabularies on the train dates only, selects thresholds on a chronologically later validation window, and promotes only from untouched test performance. A purge gap equal to the outcome horizon separates each partition. Scanner confidence, ticker identity, and AI explanation text are excluded from numeric prediction.",
     }
+    p_accept_test = np.asarray(_sigmoid(X_test @ accept_w + accept_b), dtype=float)
+    p_stop_test = np.asarray(_sigmoid(X_test @ stop_w + stop_b), dtype=float)
+    pred_ret_test = np.asarray(X_test @ ret_w + ret_b, dtype=float)
+    pred_quality_test = np.asarray(X_test @ quality_w + quality_b, dtype=float)
+    decision_edge_test = (p_accept_test - model["threshold"]) * 1.35 + (pred_ret_test - model["min_expected_return"]) * 0.075 + (model["max_stop_probability"] - p_stop_test) * 0.95 + pred_quality_test * 0.045
+    test_take = (p_accept_test >= model["threshold"]) & (pred_ret_test >= model["min_expected_return"]) & (p_stop_test <= model["max_stop_probability"]) & (pred_quality_test > -0.70) & (decision_edge_test >= model["min_decision_edge"])
+    test_summary = _summarize_taken(test_take, ret_test, mfe_test, mae_test, stop_test, target_test)
+    test_summary["promotion_score"] = _promotion_score(test_summary)
+    model["test"] = test_summary
     promotion = _promote_if_better(model, run_dir, force_promote=force_promote)
     terminal = _training_terminal(model, promotion)
     (run_dir / "training_report.txt").write_text(terminal, encoding="utf-8")
@@ -460,25 +479,22 @@ def train_vai2_from_lab_rows(rows: list[dict[str, Any]], horizon_days: int = 10,
 
 def _training_terminal(model: dict[str, Any], promotion: dict[str, Any] | None = None) -> str:
     val = model.get("validation") or {}
+    test = model.get("test") or {}
     promo = promotion or model.get("promotion") or {}
     lines = [
-        "ORYNTRA VAI 2.1 CONFIDENCE-WEIGHTED EXPERIMENTAL — TRAINING REPORT",
+        "ORYNTRA VAI 2.2 CHRONOLOGICAL PIT EXPERIMENTAL — TRAINING REPORT",
         "=" * 62,
         f"Created: {model.get('created_at')}",
         f"Run ID: {model.get('run_id')}",
-        f"Samples: {model.get('samples')}  Train: {model.get('train_samples')}  Validation: {model.get('validation_samples')}",
+        f"Samples: {model.get('samples')}  Train: {model.get('train_samples')}  Validation: {model.get('validation_samples')}  Test: {model.get('test_samples')}",
         f"Positive label rate: {model.get('positive_rate_pct')}%",
         f"Horizon: {model.get('horizon_days')} trading days",
         "",
-        "VALIDATION / PROMOTION",
-        f"Promoted: {promo.get('promoted')}",
-        f"Reason: {promo.get('reason')}",
-        f"Previous score: {promo.get('previous_score')}",
-        f"New score: {promo.get('new_score')}",
+        "VALIDATION (THRESHOLD SELECTION)",
         f"Threshold: {val.get('threshold')}",
         f"Min expected return: {val.get('min_expected_return')}%",
         f"Max stop probability: {val.get('max_stop_probability')}",
-        f"Min confidence edge: {val.get('min_confidence_edge')}",
+        f"Min decision edge: {val.get('min_decision_edge')}",
         f"Coverage: {val.get('coverage_pct')}%",
         f"Signals: {val.get('signals')}",
         f"Win rate: {val.get('win_rate_pct')}%",
@@ -487,8 +503,15 @@ def _training_terminal(model: dict[str, Any], promotion: dict[str, Any] | None =
         f"MFE/MAE: {val.get('reward_risk_ratio')}",
         f"Target hit: {val.get('target_hit_rate_pct')}%",
         f"Stop hit: {val.get('stop_hit_rate_pct')}%",
-        f"Promotion score: {val.get('promotion_score')}",
-        f"Confidence policy: {(model.get('confidence_weighting') or {}).get('policy')}",
+        f"Validation score: {val.get('promotion_score')}",
+        "",
+        "UNTOUCHED TEST / PROMOTION",
+        f"Promoted: {promo.get('promoted')}",
+        f"Reason: {promo.get('reason')}",
+        f"Previous test score: {promo.get('previous_score')}",
+        f"New test score: {promo.get('new_score')}",
+        f"Test signals: {test.get('signals')}  Coverage: {test.get('coverage_pct')}%  Win rate: {test.get('win_rate_pct')}%",
+        f"Test avg return: {test.get('avg_return_pct')}%  Stop hit: {test.get('stop_hit_rate_pct')}%  Score: {test.get('promotion_score')}",
         "",
         "TOP POSITIVE FEATURES",
     ]
@@ -500,7 +523,8 @@ def _training_terminal(model: dict[str, Any], promotion: dict[str, Any] | None =
         lines.append(f"  - {name}: {float(weight):.4f}")
     lines.extend([
         "", "NOTES",
-        "- VAI2.1 optimizes return quality, stop-risk, MFE/MAE, and confidence-weighted bet sizing; not win rate alone.",
+        "- VAI2.2 uses an untouched chronological test partition for promotion, not win rate alone.",
+        "- Scanner confidence, ticker identity, and AI explanation text cannot enter the numeric predictor.",
         "- Repeated training does not blindly overwrite the promoted model.",
         "- Rejected candidates are saved under data/models/vai2/runs/.",
         "- Educational only; not financial advice.",
@@ -522,21 +546,20 @@ def get_vai2_model_status() -> dict[str, Any]:
                 "run_id": m.get("run_id"), "created_at": m.get("created_at"),
                 "status": "promoted" if ((m.get("promotion") or {}).get("promoted")) else "candidate",
                 "samples": m.get("samples"),
-                "promotion_score": ((m.get("validation") or {}).get("promotion_score")),
-                "avg_return_pct": ((m.get("validation") or {}).get("avg_return_pct")),
-                "stop_hit_rate_pct": ((m.get("validation") or {}).get("stop_hit_rate_pct")),
+                "promotion_score": ((m.get("test") or {}).get("promotion_score")),
+                "avg_return_pct": ((m.get("test") or {}).get("avg_return_pct")),
+                "stop_hit_rate_pct": ((m.get("test") or {}).get("stop_hit_rate_pct")),
             })
     except Exception:
         runs = []
     if not model:
-        return {"trained": False, "model_path": str(PROMOTED_MODEL_PATH), "message": "No promoted VAI 2.1 model trained yet.", "recent_runs": runs}
+        return {"trained": False, "model_path": str(PROMOTED_MODEL_PATH), "message": "No promoted VAI 2.2 model trained yet.", "recent_runs": runs}
     return {
         "trained": True, "model_path": str(PROMOTED_MODEL_PATH),
         "version": model.get("version"), "created_at": model.get("created_at"), "run_id": model.get("run_id"),
         "samples": model.get("samples"), "positive_rate_pct": model.get("positive_rate_pct"), "horizon_days": model.get("horizon_days"),
-        "threshold": model.get("threshold"), "min_expected_return": model.get("min_expected_return"), "max_stop_probability": model.get("max_stop_probability"), "min_confidence_edge": model.get("min_confidence_edge"),
-        "confidence_weighting": model.get("confidence_weighting"),
-        "validation": model.get("validation"), "promotion": model.get("promotion"),
+        "threshold": model.get("threshold"), "min_expected_return": model.get("min_expected_return"), "max_stop_probability": model.get("max_stop_probability"), "min_decision_edge": model.get("min_decision_edge"),
+        "validation": model.get("validation"), "test": model.get("test"), "split": model.get("split"), "promotion": model.get("promotion"),
         "top_positive_features": model.get("top_positive_features", [])[:12],
         "top_negative_features": model.get("top_negative_features", [])[:12],
         "recent_runs": runs,
@@ -546,7 +569,7 @@ def get_vai2_model_status() -> dict[str, Any]:
 def predict_vai2_setup(ind: dict[str, Any], setup: dict[str, Any], patterns: dict[str, Any]) -> dict[str, Any]:
     model = load_vai2_model()
     if not model:
-        return {"trained": False, "probability": None, "threshold": None, "decision": "FALLBACK_V7", "message": "No promoted VAI 2.1 model yet; using V7 fallback."}
+        return {"trained": False, "probability": None, "threshold": None, "decision": "FALLBACK_V7", "message": "No promoted VAI 2.2 model yet; using V7 fallback."}
     cats = model.get("categorical_values") or {}
     x = np.asarray(_vector_current(ind or {}, setup or {}, patterns or {}, cats), dtype=float)
     mu = np.asarray(model.get("mu") or [0.0] * len(x), dtype=float)
@@ -556,7 +579,7 @@ def predict_vai2_setup(ind: dict[str, Any], setup: dict[str, Any], patterns: dic
     rw = np.asarray(model.get("return_weights") or [0.0] * len(x), dtype=float)
     qw = np.asarray(model.get("quality_weights") or [0.0] * len(x), dtype=float)
     if not (len(mu) == len(sigma) == len(aw) == len(sw) == len(rw) == len(qw) == len(x)):
-        return {"trained": False, "probability": None, "threshold": None, "decision": "MODEL_FEATURE_MISMATCH", "message": "VAI2.1 model feature size mismatch; retrain."}
+        return {"trained": False, "probability": None, "threshold": None, "decision": "MODEL_FEATURE_MISMATCH", "message": "VAI2.2 model feature size mismatch; retrain."}
     xs = (x - mu) / np.where(sigma == 0, 1.0, sigma)
     prob = float(_sigmoid(xs @ aw + float(model.get("accept_bias") or 0.0)))
     stop_prob = float(_sigmoid(xs @ sw + float(model.get("stop_bias") or 0.0)))
@@ -565,15 +588,13 @@ def predict_vai2_setup(ind: dict[str, Any], setup: dict[str, Any], patterns: dic
     threshold = float(model.get("threshold") or 0.60)
     min_er = float(model.get("min_expected_return") or 0.20)
     max_stop = float(model.get("max_stop_probability") or 0.72)
-    min_edge = float(model.get("min_confidence_edge") or ((model.get("validation") or {}).get("min_confidence_edge") or 0.0))
+    min_edge = float(model.get("min_decision_edge") or ((model.get("validation") or {}).get("min_decision_edge") or 0.0))
     direction = _direction(setup or {})
-    row_conf = min(1.0, max(0.20, _f(setup.get("score") or setup.get("confidence"), 50.0) / 100.0))
-    confidence_edge = (
+    decision_edge = (
         (prob - threshold) * 1.35
         + (expected_return - min_er) * 0.075
         + (max_stop - stop_prob) * 0.95
         + quality_score * 0.045
-        + (row_conf - 0.50) * 0.18
     )
     decision = "TRADE" if (
         direction == "LONG"
@@ -581,9 +602,9 @@ def predict_vai2_setup(ind: dict[str, Any], setup: dict[str, Any], patterns: dic
         and expected_return >= min_er
         and stop_prob <= max_stop
         and quality_score > -0.70
-        and confidence_edge >= min_edge
+        and decision_edge >= min_edge
     ) else "NO_TRADE"
-    grade_score = prob * 100 + expected_return * 5.5 + quality_score * 4 - stop_prob * 28 + confidence_edge * 18
+    grade_score = prob * 100 + expected_return * 5.5 + quality_score * 4 - stop_prob * 28 + decision_edge * 18
     if grade_score >= 82:
         grade = "A+"
     elif grade_score >= 76:
@@ -599,7 +620,7 @@ def predict_vai2_setup(ind: dict[str, Any], setup: dict[str, Any], patterns: dic
     else:
         grade = "F"
     if decision == "TRADE":
-        size_pct = 0.35 + max(0.0, prob - threshold) * 2.2 + max(0.0, expected_return - min_er) * 0.18 + max(0.0, max_stop - stop_prob) * 0.80 + max(0.0, confidence_edge) * 0.75
+        size_pct = 0.35 + max(0.0, prob - threshold) * 2.2 + max(0.0, expected_return - min_er) * 0.18 + max(0.0, max_stop - stop_prob) * 0.80 + max(0.0, decision_edge) * 0.75
         if grade in {"A+", "A"}:
             size_pct += 0.25
         suggested_size = round(float(max(0.25, min(3.0, size_pct))), 2)
@@ -611,10 +632,9 @@ def predict_vai2_setup(ind: dict[str, Any], setup: dict[str, Any], patterns: dic
         "threshold": round(threshold * 100, 2), "decision": decision,
         "expected_return_pct": round(expected_return, 3),
         "stop_probability_pct": round(stop_prob * 100, 2), "max_stop_probability_pct": round(max_stop * 100, 2),
-        "quality_score": round(quality_score, 3), "confidence_edge": round(confidence_edge, 4), "min_confidence_edge": round(min_edge, 4),
+        "quality_score": round(quality_score, 3), "decision_edge": round(decision_edge, 4), "min_decision_edge": round(min_edge, 4),
         "suggested_position_size_pct": suggested_size,
         "grade": grade,
         "model_created_at": model.get("created_at"), "run_id": model.get("run_id"), "samples": model.get("samples"),
         "regime": _regime_from_ind(ind or {}), "top_pattern": _top_pattern(patterns),
     }
-

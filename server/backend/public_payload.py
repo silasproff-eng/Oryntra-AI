@@ -13,7 +13,20 @@ _BLOCKED_KEYS = {
 }
 
 
+def _public_release_label(value: str) -> str:
+    """Keep historical internal engine identifiers out of user-facing analysis text."""
+    return (
+        value.replace("V7 Official", "V1.0 Official")
+        .replace("V7", "V1.0")
+        .replace("V8", "V1.0")
+        .replace("VAI 2.2", "V1.0 Quant")
+        .replace("VAI 2.1", "V1.0 Quant")
+    )
+
+
 def _clean(value: Any) -> Any:
+    if isinstance(value, str):
+        return _public_release_label(value)
     if isinstance(value, dict):
         result: dict[str, Any] = {}
         for key, item in value.items():
@@ -83,6 +96,7 @@ def public_analysis_payload(raw: dict[str, Any], *, quota: dict[str, Any], polic
         "lab_based_grade": _clean(source.get("lab_based_grade") or {}),
         "trade_plan": trade_plan,
         "predictions": _clean(source.get("predictions") or {}),
+        "corporate_context": _clean(source.get("corporate_context") or {}),
         "chart": {
             "provider": "TradingView",
             "symbol": ticker,
@@ -115,4 +129,3 @@ def assert_no_raw_market_data(payload: dict[str, Any]) -> None:
             for index, item in enumerate(value):
                 walk(item, f"{path}[{index}]")
     walk(payload)
-

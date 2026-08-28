@@ -53,11 +53,10 @@ def lab_based_stock_grade(
         "top_pattern": top.get("pattern_name") or top.get("name"),
         "top_pattern_direction": top.get("direction"),
         "top_pattern_confidence": top.get("confidence"),
-        "lab_basis": "Current V8 analytics evidence model; no Pattern Lab result is fed back into live scoring.",
+        "lab_basis": "Current V1.0 analytics evidence model; no Pattern Lab result is fed back into live scoring.",
         "evidence": list(alignment.get("evidence") or [])[:8],
         "warnings": list(alignment.get("warnings") or [])[:8],
         "factor_breakdown": alignment.get("factor_breakdown") or [],
         "risk": alignment.get("risk") or {},
         "legend": {"A+": "Strongest evidence alignment.", "A": "Strong evidence alignment.", "B": "Useful but incomplete alignment.", "C": "Mixed evidence.", "D": "Weak evidence.", "F": "Evidence conflicts with the setup."},
     }
-

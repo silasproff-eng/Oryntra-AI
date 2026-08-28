@@ -1,41 +1,57 @@
-# Oryntra Quant Lab
+# Oryntra V1.0 Quant Lab
 
-Quant Lab is a private, research-only systematic-analysis workspace. It does
-not connect to a broker, create orders, or identify a best trade.
+Quant Lab is a local research and paper-simulation workspace. It has no broker client, does not create orders, and does not decide a real trade for a user.
 
-## What a run evaluates
+## The V1 stack
 
-- Time-series trend, cross-sectional momentum, mean reversion, and a
-  defensive low-volatility comparator.
-- Next-session execution timing, configurable transaction costs, and annual
-  short-borrow assumptions.
-- Gross-exposure and single-name caps, daily/weekly/monthly rebalancing, and
-  volatility targeting that only reduces exposure; it never adds leverage.
-- Historical drawdown, VaR/expected shortfall, concentration, correlation,
-  chronological holdout, regime slices, and source/data-coverage diagnostics.
+`market history + public corporate disclosures + public macro observations → deterministic sleeves → probabilistic regime weights → portfolio limits → next-session simulated execution → attribution and health reports`
 
-## Data sources
+The `Oryntra V1.0 corporate quant system` profile combines four price-based sleeves with a corporate-quality sleeve. Corporate facts and macro records are local, auditable inputs: each needs a public HTTPS source URL, an approved source class, and an `available_at` timestamp. The engine does not use a fact before that timestamp.
 
-Smart fallback checks the local database first, then Polygon and configured
-Twelve Data. Provider credentials stay in the server environment. A successful
-fallback is cached locally so a later cache-only run can be reproduced.
+## Start it locally
 
-Set `TWELVEDATA_API_KEY` and optionally
-`ORYNTRA_ENABLE_TWELVEDATA_FALLBACK=1` in the private server environment. The
-client has a shared conservative request limiter; set
-`ORYNTRA_TWELVEDATA_CALLS_PER_MINUTE` no higher than the plan allowance.
+```bash
+cd server
+PYTHONPATH=. .venv/bin/python3 run.py
+```
 
-## Research standard
+Set `ORYNTRA_PRIVATE_RESEARCH_ROUTES=true` in the local `.env`, then open the browser workspace. Use Quant Lab to select a universe, choose **Oryntra V1.0 corporate quant system**, set conservative costs and limits, and generate a report. For a signed-in public Quant Lab, keep private research routes off and set `ORYNTRA_PUBLIC_QUANT_LAB_ENABLED=true` only after reviewing the applicable data rights.
 
-The tool uses public, general ideas rather than attempting to replicate private
-institutional systems: risk-balanced diversification across economic outcomes,
-market-mechanics and execution awareness, and out-of-sample/cost discipline.
-See [Bridgewater](https://www.bridgewater.com/research-and-insights/the-all-weather-story),
-[Jane Street](https://www.janestreet.com/what-we-do/overview/),
-[Citadel Securities](https://www.citadelsecurities.com/what-we-do/what-is-a-market-maker/),
-[Man AHL](https://www.man.com/ahl?language=en-gb), and
-[AQR](https://www.aqr.com/insights/research/journal-article/how-do-factor-premia-vary-over-time-a-century-of-evidence).
+## Import public corporate and macro facts
 
-Historical outputs are not forecasts. Before treating a result as evidence, use
-a point-in-time universe, delisted symbols, realistic liquidity/borrow costs,
-pre-registered parameters, and multiple untouched out-of-sample periods.
+Use the authenticated `POST /quant/corporate/import` endpoint. It accepts `documents`, `facts`, and `macro_observations` arrays. It rejects non-public sources, unsupported metrics, non-HTTPS URLs, and missing availability timestamps.
+
+Example fact:
+
+```json
+{
+  "ticker": "ACME",
+  "metric": "operating_margin",
+  "value": 18.4,
+  "period_end": "2025-12-31",
+  "published_at": "2026-02-05T21:10:00Z",
+  "available_at": "2026-02-05T21:10:00Z",
+  "source_class": "sec_filing",
+  "source_url": "https://www.sec.gov/Archives/example"
+}
+```
+
+Supported corporate metrics are revenue growth, operating and free-cash-flow margins, earnings surprise, guidance and estimate revisions, insider net buying, share-count growth, and net debt to EBITDA. Supported macro metrics are policy rate, 2-year and 10-year yields, credit spread, and inflation. Company investor-relations PDFs can be recorded as `company_ir_pdf`; central-bank releases and official macro datasets have their own source classes. Do not present an inferred fact as if it were disclosed.
+
+## Reading the report
+
+- `Structured-data coverage`: how much of the selected historical universe actually has eligible corporate or macro facts. Zero means the corresponding sleeve or macro effect was not used.
+- `Regime probabilities`: the transparent blend of persistent-trend, stressed, reversal-risk, and normal states. These adjust sleeve weights; they are not forecasts.
+- `Liquidity limit breaches`: days where the assumed trade would exceed the selected share of historical daily dollar volume. A high count means the simulated returns deserve less confidence.
+- `Factor attribution`: a descriptive market-beta, residual, long/short, and sleeve-return decomposition—not proof of causality.
+- `Strategy health`: compares the latest 63 sessions against earlier simulated history. `deteriorating` is a prompt to investigate and retest, not an automatic stop or trade instruction.
+
+## V1.0 Quant training
+
+The V1.0 Quant training layer uses only deterministic structured inputs. It excludes ticker identity, the scanner score/confidence, and AI explanation text. It fits features on chronological training dates, selects thresholds on later validation dates, leaves a horizon-sized purge gap between partitions, and promotes only if the untouched test score improves on the currently promoted model.
+
+Treat all V1.0 Quant training outputs as experimental research evidence. A successful test score is not proof of future accuracy or profitability.
+
+## Scanner boundary
+
+Run the scanner normally from the **Scanner** tab: enter a ticker, choose its displayed analysis horizon, and review the deterministic setup, risk plan, and any available corporate context. The public scanner may show a current corporate-context panel where locally imported evidence exists. Its deterministic numeric score does not change from an LLM response, and the explanation layer remains descriptive rather than a numeric predictor.

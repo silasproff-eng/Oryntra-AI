@@ -511,7 +511,7 @@ def _ai_view(scan: dict[str, Any], patterns: list[dict[str, Any]], stats: dict[s
         "entry": plan_entry,
         "invalidation": plan_stop,
         "targets": targets,
-        "engine": "Oryntra V7/VAI composite",
+        "engine": "Oryntra V1.0 composite",
         "model_version": "pro-0.4",
         "data_freshness": scan.get("scanned_at"),
     }
@@ -1141,4 +1141,3 @@ def _server_alert_worker() -> None:
 
 if _env_bool("ORYNTRA_PRO_ALERTS_AUTO_START", False):
     _server_alert_worker()
-
