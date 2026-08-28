@@ -128,7 +128,7 @@ function initThemeSettings() {
   }
 }
 
-const APP_VERSION = '0.9.1';
+const APP_VERSION = '1.0.0';
 const APP_RELEASE_KEY = 'oryntra_client_release';
 const PUBLIC_ANALYSIS_ENGINE = 'official';
 
@@ -166,6 +166,7 @@ let analysisAccessState = {
 };
 let analysisAccessPromise = null;
 let pendingAnalysisIntent = null;
+let providerOnboardingRequest = null;
 
 function authHeaders(json=true) {
   const headers = json ? {'Content-Type':'application/json'} : {};
@@ -241,6 +242,9 @@ const API = {
     me:     () => apiFetch('/api/auth/me', {headers: authHeaders(false)}).then(r => r.json()),
     logout: () => apiFetch('/api/auth/logout', {method:'POST', headers: authHeaders(false)}).then(r => r.json()),
     subscribe: (plan_code) => apiFetch('/api/auth/subscribe', {method:'POST', headers: authHeaders(true), body: JSON.stringify({plan_code})}).then(apiJson),
+    providerCredentials: () => apiFetch('/api/auth/provider-credentials', {headers: authHeaders(false)}).then(apiJson),
+    saveProviderCredential: (provider, api_key) => apiFetch('/api/auth/provider-credentials', {method:'PUT', headers: authHeaders(true), body: JSON.stringify({provider, api_key})}).then(apiJson),
+    removeProviderCredential: (provider) => apiFetch(`/api/auth/provider-credentials/${encodeURIComponent(provider)}`, {method:'DELETE', headers: authHeaders(false)}).then(apiJson),
   },
 
   watchlist: {
@@ -345,17 +349,6 @@ function hideAdSlot(el) {
   el.replaceChildren();
 }
 
-function showAdPreview(el) {
-  if (!adSlotAllowed(el)) {
-    hideAdSlot(el);
-    return;
-  }
-  const key = el.dataset.adSlot || 'ad';
-  el.classList.remove('ad-hidden', 'ad-live', 'ad-error');
-  el.classList.add('ad-preview');
-  el.innerHTML = `<div class="ad-zone-kicker">ADVERTISEMENT PREVIEW</div><div class="ad-zone-body">AdSense placement: ${escapeHtml(key.replaceAll('_', ' '))}</div>`;
-}
-
 function renderAdsenseSlot(el, config) {
   if (!adSlotAllowed(el)) {
     hideAdSlot(el);
@@ -396,10 +389,6 @@ async function initAdSlots() {
     return;
   }
   if (!adsConfig?.web) return;
-  if (adsConfig.web.preview_mode) {
-    slots.forEach(showAdPreview);
-    return;
-  }
   if (!adsConfig.web.enabled || !adsConfig.web.client) return;
   slots.forEach((el) => renderAdsenseSlot(el, adsConfig));
 }
@@ -423,7 +412,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function visibleDialog() {
   return Array.from(document.querySelectorAll('.modal-overlay[role="dialog"]'))
-    .find(modal => window.getComputedStyle(modal).display !== 'none') || null;
+    .filter(modal => window.getComputedStyle(modal).display !== 'none')
+    .at(-1) || null;
 }
 
 function openAccessibleDialog(modal, preferredFocus) {
@@ -488,11 +478,23 @@ function initAuth() {
   const cancel = document.getElementById('authCancel');
   if (cancel) cancel.addEventListener('click', closeAuthModal);
   const submit = document.getElementById('authSubmit');
-  if (submit) submit.addEventListener('click', submitAuth);
+  const form = document.getElementById('authForm');
+  if (form) form.addEventListener('submit', event => { event.preventDefault(); submitAuth(); });
+  else if (submit) submit.addEventListener('click', submitAuth);
 
   document.querySelectorAll('.auth-tab').forEach(btn => {
     btn.addEventListener('click', () => openAuthModal(btn.dataset.mode || 'login'));
   });
+  document.getElementById('authModeSwitch')?.addEventListener('click', () => openAuthModal(authMode === 'signup' ? 'login' : 'signup'));
+  document.getElementById('saveOnboardingPolygonKey')?.addEventListener('click', () => saveOnboardingProviderKey('polygon'));
+  document.getElementById('saveOnboardingTwelvedataKey')?.addEventListener('click', () => saveOnboardingProviderKey('twelvedata'));
+  document.getElementById('editProviderKeys')?.addEventListener('click', closeProviderSavedChoice);
+  document.getElementById('continueToOryntra')?.addEventListener('click', () => {
+    closeProviderSavedChoice();
+    closeProviderOnboarding();
+    resumePendingAnalysisIntent();
+  });
+  document.getElementById('providerOnboardingLogout')?.addEventListener('click', async () => { closeProviderOnboarding(); await logoutUser(); openAuthModal('login'); });
 
   const subClose = document.getElementById('subscriptionClose');
   if (subClose) subClose.addEventListener('click', closeSubscriptionModal);
@@ -517,8 +519,9 @@ function initAuth() {
     });
   });
 
-  const cachedUser = loadCachedAuthUser();
-  if (cachedUser) setAuthUI(cachedUser);
+  // Do not reveal the workspace based on browser cache.  The API session must
+  // verify first so a logged-out visitor cannot access even a transient shell.
+  setAuthUI(null);
   refreshAuthState();
 }
 
@@ -560,14 +563,15 @@ async function refreshAuthState() {
     storeCachedAuthUser(null);
     setAuthUI(null);
   } catch (_) {
-    const cachedUser = loadCachedAuthUser();
-    if (cachedUser) setAuthUI(cachedUser);
-    else setAuthUI(null);
+    setAuthUI(null);
   }
 }
 
 function setAuthUI(user) {
   currentUser = user || null;
+  const signedIn = Boolean(currentUser);
+  document.body.classList.toggle('auth-gated', !signedIn);
+  document.querySelector('.app-shell')?.setAttribute('aria-hidden', String(!signedIn));
   const state = document.getElementById('authStateText');
   const btn = document.getElementById('authOpenBtn');
   if (!user) {
@@ -575,11 +579,17 @@ function setAuthUI(user) {
     if (btn) btn.textContent = 'LOGIN';
     analysisAccessState = {ready:false, policy:null, quota:null};
     renderAnalysisAccess();
+    openAuthModal('login');
     return;
   }
   const plan = user.subscription ? (user.subscription.plan_name || user.subscription.plan_code || 'ACTIVE') : 'FREE';
   if (state) state.textContent = `${user.email} · ${plan}`;
   if (btn) btn.textContent = 'LOGOUT';
+  const workspaceName = document.getElementById('workspaceName');
+  const workspaceSubtitle = document.getElementById('workspaceSubtitle');
+  if (workspaceName) workspaceName.textContent = user.display_name || user.email;
+  if (workspaceSubtitle) workspaceSubtitle.textContent = 'Private research workspace';
+  closeAuthModal();
   renderAnalysisAccess();
 }
 
@@ -599,7 +609,17 @@ function openAuthModal(mode='login') {
   const legalAccept = document.getElementById('authLegalAccept');
   if (legalAccept && mode !== 'signup') legalAccept.checked = false;
   const submit = document.getElementById('authSubmit');
-  if (submit) submit.textContent = mode === 'signup' ? 'CREATE ACCOUNT' : 'LOGIN';
+  const kicker = document.getElementById('authModalKicker');
+  const title = document.getElementById('authModalTitle');
+  const subtitle = document.getElementById('authModalSubtitle');
+  const switcher = document.getElementById('authModeSwitch');
+  const password = document.getElementById('authPassword');
+  if (kicker) kicker.textContent = mode === 'signup' ? 'Create your research workspace' : 'Welcome back';
+  if (title) title.textContent = mode === 'signup' ? 'Start with your evidence.' : 'Sign in to continue.';
+  if (subtitle) subtitle.textContent = mode === 'signup' ? 'Create an account, then connect one provider key for your private data requests.' : 'Your saved research and provider credentials stay tied to your account.';
+  if (submit) submit.innerHTML = mode === 'signup' ? 'Create account <span>→</span>' : 'Sign in <span>→</span>';
+  if (switcher) switcher.textContent = mode === 'signup' ? 'Already have an account? Sign in' : 'New here? Create an account';
+  if (password) password.autocomplete = mode === 'signup' ? 'new-password' : 'current-password';
   const err = document.getElementById('authError');
   if (err) err.textContent = '';
   openAccessibleDialog(
@@ -609,8 +629,91 @@ function openAuthModal(mode='login') {
 }
 
 function closeAuthModal() {
+  if (!currentUser) return;
   const modal = document.getElementById('authModal');
   closeAccessibleDialog(modal);
+}
+
+function setProviderOnboardingMessage(message, warning=false) {
+  const target = document.getElementById('providerOnboardingMessage');
+  if (!target) return;
+  target.textContent = message || '';
+  target.classList.toggle('is-warning', Boolean(warning));
+}
+
+function hasSavedProviderKey(payload) {
+  return Boolean((payload?.providers || []).some(item => item?.saved && ['polygon', 'twelvedata'].includes(item.provider)));
+}
+
+async function openProviderOnboarding() {
+  const modal = document.getElementById('providerOnboardingModal');
+  if (!modal || !currentUser) return;
+  setProviderOnboardingMessage('Checking your secure provider-key status…');
+  openAccessibleDialog(modal, document.getElementById('onboardingPolygonApiKey'));
+  try {
+    const payload = await API.auth.providerCredentials();
+    if (hasSavedProviderKey(payload)) {
+      closeProviderOnboarding();
+      resumePendingAnalysisIntent();
+      return;
+    }
+    if (!payload?.encryption_configured) {
+      setProviderOnboardingMessage('Secure key storage is not configured by the site operator yet. Provider-backed research is unavailable.', true);
+      return;
+    }
+    setProviderOnboardingMessage('Save either provider key to continue. The key is never displayed again.');
+  } catch (error) {
+    setProviderOnboardingMessage(error.message || String(error), true);
+  }
+}
+
+function closeProviderOnboarding() {
+  closeAccessibleDialog(document.getElementById('providerOnboardingModal'));
+}
+
+function openProviderSavedChoice(provider) {
+  const modal = document.getElementById('providerKeySavedModal');
+  const copy = document.getElementById('providerKeySavedCopy');
+  if (copy) copy.textContent = `Your ${provider === 'polygon' ? 'Massive' : 'Twelve Data'} key is encrypted and is never displayed again.`;
+  openAccessibleDialog(modal, document.getElementById('continueToOryntra'));
+}
+
+function closeProviderSavedChoice() {
+  closeAccessibleDialog(document.getElementById('providerKeySavedModal'));
+}
+
+async function saveOnboardingProviderKey(provider) {
+  if (!currentUser) { openAuthModal('login'); return; }
+  const input = document.getElementById(provider === 'polygon' ? 'onboardingPolygonApiKey' : 'onboardingTwelvedataApiKey');
+  const apiKey = input?.value || '';
+  if (!apiKey.trim()) {
+    setProviderOnboardingMessage(`Paste your ${provider === 'polygon' ? 'Polygon / Massive' : 'Twelve Data'} API key first.`, true);
+    return;
+  }
+  try {
+    const payload = await API.auth.saveProviderCredential(provider, apiKey);
+    if (input) input.value = '';
+    renderProviderCredentialSettings(payload);
+    setProviderOnboardingMessage('Key saved securely. Choose what you want to do next.');
+    openProviderSavedChoice(provider);
+  } catch (error) {
+    setProviderOnboardingMessage(error.message || String(error), true);
+  }
+}
+
+async function requireProviderKey(intent = null) {
+  if (!currentUser) return false;
+  try {
+    const payload = await API.auth.providerCredentials();
+    if (hasSavedProviderKey(payload)) return true;
+    pendingAnalysisIntent = intent || pendingAnalysisIntent;
+    providerOnboardingRequest = intent;
+    openProviderOnboarding();
+    return false;
+  } catch (error) {
+    showError(error.message || 'Secure provider-key status could not be checked.');
+    return false;
+  }
 }
 
 async function submitAuth() {
@@ -620,18 +723,24 @@ async function submitAuth() {
   const password = document.getElementById('authPassword')?.value || '';
   const display_name = (document.getElementById('authName')?.value || '').trim();
   const accept_legal = Boolean(document.getElementById('authLegalAccept')?.checked);
+  if (authMode === 'signup' && !accept_legal) {
+    if (err) err.textContent = 'Accept the Terms, Privacy Policy, and research-only disclosure to create an account.';
+    return;
+  }
   try {
+    const completedMode = authMode;
     const res = authMode === 'signup'
       ? await API.auth.signup({email, password, display_name, accept_legal})
       : await API.auth.login({email, password});
-    applyAuthResponse(res);
+    applyAuthResponse(res, {resume: completedMode !== 'signup'});
     closeAuthModal();
+    if (completedMode === 'signup') openProviderOnboarding();
   } catch (e) {
     if (err) err.textContent = String(e);
   }
 }
 
-function applyAuthResponse(res) {
+function applyAuthResponse(res, {resume=true} = {}) {
   if (res.token) {
     authToken = res.token;
     safeStorageSet(AUTH_TOKEN_KEY, authToken);
@@ -646,9 +755,12 @@ function applyAuthResponse(res) {
   if (document.querySelector('#tab-paper.active')) {
     loadPaperTrades().catch(() => {});
   }
-  refreshAnalysisAccess({silent:true})
-    .then(() => resumePendingAnalysisIntent())
-    .catch(() => resumePendingAnalysisIntent());
+  if (resume) {
+    refreshAnalysisAccess({silent:true})
+      .then(() => resumePendingAnalysisIntent())
+      .catch(() => resumePendingAnalysisIntent());
+  }
+  refreshProviderCredentialSettings().catch(() => {});
 }
 
 async function logoutUser() {
@@ -659,7 +771,9 @@ async function logoutUser() {
   deleteClientCookie(AUTH_TOKEN_COOKIE);
   deleteClientCookie(AUTH_USER_COOKIE);
   pendingAnalysisIntent = null;
+  providerOnboardingRequest = null;
   setAuthUI(null);
+  refreshProviderCredentialSettings().catch(() => {});
   loadPaperTrades().catch(() => {});
 }
 
@@ -693,7 +807,10 @@ function initTabs() {
     if (crumb) crumb.textContent = labels[tab] || 'Workspace';
     if (tab === 'watchlist') loadWatchlist();
     if (tab === 'paper') loadPaperTrades();
-    if (tab === 'settings' && currentUser) refreshAnalysisAccess({silent:true}).catch(() => {});
+    if (tab === 'settings' && currentUser) {
+      refreshAnalysisAccess({silent:true}).catch(() => {});
+      refreshProviderCredentialSettings().catch(() => {});
+    }
   };
   tabs.forEach((btn, index) => {
     btn.addEventListener('click', () => {
@@ -723,6 +840,7 @@ function initQuantLab() {
   });
   document.getElementById('quantModel')?.addEventListener('change', event => {
     const profiles = {
+      v1_corporate_quant_system: {time_series_trend: 25, cross_sectional_momentum: 20, mean_reversion: 10, defensive_low_volatility: 15, corporate_quality: 30},
       v8_regime_diversified: {time_series_trend: 35, cross_sectional_momentum: 30, mean_reversion: 15, defensive_low_volatility: 20},
       v8_balanced: {time_series_trend: 45, cross_sectional_momentum: 40, mean_reversion: 15, defensive_low_volatility: 0},
       v8_trend_first: {time_series_trend: 65, cross_sectional_momentum: 25, mean_reversion: 10, defensive_low_volatility: 0},
@@ -732,6 +850,8 @@ function initQuantLab() {
     Object.entries(profiles[event.target.value] || profiles.v8_regime_diversified).forEach(([strategy, value]) => {
       const slider = document.querySelector(`.quant-allocation-slider[data-strategy="${strategy}"]`);
       if (slider) slider.value = String(value);
+      const checkbox = document.querySelector(`.quant-strategy-set input[type="checkbox"][value="${strategy}"]`);
+      if (checkbox && (value > 0 || strategy === 'corporate_quality')) checkbox.checked = value > 0;
     });
     updateQuantAllocationUI();
   });
@@ -809,6 +929,15 @@ async function runQuantResearch() {
   const button = document.getElementById('quantRunBtn');
   const status = document.getElementById('quantStatus');
   const results = document.getElementById('quantResults');
+  if (!currentUser) {
+    status.textContent = 'Create an account or sign in to use Quant Lab.';
+    openAuthModal('signup');
+    return;
+  }
+  if (!await requireProviderKey({type:'quant'})) {
+    status.textContent = 'Connect a provider key to use Quant Lab.';
+    return;
+  }
   const tickers = (document.getElementById('quantTickers')?.value || '').split(/[\s,]+/).map(sanitizeTickerSymbol).filter(Boolean);
   const strategies = Array.from(document.querySelectorAll('.quant-strategy-set input:checked')).map(input => input.value);
   if (tickers.length < 2 || !strategies.length) { status.textContent = 'Choose at least two symbols and one strategy family.'; return; }
@@ -816,7 +945,7 @@ async function runQuantResearch() {
   if (!strategies.some(strategy => weights[strategy] > 0)) { status.textContent = 'Give at least one selected strategy an allocation above 0%.'; return; }
   const provider = document.getElementById('quantProvider')?.value || 'auto';
   const lookback = Number(document.getElementById('quantLookback')?.value || 126);
-  const payload = {tickers, strategies, period: document.getElementById('quantPeriod')?.value || '2y', data_source: provider === 'cache_only' ? 'cache_only' : 'cache_first', data_provider: provider, model: document.getElementById('quantModel')?.value || 'v8_regime_diversified', strategy_weights: weights, trend_lookback: lookback, momentum_lookback: lookback, cost_bps: Number(document.getElementById('quantCost')?.value || 12), borrow_bps_annual: Number(document.getElementById('quantBorrow')?.value || 50), long_short: Boolean(document.getElementById('quantLongShort')?.checked), target_annual_volatility: Number(document.getElementById('quantTargetVol')?.value || 12), max_gross_exposure: Number(document.getElementById('quantMaxGross')?.value || 1), max_single_name_weight: Number(document.getElementById('quantMaxName')?.value || 35) / 100, rebalance_frequency: document.getElementById('quantRebalance')?.value || 'weekly', walk_forward_folds: Number(document.getElementById('quantWalkForward')?.value || 3)};
+  const payload = {tickers, strategies, period: document.getElementById('quantPeriod')?.value || '2y', data_source: provider === 'cache_only' ? 'cache_only' : 'cache_first', data_provider: provider, model: document.getElementById('quantModel')?.value || 'v1_corporate_quant_system', strategy_weights: weights, trend_lookback: lookback, momentum_lookback: lookback, cost_bps: Number(document.getElementById('quantCost')?.value || 12), borrow_bps_annual: Number(document.getElementById('quantBorrow')?.value || 50), long_short: Boolean(document.getElementById('quantLongShort')?.checked), target_annual_volatility: Number(document.getElementById('quantTargetVol')?.value || 12), max_gross_exposure: Number(document.getElementById('quantMaxGross')?.value || 1), max_single_name_weight: Number(document.getElementById('quantMaxName')?.value || 35) / 100, rebalance_frequency: document.getElementById('quantRebalance')?.value || 'weekly', walk_forward_folds: Number(document.getElementById('quantWalkForward')?.value || 3), regime_conditioned_weights: true, liquidity_aware_costs: true};
   button.disabled = true; results.hidden = true; status.textContent = 'Loading histories, applying fixed rules, and modeling next-session execution…';
   try { const report = await API.quant.run(payload); renderQuantReport(report); status.textContent = `Completed ${report.universe.sessions} sessions across ${report.universe.symbols.length} usable symbols. Results are net of the entered costs.`; }
   catch (error) { status.textContent = `Research run could not finish: ${error.message || String(error)}`; }
@@ -827,13 +956,13 @@ function renderQuantReport(report) {
   const results = document.getElementById('quantResults');
   if (!results) return;
   const cards = (report.results || []).map(item => `<article class="panel quant-result-card"><div class="quant-result-head"><div><div class="quant-result-kicker">${escapeHtml(item.id || '')}</div><h3>${escapeHtml(item.label || '')}</h3></div><span class="quant-research-badge">RESEARCH ONLY</span></div><p>${escapeHtml(item.description || '')}</p><div class="quant-result-allocation"><span>CONFIGURED CONTRIBUTION</span><b>${quantNumber(item.configured_allocation_pct, 1, '%')}</b></div><div class="quant-metrics"><div><span>ANN. RETURN</span><strong>${quantNumber(item.annualized_return_pct, 2, '%')}</strong></div><div><span>MAX DRAWDOWN</span><strong>${quantNumber(item.max_drawdown_pct, 2, '%')}</strong></div><div><span>VOLATILITY</span><strong>${quantNumber(item.annualized_volatility_pct, 2, '%')}</strong></div><div><span>SHARPE</span><strong>${quantNumber(item.sharpe_zero_cash_rate)}</strong></div><div><span>HIST. ES 95%</span><strong>${quantNumber(item.historical_expected_shortfall_95_pct, 2, '%')}</strong></div><div><span>ANN. TURNOVER</span><strong>${quantNumber(item.annualized_turnover, 2, '×')}</strong></div></div>${item.validation_warning ? `<div class="quant-warning">${escapeHtml(item.validation_warning)}</div>` : ''}<div class="quant-curve">${renderQuantCurve(item.equity_curve || [])}</div><details class="quant-detail"><summary>Method, environment & risk</summary><div class="quant-explainer"><div><strong>HOW IT WORKS</strong><br>${escapeHtml(item.how_it_works || '')}</div><div><strong>BEST ENVIRONMENT</strong><br>${escapeHtml(item.best_environment || '')}</div><div><strong>KEY RISK</strong><br>${escapeHtml(item.key_risk || '')}</div></div></details></article>`).join('');
-  const risk = report.portfolio_risk || {}, validation = report.validation || {}, diagnostics = report.visual_diagnostics || {}, performance = diagnostics.performance || {};
+  const risk = report.portfolio_risk || {}, validation = report.validation || {}, diagnostics = report.visual_diagnostics || {}, performance = diagnostics.performance || {}, execution = report.execution || {}, corporate = report.corporate_data || {}, macro = report.macro_data || {}, attribution = report.factor_attribution || {}, health = report.strategy_health || [];
   const kpi = (name, value) => `<div class="quant-kpi"><span>${name}</span><strong>${value}</strong></div>`;
   const regimeRows = (report.regime_breakdown || []).map(row => `<tr><td>${escapeHtml(row.regime)}</td><td>${escapeHtml(String(row.sessions))}</td><td>${quantNumber(row.total_return_pct,2,'%')}</td><td>${quantNumber(row.annualized_volatility_pct,2,'%')}</td></tr>`).join('') || '<tr><td colspan="4">Insufficient completed history for a regime comparison.</td></tr>';
   const positionRows = (risk.latest_positions || []).map(row => `<tr><td>${escapeHtml(row.symbol)}</td><td>${quantNumber(row.weight_pct,2,'%')}</td></tr>`).join('') || '<tr><td colspan="2">No active hypothetical positions.</td></tr>';
   const qualityRows = (report.data_quality?.symbols || []).map(row => `<tr><td>${escapeHtml(row.symbol)}</td><td>${escapeHtml(String(row.bars))}</td><td>${quantNumber(row.missing_session_pct,2,'%')}</td><td>${escapeHtml(row.last_bar || '—')}</td></tr>`).join('') || '<tr><td colspan="4">No quality record available.</td></tr>';
   const warnings = (report.methodology?.warnings || []).map(text => `<li>${escapeHtml(text)}</li>`).join('');
-  results.innerHTML = `<div class="quant-run-meta"><span>DATASET FINGERPRINT</span><code>${escapeHtml((report.dataset_fingerprint || '').slice(0,20))}…</code><span>${escapeHtml(report.universe?.start || '—')} → ${escapeHtml(report.universe?.end || '—')}</span><span>PROVIDER · ${escapeHtml(report.data_provider || '—')}</span></div><section class="quant-kpi-grid">${kpi('Gross exposure', quantNumber(risk.latest_gross_exposure,2,'×'))}${kpi('Net exposure', quantNumber(risk.latest_net_exposure,2,'×'))}${kpi('Effective positions', quantNumber(risk.effective_number_of_positions,2))}${kpi('Avg. |correlation|', quantNumber(risk.average_abs_correlation_126_sessions,3))}${kpi('Holdout return', quantNumber(validation.holdout?.total_return_pct,2,'%'))}${kpi('Holdout max drawdown', quantNumber(validation.holdout?.max_drawdown_pct,2,'%'))}</section><div class="quant-result-grid">${cards}</div><div class="quant-diagnostics-grid"><section class="panel quant-diagnostic"><p class="eyebrow">Regime report</p><h2>How did the rules behave?</h2><table><thead><tr><th>Historical state</th><th>Sessions</th><th>Return</th><th>Volatility</th></tr></thead><tbody>${regimeRows}</tbody></table></section><section class="panel quant-diagnostic"><p class="eyebrow">Portfolio controls</p><h2>Latest hypothetical exposure</h2><div class="quant-risk-list"><span>Largest name <b>${quantNumber(risk.largest_name_weight_pct,2,'%')}</b></span><span>Effective positions <b>${quantNumber(risk.effective_number_of_positions,2)}</b></span><span>Average correlation <b>${quantNumber(risk.average_abs_correlation_126_sessions,3)}</b></span></div><table><thead><tr><th>Symbol</th><th>Weight</th></tr></thead><tbody>${positionRows}</tbody></table></section></div><div class="quant-diagnostics-grid"><section class="panel quant-diagnostic"><p class="eyebrow">Correlation matrix</p><h2>Where diversification may fail</h2>${renderCorrelationHeatmap(diagnostics.correlation)}</section><section class="panel quant-diagnostic"><p class="eyebrow">Monthly return heatmap</p><h2>Return distribution over time</h2>${renderMonthlyHeatmap(diagnostics.monthly_returns)}</section></div><div class="quant-diagnostics-grid"><section class="panel quant-diagnostic"><p class="eyebrow">Risk path</p><h2>Equity and drawdown</h2><div class="quant-series-grid"><div><span>NET EQUITY INDEX</span><div class="quant-series">${renderQuantSeries(performance.equity_curve, 'equity')}</div></div><div><span>DRAWDOWN (%)</span><div class="quant-series">${renderQuantSeries(performance.drawdown_curve, 'drawdown')}</div></div><div><span>ROLLING 63D VOLATILITY</span><div class="quant-series">${renderQuantSeries(performance.rolling_volatility_63_pct, 'volatility')}</div></div></div><p class="quant-diagnostic-note">${escapeHtml(performance.note || '')}</p></section><section class="panel quant-diagnostic"><p class="eyebrow">Chronological validation</p><h2>Development vs holdout</h2><p class="muted">${escapeHtml(validation.note || validation.message || '')}</p><div class="quant-validation-grid"><div><span>Development</span><b>${quantNumber(validation.development?.total_return_pct,2,'%')}</b><small>${escapeHtml(String(validation.development?.observations || '—'))} sessions</small></div><div><span>Holdout</span><b>${quantNumber(validation.holdout?.total_return_pct,2,'%')}</b><small>${escapeHtml(String(validation.holdout?.observations || '—'))} sessions</small></div></div></section></div><section class="panel quant-diagnostic"><p class="eyebrow">Data quality</p><h2>Universe coverage</h2><table><thead><tr><th>Symbol</th><th>Bars</th><th>Missing</th><th>Latest</th></tr></thead><tbody>${qualityRows}</tbody></table></section><section class="panel quant-method-card"><p class="eyebrow">Method & limitations</p><ul>${warnings}</ul></section>`;
+  results.innerHTML = `<div class="quant-run-meta"><span>DATASET FINGERPRINT</span><code>${escapeHtml((report.dataset_fingerprint || '').slice(0,20))}…</code><span>${escapeHtml(report.universe?.start || '—')} → ${escapeHtml(report.universe?.end || '—')}</span><span>PROVIDER · ${escapeHtml(report.data_provider || '—')}</span></div><section class="quant-kpi-grid">${kpi('Gross exposure', quantNumber(risk.latest_gross_exposure,2,'×'))}${kpi('Net exposure', quantNumber(risk.latest_net_exposure,2,'×'))}${kpi('Effective positions', quantNumber(risk.effective_number_of_positions,2))}${kpi('Avg. |correlation|', quantNumber(risk.average_abs_correlation_126_sessions,3))}${kpi('Holdout return', quantNumber(validation.holdout?.total_return_pct,2,'%'))}${kpi('Holdout max drawdown', quantNumber(validation.holdout?.max_drawdown_pct,2,'%'))}</section><div class="quant-result-grid">${cards}</div><div class="quant-diagnostics-grid"><section class="panel quant-diagnostic"><p class="eyebrow">Regime report</p><h2>How did the rules behave?</h2><table><thead><tr><th>Historical state</th><th>Sessions</th><th>Return</th><th>Volatility</th></tr></thead><tbody>${regimeRows}</tbody></table></section><section class="panel quant-diagnostic"><p class="eyebrow">Portfolio controls</p><h2>Latest hypothetical exposure</h2><div class="quant-risk-list"><span>Largest name <b>${quantNumber(risk.largest_name_weight_pct,2,'%')}</b></span><span>Effective positions <b>${quantNumber(risk.effective_number_of_positions,2)}</b></span><span>Average correlation <b>${quantNumber(risk.average_abs_correlation_126_sessions,3)}</b></span></div><table><thead><tr><th>Symbol</th><th>Weight</th></tr></thead><tbody>${positionRows}</tbody></table></section></div><div class="quant-diagnostics-grid"><section class="panel quant-diagnostic"><p class="eyebrow">Structured-data coverage</p><h2>Corporate & macro evidence</h2><div class="quant-risk-list"><span>Corporate quality <b>${quantNumber(corporate.signal_coverage_pct,1,'%')} · ${escapeHtml(corporate.status || '—')}</b></span><span>Rates, curve, credit & inflation <b>${quantNumber(macro.signal_coverage_pct,1,'%')} · ${escapeHtml(macro.status || '—')}</b></span><span>Liquidity limit breaches <b>${escapeHtml(String(execution.participation_limit_breaches ?? '—'))}</b></span><span>Market beta <b>${quantNumber(attribution.market_beta_126_sessions,3)}</b></span></div><p class="quant-diagnostic-note">${escapeHtml(execution.note || '')}</p></section><section class="panel quant-diagnostic"><p class="eyebrow">Strategy health</p><h2>Recent alpha decay</h2>${health.length ? `<table><thead><tr><th>Sleeve</th><th>Recent bps</th><th>Decay bps</th><th>Status</th></tr></thead><tbody>${health.map(row => `<tr><td>${escapeHtml(row.strategy)}</td><td>${quantNumber(row.recent_mean_daily_bps,2)}</td><td>${quantNumber(row.alpha_decay_daily_bps,2)}</td><td>${escapeHtml(row.status)}</td></tr>`).join('')}</tbody></table>` : '<p class="muted">No health history yet.</p>'}</section></div><div class="quant-diagnostics-grid"><section class="panel quant-diagnostic"><p class="eyebrow">Correlation matrix</p><h2>Where diversification may fail</h2>${renderCorrelationHeatmap(diagnostics.correlation)}</section><section class="panel quant-diagnostic"><p class="eyebrow">Monthly return heatmap</p><h2>Return distribution over time</h2>${renderMonthlyHeatmap(diagnostics.monthly_returns)}</section></div><div class="quant-diagnostics-grid"><section class="panel quant-diagnostic"><p class="eyebrow">Risk path</p><h2>Equity and drawdown</h2><div class="quant-series-grid"><div><span>NET EQUITY INDEX</span><div class="quant-series">${renderQuantSeries(performance.equity_curve, 'equity')}</div></div><div><span>DRAWDOWN (%)</span><div class="quant-series">${renderQuantSeries(performance.drawdown_curve, 'drawdown')}</div></div><div><span>ROLLING 63D VOLATILITY</span><div class="quant-series">${renderQuantSeries(performance.rolling_volatility_63_pct, 'volatility')}</div></div></div><p class="quant-diagnostic-note">${escapeHtml(performance.note || '')}</p></section><section class="panel quant-diagnostic"><p class="eyebrow">Chronological validation</p><h2>Development vs holdout</h2><p class="muted">${escapeHtml(validation.note || validation.message || '')}</p><div class="quant-validation-grid"><div><span>Development</span><b>${quantNumber(validation.development?.total_return_pct,2,'%')}</b><small>${escapeHtml(String(validation.development?.observations || '—'))} sessions</small></div><div><span>Holdout</span><b>${quantNumber(validation.holdout?.total_return_pct,2,'%')}</b><small>${escapeHtml(String(validation.holdout?.observations || '—'))} sessions</small></div></div></section></div><section class="panel quant-diagnostic"><p class="eyebrow">Data quality</p><h2>Universe coverage</h2><table><thead><tr><th>Symbol</th><th>Bars</th><th>Missing</th><th>Latest</th></tr></thead><tbody>${qualityRows}</tbody></table></section><section class="panel quant-method-card"><p class="eyebrow">Method & limitations</p><ul>${warnings}</ul></section>`;
   results.hidden = false;
 }
 
@@ -963,6 +1092,7 @@ async function requireAnalysisAccess(intent = null) {
     openAuthModal('login');
     return false;
   }
+  if (!await requireProviderKey(intent)) return false;
   try {
     const status = await refreshAnalysisAccess({silent:true});
     if (status.ready) return true;
@@ -982,6 +1112,7 @@ async function resumePendingAnalysisIntent() {
   if (!status.ready) return;
   if (intent.type === 'scan') runScan(intent.ticker, intent.period);
   if (intent.type === 'scan-all') scanAllWatchlist();
+  if (intent.type === 'quant') runQuantResearch();
 }
 
 function initAnalysisAccess() {
@@ -1138,6 +1269,9 @@ async function runScan(ticker = null, period = null) {
       msg = `"${raw}" didn't return data. Double-check the symbol — try a major US ticker like AAPL, MSFT, or SPY.`;
     } else if (/rate limit/i.test(msg)) {
       msg = 'Hit the data provider\'s rate limit. Wait a few seconds and try again.';
+    } else if (/No (Polygon|Twelve Data) API key is saved|Secure provider-key storage/i.test(msg)) {
+      msg = 'Add your Polygon or Twelve Data key in Settings, or try a symbol already available in the local cache.';
+      document.querySelector('[data-tab="settings"]')?.click();
     } else if (/network|timed out|timeout/i.test(msg)) {
       msg = 'Network hiccup reaching the data provider. Check your connection and try again.';
     }
@@ -1841,7 +1975,7 @@ function updatePatternModePill() {
 
 
 function engineLabel(mode) {
-  const labels = {official: 'V7 OFFICIAL', v8: 'V8 ANALYTICS', vai2: 'VAI 2.1'};
+  const labels = {official: 'V1.0 OFFICIAL', v8: 'V1.0 ANALYTICS', vai2: 'V1.0 QUANT'};
   return labels[String(mode || '').toLowerCase()] || String(mode || 'official').toUpperCase();
 }
 
@@ -1869,8 +2003,72 @@ function initSettingsPage() {
     select.addEventListener('change', () => setAppEngine(select.value, {notice:true}));
   }
   initQuantSettings();
+  initProviderCredentialSettings();
   initThemeSettings();
   updateSettingsEngineDisplay();
+}
+
+function setProviderCredentialMessage(text, warning=false) {
+  const message = document.getElementById('providerCredentialMessage');
+  if (!message) return;
+  message.textContent = text;
+  message.classList.toggle('is-warning', Boolean(warning));
+}
+
+function renderProviderCredentialSettings(payload) {
+  const records = Object.fromEntries((payload?.providers || []).map(item => [item.provider, item]));
+  ['polygon', 'twelvedata'].forEach(provider => {
+    const status = document.getElementById(`${provider}CredentialStatus`);
+    const record = records[provider];
+    if (status) status.textContent = record?.saved ? 'SAVED · ENCRYPTED' : 'NOT SAVED';
+  });
+  if (!payload?.encryption_configured) {
+    setProviderCredentialMessage('Secure key storage has not been configured by the site operator yet.', true);
+  } else {
+    setProviderCredentialMessage('Saved keys are encrypted at rest and are never returned to this browser.');
+  }
+}
+
+async function refreshProviderCredentialSettings() {
+  if (!currentUser) {
+    renderProviderCredentialSettings({providers: [], encryption_configured: true});
+    setProviderCredentialMessage('Sign in to add a key. Oryntra never displays a saved key.');
+    return;
+  }
+  const payload = await API.auth.providerCredentials();
+  renderProviderCredentialSettings(payload);
+}
+
+function initProviderCredentialSettings() {
+  const save = async provider => {
+    if (!currentUser) { openAuthModal('login'); return; }
+    const input = document.getElementById(`${provider}ApiKeyInput`);
+    const apiKey = input?.value || '';
+    if (!apiKey.trim()) { setProviderCredentialMessage(`Paste your ${provider === 'polygon' ? 'Polygon' : 'Twelve Data'} API key first.`, true); return; }
+    try {
+      const payload = await API.auth.saveProviderCredential(provider, apiKey);
+      if (input) input.value = '';
+      renderProviderCredentialSettings(payload);
+      setProviderCredentialMessage(`${provider === 'polygon' ? 'Polygon' : 'Twelve Data'} key saved securely.`);
+    } catch (error) {
+      setProviderCredentialMessage(error.message || String(error), true);
+    }
+  };
+  const remove = async provider => {
+    if (!currentUser) { openAuthModal('login'); return; }
+    try {
+      const payload = await API.auth.removeProviderCredential(provider);
+      renderProviderCredentialSettings(payload);
+      setProviderCredentialMessage(`${provider === 'polygon' ? 'Polygon' : 'Twelve Data'} key removed.`);
+    } catch (error) {
+      setProviderCredentialMessage(error.message || String(error), true);
+    }
+  };
+  document.getElementById('savePolygonApiKeyBtn')?.addEventListener('click', () => save('polygon'));
+  document.getElementById('saveTwelvedataApiKeyBtn')?.addEventListener('click', () => save('twelvedata'));
+  document.getElementById('removePolygonApiKeyBtn')?.addEventListener('click', () => remove('polygon'));
+  document.getElementById('removeTwelvedataApiKeyBtn')?.addEventListener('click', () => remove('twelvedata'));
+  refreshProviderCredentialSettings().catch(() => {});
 }
 
 function initQuantSettings() {
@@ -1962,7 +2160,7 @@ function getSelectedPatternLabEngines() {
 }
 
 function selectedPatternLabEnginesLabel(engineModes) {
-  const labels = {official:'V7', v8:'V8', vai2:'VAI 2.1'};
+  const labels = {official:'V1.0 Official', v8:'V1.0 Research', vai2:'V1.0 Quant'};
   return (engineModes || []).map(m => labels[m] || String(m).toUpperCase()).join(' vs ');
 }
 
@@ -2393,22 +2591,22 @@ function buildVAITrainingPayload() {
 async function trainVAIModel() {
   const out = document.getElementById('vaiTrainingOutput');
   if (currentVAITrainingJobId) {
-    showCopyToast(currentVAITrainingJobId === JOB_STARTING ? 'VAI 2.1 training is starting.' : 'VAI 2.1 training is already running.');
+    showCopyToast(currentVAITrainingJobId === JOB_STARTING ? 'V1.0 Quant training is starting.' : 'V1.0 Quant training is already running.');
     return;
   }
   const payload = buildVAITrainingPayload();
   currentVAITrainingJobId = JOB_STARTING;
-  if (out) out.innerHTML = `<div class="dev-lab-loading">Starting VAI 2.1 training on ${payload.tickers.length} tickers...</div>`;
+  if (out) out.innerHTML = `<div class="dev-lab-loading">Starting V1.0 Quant training on ${payload.tickers.length} tickers...</div>`;
   try {
     const job = await API.dev.vaiTrainStart(payload);
     const jobId = String(job?.job_id || '').trim();
-    if (!jobId) throw new Error('VAI 2.1 training did not return a job ID.');
+    if (!jobId) throw new Error('V1.0 Quant training did not return a job ID.');
     currentVAITrainingJobId = jobId;
     renderVAITrainingStatus(job);
     pollVAITrainingJob(jobId);
   } catch (err) {
     currentVAITrainingJobId = null;
-    if (out) out.innerHTML = `<div class="dev-error">VAI training failed to start: ${escapeHtml(err.message || String(err))}</div>`;
+    if (out) out.innerHTML = `<div class="dev-error">V1.0 Quant training failed to start: ${escapeHtml(err.message || String(err))}</div>`;
   }
 }
 
@@ -2426,7 +2624,7 @@ async function pollVAITrainingJob(jobId) {
     }
   } catch (err) {
     if (currentVAITrainingJobId !== jobId) return;
-    if (out) out.innerHTML = `<div class="dev-error">VAI training status check failed: ${escapeHtml(err.message || String(err))}. Retrying...</div>`;
+    if (out) out.innerHTML = `<div class="dev-error">V1.0 Quant training status check failed: ${escapeHtml(err.message || String(err))}. Retrying...</div>`;
     setTimeout(() => pollVAITrainingJob(jobId), 5000);
   }
 }
@@ -2437,10 +2635,16 @@ function renderVAITrainingStatus(job) {
   const pct = Math.max(0, Math.min(100, Number(job.progress_pct || 0)));
   if (job.status === 'done' || job.result) {
     const result = job.result || {};
-    const terminal = result.terminal_output || JSON.stringify(result, null, 2);
-    out.innerHTML = `${terminalBlock('vaiTrainingTerminalText', terminal, 'VAI2.1 TRAINING OUTPUT')}
+    const terminal = String(result.terminal_output || JSON.stringify(result, null, 2))
+      .replaceAll('VAI 2.2', 'V1.0 Quant')
+      .replaceAll('VAI2.2', 'V1.0 Quant')
+      .replaceAll('VAI 2.1', 'V1.0 Quant')
+      .replaceAll('VAI2.1', 'V1.0 Quant')
+      .replaceAll('V7', 'V1.0')
+      .replaceAll('V8', 'V1.0');
+    out.innerHTML = `${terminalBlock('vaiTrainingTerminalText', terminal, 'V1.0 QUANT TRAINING OUTPUT')}
       <div class="dev-cache-card">
-        <div class="dev-summary-title">VAI TRAINING: ${escapeHtml(String(job.status || '').toUpperCase())}</div>
+        <div class="dev-summary-title">V1.0 QUANT TRAINING: ${escapeHtml(String(job.status || '').toUpperCase())}</div>
         <div class="dev-summary-metric"><span>Status</span><strong>${escapeHtml(String(result.status || job.status || 'unknown').toUpperCase())}</strong></div>
         <div class="dev-summary-metric"><span>Samples</span><strong>${Number(result?.model_status?.samples || result?.training?.samples || 0).toLocaleString()}</strong></div>
         <div class="dev-summary-metric"><span>Threshold</span><strong>${fmtNum(result?.model_status?.threshold || 0)}</strong></div>
@@ -2448,7 +2652,7 @@ function renderVAITrainingStatus(job) {
     return;
   }
   out.innerHTML = `<div class="dev-cache-card">
-    <div class="dev-summary-title">VAI TRAINING: ${escapeHtml(String(job.status || '').toUpperCase())}</div>
+    <div class="dev-summary-title">V1.0 QUANT TRAINING: ${escapeHtml(String(job.status || '').toUpperCase())}</div>
     <div class="dev-summary-metric"><span>Progress</span><strong>${fmtNum(pct)}%</strong></div>
     <div class="dev-summary-metric"><span>Phase</span><strong>${escapeHtml(job.phase || '—')}</strong></div>
     <div class="dev-summary-metric"><span>Current</span><strong>${escapeHtml(job.current_ticker || '—')}</strong></div>
@@ -2459,13 +2663,13 @@ function renderVAITrainingStatus(job) {
 
 async function showVAIModelStatus() {
   const out = document.getElementById('vaiTrainingOutput');
-  if (out) out.innerHTML = '<div class="dev-lab-loading">Checking VAI model...</div>';
+  if (out) out.innerHTML = '<div class="dev-lab-loading">Checking V1.0 Quant model...</div>';
   try {
     const status = await API.dev.vaiModelStatus();
-    const terminal = `VAI 2.1 MODEL STATUS\n${'='.repeat(32)}\nTrained: ${status.trained}\nVersion: ${status.version || 'none'}\nCreated: ${status.created_at || 'none'}\nSamples: ${status.samples || 0}\nThreshold: ${status.threshold || 'n/a'}\nValidation: ${JSON.stringify(status.validation || {}, null, 2)}\n\nTop positive features:\n${(status.top_positive_features || []).map(x => '  + ' + x[0] + ': ' + fmtNum(x[1])).join('\n')}\n\nTop negative features:\n${(status.top_negative_features || []).map(x => '  - ' + x[0] + ': ' + fmtNum(x[1])).join('\n')}`;
-    if (out) out.innerHTML = terminalBlock('vaiTrainingTerminalText', terminal, 'VAI MODEL STATUS');
+    const terminal = `V1.0 QUANT MODEL STATUS\n${'='.repeat(32)}\nTrained: ${status.trained}\nVersion: ${status.version || 'none'}\nCreated: ${status.created_at || 'none'}\nSamples: ${status.samples || 0}\nThreshold: ${status.threshold || 'n/a'}\nValidation: ${JSON.stringify(status.validation || {}, null, 2)}\n\nTop positive features:\n${(status.top_positive_features || []).map(x => '  + ' + x[0] + ': ' + fmtNum(x[1])).join('\n')}\n\nTop negative features:\n${(status.top_negative_features || []).map(x => '  - ' + x[0] + ': ' + fmtNum(x[1])).join('\n')}`;
+    if (out) out.innerHTML = terminalBlock('vaiTrainingTerminalText', terminal, 'V1.0 QUANT MODEL STATUS');
   } catch (err) {
-    if (out) out.innerHTML = `<div class="dev-error">VAI status failed: ${escapeHtml(err.message || String(err))}</div>`;
+    if (out) out.innerHTML = `<div class="dev-error">V1.0 Quant status failed: ${escapeHtml(err.message || String(err))}</div>`;
   }
 }
 

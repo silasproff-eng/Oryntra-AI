@@ -2541,6 +2541,47 @@ textarea {
 .auth-tab { flex:1; border:1px solid var(--border); background:rgba(255,255,255,.03); color:var(--text-secondary); border-radius:10px; padding:9px; font:700 11px 'JetBrains Mono',monospace; cursor:pointer; }
 .auth-tab.active { color:var(--accent-primary); border-color:rgba(56,207,243,.5); background:rgba(56,207,243,.08); }
 .auth-error { color:var(--bear); font-size:11px; min-height:16px; margin-top:8px; }
+.auth-modal-box { width:min(980px,96vw); max-width:980px; padding:0; overflow:hidden; border-radius:18px; }
+.oryntra-auth-layout { display:grid; min-height:580px; grid-template-columns:minmax(0,1.1fr) minmax(400px,.9fr); }
+.auth-story.oryntra-auth-story { min-height:580px; display:flex; flex-direction:column; padding:38px clamp(30px,5vw,62px) 30px; color:#eaf7ff; background:radial-gradient(circle at 74% 20%,rgba(56,207,243,.2),transparent 25rem),linear-gradient(145deg,#071725,#07111c 56%,#050a11); }
+.oryntra-auth-brand { font:800 19px var(--font-display); letter-spacing:.17em; color:#fff; }
+.oryntra-auth-brand span { color:var(--accent-primary); }
+.oryntra-auth-story-content { max-width:470px; margin:auto 0; padding:64px 0; }
+.oryntra-auth-story-content .eyebrow { color:var(--accent-primary); }
+.oryntra-auth-story-content h1 { margin:0 0 20px; font:800 clamp(38px,5vw,64px)/.98 var(--font-display); letter-spacing:-.045em; color:#f4fbff; }
+.oryntra-auth-story-content h1 em { color:var(--accent-primary); font-style:normal; }
+.oryntra-auth-story-content p:not(.eyebrow) { margin:0; max-width:410px; color:#c7d8e3; font-size:14px; line-height:1.7; }
+.oryntra-auth-note { display:flex; align-items:center; gap:9px; margin-top:25px; color:#b6c8d4; font-size:11px; }
+.oryntra-auth-note i { width:7px; height:7px; border-radius:50%; background:var(--bull); box-shadow:0 0 12px rgba(33,203,139,.7); }
+.oryntra-auth-footer { color:#78909f; font:700 9px var(--font-mono); letter-spacing:.14em; }
+.auth-panel.oryntra-auth-panel { position:relative; display:grid; place-items:center; padding:42px; background:linear-gradient(180deg,rgba(16,31,45,.98),rgba(8,17,27,.98)); }
+.oryntra-auth-panel .auth-card { width:min(100%,410px); }
+.oryntra-auth-panel h2 { margin:4px 0 7px; font:800 30px/1.08 var(--font-display); letter-spacing:-.03em; color:var(--text-primary); }
+.oryntra-auth-close { position:absolute; top:14px; right:17px; width:30px; height:30px; border:1px solid var(--border); border-radius:50%; color:var(--text-secondary); background:transparent; font-size:21px; line-height:1; cursor:pointer; }
+.oryntra-auth-close:hover { color:var(--text-primary); border-color:var(--accent-primary); }
+.oryntra-auth-form { display:grid; gap:13px; margin-top:19px; }
+.oryntra-auth-form label { display:grid; gap:6px; color:var(--text-secondary); font:700 10px var(--font-mono); letter-spacing:.07em; text-transform:uppercase; }
+.oryntra-auth-form input { width:100%; border:1px solid var(--border); border-radius:9px; background:var(--bg-input); color:var(--text-primary); font:14px var(--font-mono); letter-spacing:normal; padding:11px 12px; outline:0; }
+.oryntra-auth-form input:focus { border-color:var(--accent-primary); box-shadow:0 0 0 3px rgba(56,207,243,.1); }
+.oryntra-auth-legal { display:flex !important; grid-template-columns:16px 1fr; align-items:start; gap:8px !important; color:var(--text-dim) !important; font:11px/1.45 var(--font-sans) !important; letter-spacing:0 !important; text-transform:none !important; }
+.oryntra-auth-legal input { width:15px; height:15px; margin:1px 0 0; accent-color:var(--accent-primary); }
+.oryntra-auth-legal a, .provider-onboarding-grid a { color:var(--accent-primary); }
+.oryntra-auth-submit { width:100%; justify-content:center; margin-top:2px; padding:12px 15px; }
+.oryntra-auth-submit span { margin-left:8px; font-size:16px; }
+.oryntra-auth-switch { align-self:flex-start; margin-top:16px; padding:0; border:0; background:transparent; color:var(--accent-primary); font:700 11px var(--font-mono); cursor:pointer; }
+.oryntra-auth-switch:hover { color:#96e6f8; }
+.provider-onboarding-box { width:min(760px,96vw); max-width:760px; padding:32px; }
+.provider-onboarding-box h2 { margin:5px 0 7px; font:800 29px var(--font-display); letter-spacing:-.025em; }
+.provider-onboarding-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; margin:23px 0 13px; }
+.provider-onboarding-grid section { display:grid; align-content:start; gap:10px; padding:17px; border:1px solid var(--border); border-radius:13px; background:rgba(255,255,255,.025); }
+.provider-onboarding-grid h3 { margin:0; color:var(--text-primary); font:800 16px var(--font-display); }
+.provider-onboarding-grid p, .provider-onboarding-grid a { margin:0; font-size:11px; line-height:1.55; }
+.provider-onboarding-grid p { color:var(--text-dim); }
+.provider-onboarding-grid label { display:grid; gap:6px; margin-top:2px; color:var(--text-secondary); font:700 9px var(--font-mono); letter-spacing:.08em; }
+.provider-onboarding-grid input { min-width:0; border:1px solid var(--border); border-radius:8px; background:var(--bg-input); color:var(--text-primary); padding:9px; outline:0; }
+.provider-onboarding-grid input:focus { border-color:var(--accent-primary); }
+.provider-onboarding-legal { margin:0; color:var(--text-dim); font-size:11px; line-height:1.55; }
+@media (max-width:760px) { .auth-modal-box { max-height:94vh; overflow:auto; } .oryntra-auth-layout { grid-template-columns:1fr; } .auth-story.oryntra-auth-story { display:none; } .auth-panel.oryntra-auth-panel { min-height:580px; padding:30px 26px; } .provider-onboarding-box { max-height:94vh; overflow:auto; } .provider-onboarding-grid { grid-template-columns:1fr; } }
 .subscription-modal-box { max-width:760px; }
 .plan-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; margin-top:14px; }
 .plan-card { border:1px solid var(--border); border-radius:18px; padding:16px; background:linear-gradient(180deg,rgba(255,255,255,.055),rgba(255,255,255,.025)); }
@@ -3326,7 +3367,7 @@ textarea {
   background: rgba(0, 255, 170, .10);
 }
 .lab-grade-card .lab-grade-label::after {
-  content: " · V0.5.0";
+  content: " · V1.0";
   opacity: .75;
 }
 

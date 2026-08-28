@@ -3326,7 +3326,7 @@ textarea {
   background: rgba(0, 255, 170, .10);
 }
 .lab-grade-card .lab-grade-label::after {
-  content: " · V0.5.0";
+  content: " · V1.0";
   opacity: .75;
 }
 

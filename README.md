@@ -18,7 +18,7 @@
 
 Oryntra AI is an end-to-end market-intelligence system built around a simple premise: a useful research product should make its assumptions visible. Rather than hiding a conclusion behind an opaque score, the platform records where market data came from, applies deterministic calculations, exposes the controls applied to a hypothetical portfolio, and reports where the historical evidence is weak. The result is a tool for forming and challenging research hypotheses—not a machine for producing certainty.
 
-The repository brings together a FastAPI service, a browser workspace, a local market-data cache, a policy-aware public scanner, and a private Quant Lab. The public-facing experience is deliberately limited to derived analysis. More sensitive research functionality—such as backtesting, pattern-lab tools, cache maintenance, and systematic portfolio diagnostics—is mounted only when the server is explicitly configured for private research use.
+The repository brings together a FastAPI service, a browser workspace, a local market-data cache, a policy-aware account scanner, and Quant Lab. The public-facing experience is deliberately limited to derived analysis. Backtesting, Pattern Lab, cache maintenance, and developer tools remain private. Quant Lab can be exposed only when explicitly enabled and only with the appropriate data-provider rights and access policy.
 
 The operating model is informed by public institutional research conventions: start from an observable question, separate a signal from its implementation, quantify cost and concentration, test over time, and state what the evidence cannot establish. That is a documentation and engineering standard, not a claim that this project reproduces any firm’s proprietary research or trading systems.
 
@@ -40,9 +40,9 @@ flowchart LR
     B --> C["Deterministic analysis\nindicators · patterns · scoring"]
     B --> D["Quant Lab\nsignal construction · controls · simulation"]
     C --> E["Derived market-intelligence API"]
-    D --> F["Private research API"]
+    D --> F["Authenticated research API"]
     E --> G["Public scanner and account workspace"]
-    F --> H["Private Quant Desk\nbacktests · diagnostics · development tools"]
+    F --> H["Account Quant Desk\ndiagnostics · controlled research"]
     C --> I["Structured context"]
     I --> J["AI explanation layer\nplain-language interpretation"]
     J --> G
@@ -66,7 +66,7 @@ Institutional-quality research is as much about failure modes as attractive hist
 
 ### 4. Keep the public surface narrow
 
-The public scanner is intended to expose derived analysis within the configured access policy. The private Quant Lab, backtesting routes, cache tooling, and developer tools are available only when `ORYNTRA_PRIVATE_RESEARCH_ROUTES=true`. This division is both a product decision and a safety boundary: it avoids exposing raw market-data workflows or experimental research controls as a public recommendation service.
+The scanner requires an account before an analysis can run. Backtesting, cache tooling, and developer tools are private-only. Quant Lab requires an account in every mode; it is private by default and can be mounted for signed-in users only when `ORYNTRA_PUBLIC_QUANT_LAB_ENABLED=true`. This division avoids exposing raw market-data workflows or experimental controls as a public recommendation service.
 
 ---
 
@@ -88,18 +88,19 @@ This sequence is intentionally conservative. It does not search a large paramete
 
 ## Quant Lab
 
-Quant Lab is Oryntra’s private systematic-research workspace. It evaluates a selected universe of daily closing-price histories using rules that are fixed before each run. The tool runs independently of the scanner and does not place trades. It is designed to help a user understand how a simple portfolio rule would have behaved historically after the requested controls and cost assumptions—not to identify a “best” strategy.
+Quant Lab is Oryntra V1.0’s systematic-research workspace. It evaluates a selected universe of daily closing-price histories using rules that are fixed before each run. The V1.0 corporate quant system adds a local, source-auditable point-in-time repository for public corporate disclosures and macro observations. It still runs independently of the scanner and does not place trades. It is designed to help a user understand how a defined portfolio rule would have behaved historically after the requested controls and cost assumptions—not to identify a “best” strategy.
 
 ### Strategy comparators
 
 | Sleeve | Question it examines | Primary failure mode |
 | --- | --- | --- |
-| V8 time-series trend | Does an asset’s own trailing direction persist into the next holding period? | Whipsaw during repeated range-bound reversals |
-| V8 cross-sectional momentum | Do relative leaders and laggards continue to separate within a broad universe? | Momentum crashes and leadership turnover |
-| V8 mean-reversion comparator | Do unusually large short-window moves partially reverse after a volatility check? | Fighting a genuine breakout or trend |
-| V8 defensive low-volatility sleeve | Does a lower-realized-volatility group behave differently from a higher-volatility group? | Concentration and lag in high-beta leadership |
+| V1.0 time-series trend | Does an asset’s own trailing direction persist into the next holding period? | Whipsaw during repeated range-bound reversals |
+| V1.0 cross-sectional momentum | Do relative leaders and laggards continue to separate within a broad universe? | Momentum crashes and leadership turnover |
+| V1.0 mean-reversion comparator | Do unusually large short-window moves partially reverse after a volatility check? | Fighting a genuine breakout or trend |
+| V1.0 defensive low-volatility sleeve | Does a lower-realized-volatility group behave differently from a higher-volatility group? | Concentration and lag in high-beta leadership |
+| Corporate quality and change sleeve | Do eligible public changes in growth, margins, cash generation, revisions, ownership, and capital structure produce a persistent cross-sectional signal? | Sparse, revised, incomparable, or late-tagged corporate records |
 
-The V8 regime-diversified profile combines these sleeves using visible contribution weights. Alternative profiles bias the blend toward trend or relative strength, while the equal-weight baseline provides a simpler comparison. The server normalizes selected positive allocations to 100%; it does not silently apply unbounded leverage.
+The V1.0 corporate quant system combines the price sleeves with the corporate-quality sleeve, then adjusts their visible contribution weights through a probability-like regime model. Its macro features are policy rate, 2-year/10-year yield curve, credit spread, and inflation, all eligible only after their recorded public availability timestamp. It also reports a daily-dollar-volume cost proxy, factor/relative-value decomposition, and recent strategy-health decay. The V1.0 price baselines remain transparent comparators. The server normalizes selected positive allocations to 100%; it does not silently apply unbounded leverage.
 
 ### How a Quant Lab run works
 
@@ -180,7 +181,7 @@ The AI explanation layer receives structured quantitative context rather than re
 | Access boundary | Account/session flows and public/private research access rules | `server/backend/routes/auth.py`, `analysis_access.py` |
 | Market repository | Provider selection, cache access, normalization, metadata, and fingerprints | `market_repository.py`, `market_cache.py`, `polygon_client.py`, `twelvedata_client.py` |
 | Deterministic analysis | Indicators, scoring, patterns, setup detection, and backtests | `indicators.py`, `pattern_analyzer.py`, `patterns/`, `backtest.py` |
-| Quant Lab | Strategy sleeves, portfolio controls, simulations, validation, and diagnostics | `quant_research.py`, `routes/quant.py` |
+| Quant Lab | Strategy sleeves, corporate/macro point-in-time inputs, portfolio controls, simulations, validation, and diagnostics | `quant_research.py`, `quant_system.py`, `corporate_repository.py`, `routes/quant.py` |
 | Explanation | Structured analysis context and natural-language interpretation | `routes/ai_explain.py`, `vai_model.py`, `vai2_model.py` |
 | Client | Browser workspace, settings, private Quant Desk, and legal pages | `server/frontend/` |
 | Persistence | SQLite-backed application and local-market-data storage | `database.py`, `server/data/oryntra.db` |
@@ -201,7 +202,7 @@ Oryntra-AI/
     ├── frontend/                     # Browser application and legal pages
     ├── tests/                        # Regression and research-engine tests
     ├── tools/                        # Cache, backtest, and research utilities
-    ├── QUANT_LAB.md                  # Quant Lab operating notes
+    ├── QUANT_LAB.md                  # V1 Quant Lab operating and interpretation guide
     ├── requirements.txt              # Python runtime dependencies
     └── .env.example                  # Safe configuration template
 ```
@@ -218,7 +219,7 @@ cp .env.example .env
 PYTHONPATH=. .venv/bin/python3 run.py
 ```
 
-The default address is `http://127.0.0.1:8001`. Configure `ORYNTRA_PUBLIC_SCANNER_WEBSITE=true` to serve the browser workspace. Configure `ORYNTRA_PRIVATE_RESEARCH_ROUTES=true` only for private/local research use; it enables the Quant Lab and other private research routes, and it makes API documentation available locally.
+The default address is `http://127.0.0.1:8001`. Configure `ORYNTRA_PUBLIC_SCANNER_WEBSITE=true` to serve the browser workspace. Configure `ORYNTRA_PRIVATE_RESEARCH_ROUTES=true` only for private/local research use; it enables Quant Lab, backtests, and developer research routes locally. A public signed-in Quant Lab is a separate, explicit setting documented below.
 
 ### Configuration categories
 
@@ -231,6 +232,12 @@ The default address is `http://127.0.0.1:8001`. Configure `ORYNTRA_PUBLIC_SCANNE
 | Cache operation | `ORYNTRA_MARKET_CACHE_*` | Refresh, retention, and maintenance controls |
 | Product policy | `ORYNTRA_OWNER_EMAILS`, subscription and analysis-limit settings | Access and operational policy |
 
+### Public site with user-owned provider keys
+
+For a public account site, leave platform provider keys empty and configure the server with a long-lived Fernet value in `ORYNTRA_CREDENTIAL_ENCRYPTION_KEY`. Generate it once, store it in your deployment secret manager, and never rotate or replace it without a credential-migration plan. With `ORYNTRA_REQUIRE_USER_PROVIDER_KEYS=true`, an API cache miss can use only the signed-in user's separately encrypted Polygon or Twelve Data key. The browser receives a saved/not-saved status only; it cannot read a stored key back.
+
+To expose the scanner, set `ORYNTRA_PUBLIC_SCANNER_WEBSITE=true`. To expose Quant Lab to signed-in users, additionally set `ORYNTRA_PUBLIC_QUANT_LAB_ENABLED=true`; keep private research routes false. Do not enable public derived analysis until the selected market-data contract and exchange rights have been reviewed for this exact use. That step is represented by `ORYNTRA_MARKET_DATA_LICENSE_MODE=business_approved` and `ORYNTRA_PUBLIC_DERIVED_ANALYSIS_ENABLED=true`; these settings are intentionally not enabled in the sample configuration.
+
 Never commit a populated `.env`, provider credential, user database, or unreviewed raw-data archive. The database and cache can contain information that should remain local even when the application code is published.
 
 ## Verification
@@ -239,7 +246,7 @@ The repository includes focused backend regression tests and syntax checks. From
 
 ```bash
 PYTHONPATH=. .venv/bin/python3 -m unittest discover -s tests -v
-.venv/bin/python3 -m py_compile backend/quant_research.py
+.venv/bin/python3 -m py_compile backend/quant_research.py backend/quant_system.py backend/corporate_repository.py backend/vai2_model.py
 node --check frontend/static/js/app.js
 ```
 

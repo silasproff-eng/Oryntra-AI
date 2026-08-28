@@ -1,5 +1,5 @@
 {
-  "version": "0.5.1",
+  "version": "1.0.0",
   "slots": [
     {
       "key": "home_top",
@@ -44,5 +44,5 @@
       "placement": "static mobile-only responsive banner near the bottom; not a sticky overlay"
     }
   ],
-  "build": "adsense-ready"
+  "build": "ads-disabled-by-default"
 }
