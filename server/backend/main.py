@@ -18,9 +18,9 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FRONTEND_DIR = os.path.join(BASE_DIR, "frontend")
 LEGAL_DIR = os.path.join(FRONTEND_DIR, "legal")
 
-APP_VERSION = "0.9.1-market-intelligence"
+APP_VERSION = "1.0.0"
 PUBLIC_ENGINE = "official"
-PUBLIC_ENGINE_LABEL = "V7 Official Momentum with server-side derived analysis"
+PUBLIC_ENGINE_LABEL = "V1.0 Official Momentum with server-side derived analysis"
 
 NO_CACHE_HEADERS = {
     "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
@@ -67,7 +67,9 @@ def public_site_url() -> str:
 
 def adsense_head_markup() -> str:
     client = adsense_client_id()
-    if not env_bool("ADSENSE_VERIFY_ENABLED", True):
+    # Advertising is opt-in.  Keep the public site ad-free until its operator
+    # explicitly enables web ads after configuring the approved placement IDs.
+    if not env_bool("WEB_ADS_ENABLED", False) or not env_bool("ADSENSE_VERIFY_ENABLED", False):
         return ""
     meta = f'<meta name="google-adsense-account" content="{escape(client)}">'
     script = (
@@ -90,14 +92,14 @@ def ads_diagnostics() -> dict:
     slots = ad_slot_env("ADSENSE_SLOT")
     configured = [key for key, value in slots.items() if value]
     missing = [key for key, value in slots.items() if not value]
-    preview = env_bool("ADS_PREVIEW_MODE", True)
+    preview = env_bool("ADS_PREVIEW_MODE", False)
     web_enabled = env_bool("WEB_ADS_ENABLED", False)
     return {
         "site_url": public_site_url(),
         "client_id_valid": bool(client),
         "publisher_id_valid": bool(publisher),
-        "verification_enabled": env_bool("ADSENSE_VERIFY_ENABLED", True),
-        "verification_ready": bool(client and env_bool("ADSENSE_VERIFY_ENABLED", True)),
+        "verification_enabled": env_bool("ADSENSE_VERIFY_ENABLED", False),
+        "verification_ready": bool(client and web_enabled and env_bool("ADSENSE_VERIFY_ENABLED", False)),
         "preview_mode": preview,
         "web_ads_enabled": web_enabled,
         "auto_ads_enabled": env_bool("ADSENSE_AUTO_ADS_ENABLED", False),
@@ -126,6 +128,7 @@ _public_scanner_website = env_bool(
     "ORYNTRA_PUBLIC_SCANNER_WEBSITE",
     _private_research,
 )
+_public_quant_lab = env_bool("ORYNTRA_PUBLIC_QUANT_LAB_ENABLED", False)
 
 app = FastAPI(
     title="Oryntra AI API",
@@ -141,7 +144,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[origin.strip() for origin in os.getenv("ORYNTRA_CORS_ORIGINS", "*").split(",") if origin.strip()],
     allow_credentials=False,
-    allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type", "Accept", "X-Oryntra-Session"],
 )
 
@@ -177,8 +180,10 @@ if _private_research:
     app.include_router(backtest.router, prefix="/api/backtest", tags=["Private Backtesting"])
     app.include_router(patterns.router, prefix="/api/patterns", tags=["Private Patterns"])
     app.include_router(dev_tools.router, prefix="/api/dev", tags=["Private Developer Tools"])
-    app.include_router(quant.router, prefix="/api/quant", tags=["Private Quant Lab"])
     app.include_router(pro.router, prefix="/api/pro", tags=["Private Oryntra Pro"])
+
+if _private_research or _public_quant_lab:
+    app.include_router(quant.router, prefix="/api/quant", tags=["Quant Lab"])
 
 app.mount(
     "/static",

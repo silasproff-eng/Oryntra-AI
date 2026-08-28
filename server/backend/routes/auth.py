@@ -11,6 +11,7 @@ from fastapi import APIRouter, HTTPException, Request, Response
 from pydantic import BaseModel, field_validator
 
 from ..database import get_connection, init_db
+from ..provider_credentials import credential_status, delete_credential, ensure_provider_credential_schema, save_credential
 
 router = APIRouter()
 SESSION_DAYS = 90
@@ -60,6 +61,27 @@ class SubscribeRequest(BaseModel):
 
 class DeleteAccountRequest(BaseModel):
     password: str
+
+
+class ProviderCredentialRequest(BaseModel):
+    provider: str
+    api_key: str
+
+    @field_validator("provider")
+    @classmethod
+    def valid_provider(cls, value: str) -> str:
+        clean = str(value or "").strip().lower()
+        if clean not in {"polygon", "twelvedata"}:
+            raise ValueError("Choose Polygon or Twelve Data.")
+        return clean
+
+    @field_validator("api_key")
+    @classmethod
+    def valid_key(cls, value: str) -> str:
+        clean = str(value or "").strip()
+        if len(clean) < 8 or len(clean) > 512:
+            raise ValueError("Enter a valid provider API key.")
+        return clean
 
 
 def _utc_now() -> str:
@@ -198,7 +220,7 @@ async def signup(req: SignupRequest, request: Request, response: Response):
                 """
                 INSERT INTO users
                     (email, display_name, password_salt, password_hash, legal_version, legal_accepted_at)
-                VALUES (?, ?, ?, ?, '0.9', datetime('now'))
+                VALUES (?, ?, ?, ?, '1.0', datetime('now'))
                 """,
                 (email, display_name, salt, password_hash),
             )
@@ -272,9 +294,28 @@ async def me(request: Request, response: Response):
     return {"authenticated": bool(user), "user": user}
 
 
+@router.get("/provider-credentials")
+async def get_provider_credentials(request: Request):
+    user = require_current_user(request)
+    return credential_status(user["id"])
+
+
+@router.put("/provider-credentials")
+async def put_provider_credential(req: ProviderCredentialRequest, request: Request):
+    user = require_current_user(request)
+    return save_credential(user["id"], req.provider, req.api_key)
+
+
+@router.delete("/provider-credentials/{provider}")
+async def remove_provider_credential(provider: str, request: Request):
+    user = require_current_user(request)
+    return delete_credential(user["id"], provider)
+
+
 @router.delete("/account")
 async def delete_account(req: DeleteAccountRequest, request: Request, response: Response):
     user = require_current_user(request)
+    ensure_provider_credential_schema()
     conn = get_connection()
     try:
         row = conn.execute("SELECT * FROM users WHERE id=?", (user["id"],)).fetchone()
@@ -284,6 +325,7 @@ async def delete_account(req: DeleteAccountRequest, request: Request, response: 
         conn.execute("DELETE FROM user_watchlist WHERE user_id=?", (user["id"],))
         conn.execute("DELETE FROM subscriptions WHERE user_id=?", (user["id"],))
         conn.execute("DELETE FROM analysis_usage WHERE user_id=?", (user["id"],))
+        conn.execute("DELETE FROM user_provider_credentials WHERE user_id=?", (user["id"],))
         conn.execute("DELETE FROM user_sessions WHERE user_id=?", (user["id"],))
         conn.execute("DELETE FROM users WHERE id=?", (user["id"],))
         conn.commit()
@@ -333,4 +375,3 @@ async def subscribe(request: Request, req: SubscribeRequest):
     finally:
         conn.close()
     return await me(request)
-

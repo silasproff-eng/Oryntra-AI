@@ -92,6 +92,9 @@ class MarketRepositoryTests(unittest.TestCase):
                 minimum_bars=5,
                 max_stale_days=3650,
                 allow_api=True,
+                provider_preference="polygon",
+                provider_api_keys={"polygon": "polygon-user-key"},
+                allow_platform_provider_keys=False,
             )
             second = self.repository.get_history(
                 "ZZZZ",
@@ -99,8 +102,12 @@ class MarketRepositoryTests(unittest.TestCase):
                 minimum_bars=5,
                 max_stale_days=3650,
                 allow_api=True,
+                provider_preference="polygon",
+                provider_api_keys={"polygon": "polygon-user-key"},
+                allow_platform_provider_keys=False,
             )
         self.assertEqual(provider.call_count, 1)
+        self.assertEqual(provider.call_args.kwargs["api_key"], "polygon-user-key")
         self.assertTrue(first.metadata.fallback_used)
         self.assertEqual(first.metadata.source, "ticker_api_fallback_cached")
         self.assertTrue(second.metadata.from_cache)
@@ -114,6 +121,40 @@ class MarketRepositoryTests(unittest.TestCase):
             ).fetchone()[0]
         self.assertEqual(count, len(results))
         self.assertEqual(provider_name, "polygon_ticker_fallback")
+
+    def test_explicit_twelve_data_selection_uses_only_that_users_key(self) -> None:
+        values = []
+        for timestamp, row in self._frame().iterrows():
+            values.append(
+                {
+                    "datetime": pd.Timestamp(timestamp).strftime("%Y-%m-%d"),
+                    "open": str(row["Open"]),
+                    "high": str(row["High"]),
+                    "low": str(row["Low"]),
+                    "close": str(row["Close"]),
+                    "volume": str(row["Volume"]),
+                }
+            )
+        with patch("backend.market_repository.polygon_get") as polygon, patch(
+            "backend.market_repository.twelvedata_available", return_value=True
+        ), patch(
+            "backend.market_repository.twelvedata_get", return_value=({"values": values}, SimpleNamespace())
+        ) as twelve:
+            result = self.repository.get_history(
+                "TDAT",
+                period="1mo",
+                minimum_bars=5,
+                max_stale_days=3650,
+                allow_api=True,
+                provider_preference="twelvedata",
+                provider_api_keys={"twelvedata": "twelve-user-key"},
+                allow_platform_provider_keys=False,
+            )
+        polygon.assert_not_called()
+        twelve.assert_called_once()
+        self.assertEqual(twelve.call_args.kwargs["api_key"], "twelve-user-key")
+        self.assertEqual(twelve.call_args.kwargs["params"]["interval"], "1day")
+        self.assertEqual(result.metadata.provider, "twelvedata_ticker_fallback")
 
     def test_cache_only_never_calls_provider(self) -> None:
         with patch("backend.market_repository.polygon_get") as provider:
@@ -129,4 +170,3 @@ class MarketRepositoryTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

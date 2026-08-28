@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import os
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, HTTPException, Request
@@ -14,6 +15,7 @@ from ..analysis_access import (
     usage_status,
 )
 from ..public_payload import assert_no_raw_market_data, public_analysis_payload
+from ..provider_credentials import decrypted_credentials
 from .analysis import ScanRequest, _run_scan_pipeline
 
 router = APIRouter()
@@ -63,8 +65,18 @@ class IntelligenceMultiScanRequest(BaseModel):
         return IntelligenceScanRequest.valid_period(value)
 
 
-async def _one_scan(ticker: str, period: str, quota: dict, policy: dict) -> dict:
-    raw = await _run_scan_pipeline(ScanRequest(ticker=ticker, period=period, pattern_mode="official"))
+def _require_user_provider_keys() -> bool:
+    return os.getenv("ORYNTRA_REQUIRE_USER_PROVIDER_KEYS", "true").strip().lower() in {"1", "true", "yes", "on"}
+
+
+async def _one_scan(ticker: str, period: str, quota: dict, policy: dict, user_id: int) -> dict:
+    require_user_keys = _require_user_provider_keys()
+    provider_keys = decrypted_credentials(user_id) if os.getenv("ORYNTRA_CREDENTIAL_ENCRYPTION_KEY", "").strip() else {}
+    raw = await _run_scan_pipeline(
+        ScanRequest(ticker=ticker, period=period, pattern_mode="official"),
+        provider_api_keys=provider_keys,
+        allow_platform_provider_keys=not require_user_keys,
+    )
     payload = public_analysis_payload(raw, quota=quota, policy=policy)
     assert_no_raw_market_data(payload)
     return payload
@@ -94,7 +106,7 @@ async def scan(req: IntelligenceScanRequest, request: Request):
     quota = reserve_quota(user["id"], 1)
     policy = policy_status(user)
     try:
-        return await _one_scan(req.ticker, req.period, quota, policy)
+        return await _one_scan(req.ticker, req.period, quota, policy, user["id"])
     except HTTPException:
         refund_quota(user["id"], 1)
         raise
@@ -114,7 +126,7 @@ async def scan_multiple(req: IntelligenceMultiScanRequest, request: Request):
     async def run_one(ticker: str):
         async with semaphore:
             try:
-                return ticker, await _one_scan(ticker, req.period, quota, policy), None
+                return ticker, await _one_scan(ticker, req.period, quota, policy, user["id"]), None
             except HTTPException as exc:
                 return ticker, None, exc.detail
             except Exception as exc:
@@ -141,4 +153,3 @@ async def scan_multiple(req: IntelligenceMultiScanRequest, request: Request):
             "chart_provider": "TradingView",
         },
     }
-

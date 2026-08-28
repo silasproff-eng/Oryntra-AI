@@ -13,7 +13,7 @@ def test_authenticated_owner_scan_returns_only_derived_payload(monkeypatch, tmp_
     monkeypatch.setenv("ORYNTRA_OWNER_EMAILS", "owner@example.com")
     monkeypatch.setenv("ORYNTRA_DAILY_ANALYSIS_LIMIT", "100")
 
-    async def fake_scan(_request):
+    async def fake_scan(_request, **_kwargs):
         return {
             "ticker": "AAPL",
             "price": 200.0,
@@ -64,4 +64,3 @@ def test_legacy_public_analysis_route_is_not_mounted():
     with TestClient(app) as client:
         response = client.post("/api/analysis/scan", json={"ticker": "AAPL"})
         assert response.status_code == 404
-

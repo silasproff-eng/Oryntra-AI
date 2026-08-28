@@ -43,9 +43,9 @@ class TwelveDataAPIError(ValueError):
         self.status_code = status_code
 
 
-def _redact_secret(value: Any) -> str:
+def _redact_secret(value: Any, api_key: str | None = None) -> str:
     text = str(value)
-    key = os.getenv("TWELVEDATA_API_KEY", "").strip()
+    key = str(api_key or os.getenv("TWELVEDATA_API_KEY", "")).strip()
     return text.replace(key, "[REDACTED]") if key else text
 
 
@@ -81,23 +81,23 @@ def reserve_twelvedata_slot() -> float:
     return max(0.0, scheduled_at - time.time())
 
 
-def _api_key() -> str:
-    key = os.getenv("TWELVEDATA_API_KEY", "").strip()
+def _api_key(explicit_key: str | None = None) -> str:
+    key = str(explicit_key or os.getenv("TWELVEDATA_API_KEY", "")).strip()
     if not key or key == "your_twelvedata_key_here":
         raise TwelveDataAPIError("TWELVEDATA_API_KEY is not set.")
     return key
 
 
-def twelvedata_available() -> bool:
+def twelvedata_available(api_key: str | None = None) -> bool:
     enabled = os.getenv("ORYNTRA_ENABLE_TWELVEDATA_FALLBACK", "1").strip().lower()
-    return enabled in {"1", "true", "yes", "on"} and bool(os.getenv("TWELVEDATA_API_KEY", "").strip())
+    return enabled in {"1", "true", "yes", "on"} and bool(str(api_key or os.getenv("TWELVEDATA_API_KEY", "")).strip())
 
 
-def _safe_message(response: requests.Response) -> str:
+def _safe_message(response: requests.Response, api_key: str | None = None) -> str:
     try:
         payload = response.json()
         if isinstance(payload, dict):
-            return _redact_secret(payload.get("message") or payload.get("code") or "")
+            return _redact_secret(payload.get("message") or payload.get("code") or "", api_key)
     except Exception:
         pass
     return ""
@@ -110,10 +110,11 @@ def twelvedata_get(
     timeout: float | None = None,
     max_retries: int | None = None,
     session: requests.Session | None = None,
+    api_key: str | None = None,
 ) -> tuple[dict[str, Any], requests.Response]:
     url = path_or_url if path_or_url.startswith("http") else f"{TWELVEDATA_BASE_URL}/{path_or_url.lstrip('/')}"
     query = dict(params or {})
-    query.setdefault("apikey", _api_key())
+    query.setdefault("apikey", _api_key(api_key))
     attempts = MAX_RETRIES if max_retries is None else max(0, int(max_retries))
     client = session or _SESSION
     for attempt in range(attempts + 1):
@@ -124,10 +125,10 @@ def twelvedata_get(
             response = client.get(url, params=query, timeout=timeout or DEFAULT_TIMEOUT_SECONDS)
         except requests.RequestException as exc:
             if attempt >= attempts:
-                raise TwelveDataAPIError(f"Twelve Data network error: {_redact_secret(exc)}") from exc
+                raise TwelveDataAPIError(f"Twelve Data network error: {_redact_secret(exc, api_key)}") from exc
             time.sleep(min(60.0, 2.0 ** attempt))
             continue
-        detail = _safe_message(response)
+        detail = _safe_message(response, api_key)
         if response.status_code == 200:
             try:
                 payload = response.json()
@@ -136,7 +137,7 @@ def twelvedata_get(
             if not isinstance(payload, dict):
                 raise TwelveDataAPIError("Twelve Data returned an unexpected response.", status_code=200)
             if str(payload.get("status") or "").lower() == "error" or payload.get("code"):
-                message = _redact_secret(payload.get("message") or payload.get("code") or "request failed")
+                message = _redact_secret(payload.get("message") or payload.get("code") or "request failed", api_key)
                 raise TwelveDataAPIError(f"Twelve Data error: {message}", status_code=200)
             return payload, response
         if response.status_code == 401:

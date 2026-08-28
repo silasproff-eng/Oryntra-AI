@@ -2,19 +2,29 @@ from __future__ import annotations
 
 import threading
 import time
+import hashlib
 from typing import Any
 
 from .market_repository import get_market_repository, normalize_period, normalize_ticker
 
 _CACHE_TTL_SECONDS = 60.0
-_MEMORY_CACHE: dict[tuple[str, str], tuple[float, dict[str, Any]]] = {}
+_MEMORY_CACHE: dict[tuple[Any, ...], tuple[float, dict[str, Any]]] = {}
 _MEMORY_LOCK = threading.Lock()
 
 
-def fetch_ticker_data(ticker: str, period: str = "6mo") -> dict[str, Any]:
+def fetch_ticker_data(
+    ticker: str,
+    period: str = "6mo",
+    *,
+    provider_api_keys: dict[str, str] | None = None,
+    allow_platform_provider_keys: bool = True,
+) -> dict[str, Any]:
     symbol = normalize_ticker(ticker)
     clean_period = normalize_period(period)
-    key = (symbol, clean_period)
+    secret_marker = ""
+    if provider_api_keys:
+        secret_marker = hashlib.sha256("|".join(f"{name}:{value}" for name, value in sorted(provider_api_keys.items())).encode("utf-8")).hexdigest()[:16]
+    key = (symbol, clean_period, secret_marker, bool(allow_platform_provider_keys))
     now = time.monotonic()
 
     with _MEMORY_LOCK:
@@ -34,6 +44,8 @@ def fetch_ticker_data(ticker: str, period: str = "6mo") -> dict[str, Any]:
         period=clean_period,
         minimum_bars=minimum_bars,
         allow_api=True,
+        provider_api_keys=provider_api_keys,
+        allow_platform_provider_keys=allow_platform_provider_keys,
     ).as_fetcher_dict()
 
     with _MEMORY_LOCK:
@@ -50,4 +62,3 @@ def clear_fetcher_memory_cache(ticker: str | None = None) -> None:
         for key in list(_MEMORY_CACHE):
             if key[0] == symbol:
                 _MEMORY_CACHE.pop(key, None)
-

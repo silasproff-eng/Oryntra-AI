@@ -53,6 +53,7 @@ def policy_status(user: dict[str, Any] | None = None) -> dict[str, Any]:
         "license_mode": mode,
         "owner_access": owner,
         "public_derived_analysis_enabled": public_enabled,
+        "user_provider_keys_required": env_bool("ORYNTRA_REQUIRE_USER_PROVIDER_KEYS", True),
         "subscriptions_enforced": subscriptions_enforced,
         "analysis_permitted": permitted,
         "daily_limit": daily_limit(),
@@ -188,4 +189,3 @@ def refund_quota(user_id: int, cost: int = 1) -> dict[str, Any]:
     finally:
         conn.close()
     return usage_status(user_id)
-

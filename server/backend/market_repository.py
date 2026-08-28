@@ -510,7 +510,7 @@ class MarketDataRepository:
             details=details or {},
         )
 
-    def _fetch_polygon(self, ticker: str, period: str) -> pd.DataFrame:
+    def _fetch_polygon(self, ticker: str, period: str, *, api_key: str | None = None) -> pd.DataFrame:
         end = _latest_reasonable_session_date()
         start = end - timedelta(days=period_calendar_days(period))
         payload, response = polygon_get(
@@ -520,6 +520,7 @@ class MarketDataRepository:
                 "sort": "asc",
                 "limit": 50000,
             },
+            api_key=api_key,
         )
         results = payload.get("results") or []
         frame = _polygon_frame(results)
@@ -546,12 +547,13 @@ class MarketDataRepository:
         )
         return frame
 
-    def _fetch_twelvedata(self, ticker: str, period: str) -> pd.DataFrame:
+    def _fetch_twelvedata(self, ticker: str, period: str, *, api_key: str | None = None) -> pd.DataFrame:
         end = _latest_reasonable_session_date()
         start = end - timedelta(days=period_calendar_days(period))
         payload, _response = twelvedata_get(
             "/time_series",
             params={"symbol": ticker, "interval": "1day", "start_date": start.isoformat(), "end_date": end.isoformat(), "adjust": "all", "order": "ASC"},
+            api_key=api_key,
         )
         frame = _twelvedata_frame(payload.get("values") or [])
         if frame.empty:
@@ -619,12 +621,15 @@ class MarketDataRepository:
         max_stale_days: int | None = None,
         allow_stale_on_error: bool = True,
         provider_preference: str = "auto",
+        provider_api_keys: dict[str, str] | None = None,
+        allow_platform_provider_keys: bool = True,
     ) -> HistoryResult:
 
 
         symbol = normalize_ticker(ticker)
         clean_period = normalize_period(period)
         selected_provider = normalize_provider_preference(provider_preference)
+        supplied_keys = {str(name).lower(): str(value).strip() for name, value in (provider_api_keys or {}).items() if str(value).strip()}
         stale_days = max(
             0,
             int(max_stale_days if max_stale_days is not None else os.getenv("ORYNTRA_CACHE_MAX_STALE_DAYS", "7")),
@@ -701,17 +706,23 @@ class MarketDataRepository:
         fetched = False
         if selected_provider in {"auto", "polygon"}:
             try:
-                self._fetch_polygon(symbol, clean_period)
+                polygon_key = supplied_keys.get("polygon")
+                if not polygon_key and not allow_platform_provider_keys:
+                    raise PolygonAPIError("No Polygon API key is saved for this account. Add one in Settings or use cached data.")
+                self._fetch_polygon(symbol, clean_period, api_key=polygon_key)
                 fetched = True
             except (PolygonAPIError, ValueError) as exc:
                 errors.append(str(exc))
                 self._log_fetch(symbol, clean_period, "ticker_fallback", "polygon_ticker_fallback", "failed", error=str(exc))
         if not fetched and selected_provider in {"auto", "twelvedata"}:
-            if not twelvedata_available():
-                errors.append("Twelve Data is not configured on this private server.")
+            twelve_key = supplied_keys.get("twelvedata")
+            if not twelve_key and not allow_platform_provider_keys:
+                errors.append("No Twelve Data API key is saved for this account. Add one in Settings or use cached data.")
+            elif not twelvedata_available(twelve_key):
+                errors.append("Twelve Data is not configured for this account or server.")
             else:
                 try:
-                    self._fetch_twelvedata(symbol, clean_period)
+                    self._fetch_twelvedata(symbol, clean_period, api_key=twelve_key)
                     fetched = True
                 except (TwelveDataAPIError, ValueError) as exc:
                     errors.append(str(exc))

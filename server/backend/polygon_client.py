@@ -46,9 +46,9 @@ class PolygonAPIError(ValueError):
         self.status_code = status_code
 
 
-def _redact_secret(value: Any) -> str:
+def _redact_secret(value: Any, api_key: str | None = None) -> str:
     text = str(value)
-    key = os.getenv("POLYGON_API_KEY", "").strip()
+    key = str(api_key or os.getenv("POLYGON_API_KEY", "")).strip()
     if key:
         text = text.replace(key, "[REDACTED]")
     return text
@@ -91,8 +91,8 @@ def reserve_polygon_slot() -> float:
     return max(0.0, scheduled_at - time.time())
 
 
-def _api_key() -> str:
-    key = os.getenv("POLYGON_API_KEY", "").strip()
+def _api_key(explicit_key: str | None = None) -> str:
+    key = str(explicit_key or os.getenv("POLYGON_API_KEY", "")).strip()
     if not key or key == "your_polygon_key_here":
         raise PolygonAPIError("POLYGON_API_KEY is not set.")
     return key
@@ -115,11 +115,12 @@ def polygon_get(
     timeout: float | None = None,
     max_retries: int | None = None,
     session: requests.Session | None = None,
+    api_key: str | None = None,
 ) -> tuple[dict[str, Any], requests.Response]:
 
     url = path_or_url if path_or_url.startswith("http") else f"{POLYGON_BASE_URL}/{path_or_url.lstrip('/')}"
     query = dict(params or {})
-    query.setdefault("apiKey", _api_key())
+    query.setdefault("apiKey", _api_key(api_key))
     attempts = MAX_RETRIES if max_retries is None else max(0, int(max_retries))
     client = session or _SESSION
 
@@ -132,7 +133,7 @@ def polygon_get(
             response = client.get(url, params=query, timeout=timeout or DEFAULT_TIMEOUT_SECONDS)
         except requests.RequestException as exc:
             if attempt >= attempts:
-                raise PolygonAPIError(f"Polygon network error: {_redact_secret(exc)}") from exc
+                raise PolygonAPIError(f"Polygon network error: {_redact_secret(exc, api_key)}") from exc
             time.sleep(min(60.0, 2.0 ** attempt))
             continue
 
@@ -181,4 +182,3 @@ def rate_limit_info() -> dict[str, Any]:
         "minimum_gap_seconds": MIN_GAP_SECONDS,
         "next_allowed_at": state.get("next_allowed_at"),
     }
-

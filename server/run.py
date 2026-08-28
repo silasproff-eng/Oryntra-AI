@@ -30,7 +30,7 @@ if __name__ == "__main__":
     print(
         f"""
 ╔══════════════════════════════════════════════════╗
-║          O R Y N T R A  A I  v0.9.1             ║
+║            O R Y N T R A  A I  V1.0             ║
 ║           Market Intelligence API                ║
 ╠══════════════════════════════════════════════════╣
 ║  API        →  http://localhost:{port:<5}              ║
@@ -50,4 +50,3 @@ if __name__ == "__main__":
         reload_dirs=["backend"] if env_bool("ORYNTRA_RELOAD", False) else None,
         log_level=os.getenv("ORYNTRA_LOG_LEVEL", "info"),
     )
-

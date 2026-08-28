@@ -9,3 +9,4 @@ python-multipart==0.0.29
 httpx==0.28.1
 python-dotenv==1.2.2
 cryptography==46.0.4
+pytest==9.1.1
