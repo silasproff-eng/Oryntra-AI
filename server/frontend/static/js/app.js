@@ -167,8 +167,71 @@ let analysisAccessState = {
 let analysisAccessPromise = null;
 let pendingAnalysisIntent = null;
 let providerOnboardingRequest = null;
-// Deliberately memory-only: a provider key never enters local storage, cookies, or an Oryntra request.
+// A provider key stays on this browser device and never enters a cookie or an Oryntra request.
 let browserProviderKeys = { polygon: '', twelvedata: '' };
+const PROVIDER_KEY_DATABASE = 'oryntra-browser-provider-keys-v1';
+const PROVIDER_KEY_STORE = 'keys';
+let providerKeyLoadOwner = '';
+
+function providerKeyOwner() {
+  return currentUser?.id ? String(currentUser.id) : '';
+}
+
+function openProviderKeyDatabase() {
+  return new Promise((resolve, reject) => {
+    if (!window.indexedDB) { reject(new Error('This browser does not support secure local key storage.')); return; }
+    const request = window.indexedDB.open(PROVIDER_KEY_DATABASE, 1);
+    request.onupgradeneeded = () => request.result.createObjectStore(PROVIDER_KEY_STORE, {keyPath: 'id'});
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error || new Error('Browser key storage is unavailable.'));
+  });
+}
+
+async function withProviderKeyStore(mode, operation) {
+  const database = await openProviderKeyDatabase();
+  try {
+    return await new Promise((resolve, reject) => {
+      const transaction = database.transaction(PROVIDER_KEY_STORE, mode);
+      const store = transaction.objectStore(PROVIDER_KEY_STORE);
+      let result;
+      try { result = operation(store); } catch (error) { reject(error); return; }
+      transaction.oncomplete = () => resolve(result?.result);
+      transaction.onerror = () => reject(transaction.error || new Error('Browser key storage failed.'));
+    });
+  } finally {
+    database.close();
+  }
+}
+
+function providerKeyRecordId(provider) {
+  return `${providerKeyOwner()}:${provider}`;
+}
+
+async function loadPersistedProviderKeys() {
+  const owner = providerKeyOwner();
+  if (!owner || providerKeyLoadOwner === owner) return;
+  providerKeyLoadOwner = owner;
+  try {
+    const records = await Promise.all(['polygon', 'twelvedata'].map(provider => withProviderKeyStore('readonly', store => store.get(`${owner}:${provider}`))));
+    browserProviderKeys = {
+      polygon: String(records[0]?.value || ''),
+      twelvedata: String(records[1]?.value || ''),
+    };
+  } catch (_) {
+    browserProviderKeys = {polygon: '', twelvedata: ''};
+  }
+}
+
+async function persistBrowserProviderKey(provider, value) {
+  const owner = providerKeyOwner();
+  if (!owner) return;
+  const id = providerKeyRecordId(provider);
+  if (!value) {
+    await withProviderKeyStore('readwrite', store => store.delete(id));
+    return;
+  }
+  await withProviderKeyStore('readwrite', store => store.put({id, value, updatedAt: new Date().toISOString()}));
+}
 
 function authHeaders(json=true) {
   const headers = json ? {'Content-Type':'application/json'} : {};
@@ -561,6 +624,7 @@ async function refreshAuthState() {
       currentUser = res.user;
       storeCachedAuthUser(currentUser);
       setAuthUI(currentUser);
+      loadPersistedProviderKeys().then(() => refreshProviderCredentialSettings()).catch(() => {});
       refreshAnalysisAccess({silent:true}).catch(() => {});
       return;
     }
@@ -623,7 +687,7 @@ function openAuthModal(mode='login') {
   const password = document.getElementById('authPassword');
   if (kicker) kicker.textContent = mode === 'signup' ? 'Create your research workspace' : 'Welcome back';
   if (title) title.textContent = mode === 'signup' ? 'Start with your evidence.' : 'Sign in to continue.';
-  if (subtitle) subtitle.textContent = mode === 'signup' ? 'Create an account, then connect one provider key for your private data requests.' : 'Your saved research and provider credentials stay tied to your account.';
+  if (subtitle) subtitle.textContent = mode === 'signup' ? 'Create an account, then connect one provider key directly from this browser.' : 'Your saved research stays tied to your account; provider keys stay on this browser.';
   if (submit) submit.innerHTML = mode === 'signup' ? 'Create account <span>→</span>' : 'Sign in <span>→</span>';
   if (switcher) switcher.textContent = mode === 'signup' ? 'Already have an account? Sign in' : 'New here? Create an account';
   if (password) password.autocomplete = mode === 'signup' ? 'new-password' : 'current-password';
@@ -656,7 +720,7 @@ function hasBrowserProviderKey(preferred = 'auto') {
 async function openProviderOnboarding() {
   const modal = document.getElementById('providerOnboardingModal');
   if (!modal || !currentUser) return;
-  setProviderOnboardingMessage('Choose a provider and keep its key in this browser session.');
+  setProviderOnboardingMessage('Choose a provider and save its key on this browser device.');
   openAccessibleDialog(modal, document.getElementById('onboardingPolygonApiKey'));
   if (hasBrowserProviderKey()) {
     closeProviderOnboarding();
@@ -671,7 +735,7 @@ function closeProviderOnboarding() {
 function openProviderSavedChoice(provider) {
   const modal = document.getElementById('providerKeySavedModal');
   const copy = document.getElementById('providerKeySavedCopy');
-  if (copy) copy.textContent = `Your ${provider === 'polygon' ? 'Massive' : 'Twelve Data'} key is held only in this browser session and is sent directly to that provider. Oryntra never receives or stores it.`;
+  if (copy) copy.textContent = `Your ${provider === 'polygon' ? 'Massive' : 'Twelve Data'} key is saved only on this browser device and is sent directly to that provider. Oryntra never receives or stores it.`;
   openAccessibleDialog(modal, document.getElementById('continueToOryntra'));
 }
 
@@ -688,14 +752,22 @@ async function saveOnboardingProviderKey(provider) {
     return;
   }
   browserProviderKeys[provider] = apiKey.trim();
+  try {
+    await persistBrowserProviderKey(provider, browserProviderKeys[provider]);
+  } catch (error) {
+    browserProviderKeys[provider] = '';
+    setProviderOnboardingMessage(error.message || 'This browser could not save the key locally.', true);
+    return;
+  }
   if (input) input.value = '';
   renderProviderCredentialSettings();
-  setProviderOnboardingMessage('Key connected in this browser only. Choose what you want to do next.');
+  setProviderOnboardingMessage('Key connected on this browser only. Choose what you want to do next.');
   openProviderSavedChoice(provider);
 }
 
 async function requireProviderKey(intent = null, preferred = 'auto') {
   if (!currentUser) return false;
+  await loadPersistedProviderKeys();
   if (hasBrowserProviderKey(preferred)) return true;
   pendingAnalysisIntent = intent || pendingAnalysisIntent;
   providerOnboardingRequest = intent;
@@ -789,6 +861,7 @@ function applyAuthResponse(res, {resume=true} = {}) {
   const user = res.user || null;
   storeCachedAuthUser(user);
   setAuthUI(user);
+  loadPersistedProviderKeys().then(() => refreshProviderCredentialSettings()).catch(() => {});
   clearTickerIfAutofilledEmail();
   if (document.querySelector('#tab-paper.active')) {
     loadPaperTrades().catch(() => {});
@@ -811,6 +884,7 @@ async function logoutUser() {
   pendingAnalysisIntent = null;
   providerOnboardingRequest = null;
   browserProviderKeys = {polygon: '', twelvedata: ''};
+  providerKeyLoadOwner = '';
   setAuthUI(null);
   refreshProviderCredentialSettings().catch(() => {});
   loadPaperTrades().catch(() => {});
@@ -2073,7 +2147,7 @@ function renderProviderCredentialSettings() {
     const status = document.getElementById(`${provider}CredentialStatus`);
     if (status) status.textContent = browserProviderKeys[provider] ? 'CONNECTED · THIS BROWSER' : 'NOT CONNECTED';
   });
-  setProviderCredentialMessage('Keys are held only in this browser session and sent directly to your selected provider. Oryntra never receives or stores them.');
+  setProviderCredentialMessage('Keys are saved only on this browser device and sent directly to your selected provider. Oryntra never receives or stores them.');
 }
 
 async function refreshProviderCredentialSettings() {
@@ -2087,15 +2161,28 @@ function initProviderCredentialSettings() {
     const apiKey = input?.value || '';
     if (!apiKey.trim()) { setProviderCredentialMessage(`Paste your ${provider === 'polygon' ? 'Polygon' : 'Twelve Data'} API key first.`, true); return; }
     browserProviderKeys[provider] = apiKey.trim();
+    try {
+      await persistBrowserProviderKey(provider, browserProviderKeys[provider]);
+    } catch (error) {
+      browserProviderKeys[provider] = '';
+      setProviderCredentialMessage(error.message || 'This browser could not save the key locally.', true);
+      return;
+    }
     if (input) input.value = '';
     renderProviderCredentialSettings();
-    setProviderCredentialMessage(`${provider === 'polygon' ? 'Polygon / Massive' : 'Twelve Data'} is connected for this browser session only.`);
+    setProviderCredentialMessage(`${provider === 'polygon' ? 'Polygon / Massive' : 'Twelve Data'} is saved on this browser device only.`);
   };
   const remove = async provider => {
     if (!currentUser) { openAuthModal('login'); return; }
     browserProviderKeys[provider] = '';
+    try {
+      await persistBrowserProviderKey(provider, '');
+    } catch (error) {
+      setProviderCredentialMessage(error.message || 'This browser could not remove the saved key.', true);
+      return;
+    }
     renderProviderCredentialSettings();
-    setProviderCredentialMessage(`${provider === 'polygon' ? 'Polygon / Massive' : 'Twelve Data'} key removed from this browser session.`);
+    setProviderCredentialMessage(`${provider === 'polygon' ? 'Polygon / Massive' : 'Twelve Data'} key removed from this browser device.`);
   };
   document.getElementById('savePolygonApiKeyBtn')?.addEventListener('click', () => save('polygon'));
   document.getElementById('saveTwelvedataApiKeyBtn')?.addEventListener('click', () => save('twelvedata'));

@@ -11,6 +11,7 @@ def test_personal_mode_is_owner_only(monkeypatch):
     monkeypatch.setenv("ORYNTRA_MARKET_DATA_LICENSE_MODE", "personal_research")
     monkeypatch.setenv("ORYNTRA_OWNER_EMAILS", "owner@example.com")
     monkeypatch.setenv("ORYNTRA_PUBLIC_DERIVED_ANALYSIS_ENABLED", "true")
+    monkeypatch.setenv("ORYNTRA_BROWSER_DIRECT_ANALYSIS_ENABLED", "false")
     owner = policy_status({"email": "owner@example.com"})
     public = policy_status({"email": "user@example.com"})
     assert owner["analysis_permitted"] is True
@@ -21,6 +22,7 @@ def test_business_mode_requires_explicit_public_enable(monkeypatch):
     monkeypatch.setenv("ORYNTRA_MARKET_DATA_LICENSE_MODE", "business_approved")
     monkeypatch.setenv("ORYNTRA_OWNER_EMAILS", "owner@example.com")
     monkeypatch.setenv("ORYNTRA_PUBLIC_DERIVED_ANALYSIS_ENABLED", "false")
+    monkeypatch.setenv("ORYNTRA_BROWSER_DIRECT_ANALYSIS_ENABLED", "false")
     assert policy_status({"email": "user@example.com"})["analysis_permitted"] is False
     monkeypatch.setenv("ORYNTRA_PUBLIC_DERIVED_ANALYSIS_ENABLED", "true")
     assert policy_status({"email": "user@example.com"})["analysis_permitted"] is True

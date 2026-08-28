@@ -11,7 +11,7 @@ Status: **local release candidate; not committed, pushed, or submitted to GitHub
 - V1.0 Quant chronological train/validation/test separation, outcome-horizon purge gaps, train-only categories, and removal of ticker/legacy-scanner-confidence features.
 - Scanner corporate context as structured display evidence only; no LLM-driven numeric prediction.
 - Visible product branding and public analysis labels standardized as **Oryntra V1.0**; historical internal engine identifiers remain only as compatibility IDs.
-- Browser-direct Polygon / Massive and Twelve Data key connection: keys remain in browser memory, go directly to the chosen provider, and are never received, stored, or logged by Oryntra.
+- Browser-direct Polygon / Massive and Twelve Data key connection: keys remain in browser storage on the user's device, go directly to the chosen provider, and are never received, stored, or logged by Oryntra.
 - Public-site configuration boundary: account sign-in is required for analysis and Quant Lab; browser-direct endpoints accept validated daily bars, process them in memory, and return derived research only.
 - Terms and Privacy Policy document the browser-direct key path, in-memory raw-bar handling, provider-plan limits, separate provider terms, and the no-redistribution/public-rights boundary.
 - Rule Mirror-structured Oryntra account flow with the V1.0 slogan, legal consent, and a required browser-only provider connection before scanner or Quant Lab requests.
