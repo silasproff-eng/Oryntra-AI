@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import copy
+import math
+from numbers import Real
 from typing import Any
 
 _BLOCKED_KEYS = {
@@ -25,6 +27,10 @@ def _public_release_label(value: str) -> str:
 
 
 def _clean(value: Any) -> Any:
+    if isinstance(value, Real) and not isinstance(value, bool):
+        numeric = float(value)
+        if not math.isfinite(numeric):
+            return None
     if isinstance(value, str):
         return _public_release_label(value)
     if isinstance(value, dict):

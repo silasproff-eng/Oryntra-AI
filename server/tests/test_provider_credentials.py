@@ -41,7 +41,7 @@ class ProviderCredentialTests(unittest.TestCase):
                 delete_credential(10, "polygon")
                 self.assertEqual(decrypted_credentials(10), {})
 
-    def test_authenticated_http_flow_never_returns_a_saved_key(self):
+    def test_http_key_storage_is_retired_in_browser_direct_mode(self):
         with tempfile.TemporaryDirectory() as directory:
             db_path = os.path.join(directory, "oryntra.db")
             environment = {"ORYNTRA_CREDENTIAL_ENCRYPTION_KEY": Fernet.generate_key().decode()}
@@ -59,17 +59,16 @@ class ProviderCredentialTests(unittest.TestCase):
                 self.assertEqual(signup.status_code, 200)
                 token = signup.json()["token"]
                 headers = {"Authorization": f"Bearer {token}"}
-                saved = client.put(
+                rejected = client.put(
                     "/api/auth/provider-credentials",
                     headers=headers,
                     json={"provider": "twelvedata", "api_key": "private-user-key-456"},
                 )
-                self.assertEqual(saved.status_code, 200)
-                self.assertNotIn("private-user-key-456", saved.text)
-                self.assertTrue(next(row for row in saved.json()["providers"] if row["provider"] == "twelvedata")["saved"])
-                removed = client.delete("/api/auth/provider-credentials/twelvedata", headers=headers)
-                self.assertEqual(removed.status_code, 200)
-                self.assertFalse(next(row for row in removed.json()["providers"] if row["provider"] == "twelvedata")["saved"])
+                self.assertEqual(rejected.status_code, 410)
+                self.assertNotIn("private-user-key-456", rejected.text)
+                status = client.get("/api/auth/provider-credentials", headers=headers)
+                self.assertEqual(status.status_code, 200)
+                self.assertEqual(status.json()["mode"], "browser_direct")
 
 
 if __name__ == "__main__":

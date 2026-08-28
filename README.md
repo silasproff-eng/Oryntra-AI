@@ -232,11 +232,11 @@ The default address is `http://127.0.0.1:8001`. Configure `ORYNTRA_PUBLIC_SCANNE
 | Cache operation | `ORYNTRA_MARKET_CACHE_*` | Refresh, retention, and maintenance controls |
 | Product policy | `ORYNTRA_OWNER_EMAILS`, subscription and analysis-limit settings | Access and operational policy |
 
-### Public site with user-owned provider keys
+### Public site with browser-direct provider keys
 
-For a public account site, leave platform provider keys empty and configure the server with a long-lived Fernet value in `ORYNTRA_CREDENTIAL_ENCRYPTION_KEY`. Generate it once, store it in your deployment secret manager, and never rotate or replace it without a credential-migration plan. With `ORYNTRA_REQUIRE_USER_PROVIDER_KEYS=true`, an API cache miss can use only the signed-in user's separately encrypted Polygon or Twelve Data key. The browser receives a saved/not-saved status only; it cannot read a stored key back.
+For a public account site, leave platform provider keys empty. A user pastes a Polygon / Massive or Twelve Data key into the browser-only connection screen; the browser sends it directly to the provider, then forwards normalized daily bars to Oryntra for the requested calculation. Oryntra's server does not receive, store, log, or return the provider key. Browser-direct scanner and Quant Lab uploads validate their size and values, process raw bars in memory, and return derived research only; they do not persist raw OHLCV bars.
 
-To expose the scanner, set `ORYNTRA_PUBLIC_SCANNER_WEBSITE=true`. To expose Quant Lab to signed-in users, additionally set `ORYNTRA_PUBLIC_QUANT_LAB_ENABLED=true`; keep private research routes false. Do not enable public derived analysis until the selected market-data contract and exchange rights have been reviewed for this exact use. That step is represented by `ORYNTRA_MARKET_DATA_LICENSE_MODE=business_approved` and `ORYNTRA_PUBLIC_DERIVED_ANALYSIS_ENABLED=true`; these settings are intentionally not enabled in the sample configuration.
+To expose the scanner, set `ORYNTRA_PUBLIC_SCANNER_WEBSITE=true` and `ORYNTRA_BROWSER_DIRECT_ANALYSIS_ENABLED=true`. To expose Quant Lab to signed-in users, additionally set `ORYNTRA_PUBLIC_QUANT_LAB_ENABLED=true`; keep private research routes false. The browser-direct connection changes key handling, not provider or exchange rights: verify that each provider plan and intended use is allowed before enabling it publicly.
 
 Never commit a populated `.env`, provider credential, user database, or unreviewed raw-data archive. The database and cache can contain information that should remain local even when the application code is published.
 

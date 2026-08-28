@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import os
 from datetime import datetime, timezone
 
 import pandas as pd
@@ -10,8 +9,8 @@ from pydantic import BaseModel, Field, field_validator
 
 from ..corporate_repository import get_corporate_repository
 from ..market_repository import get_market_repository, normalize_ticker
-from ..provider_credentials import decrypted_credentials
 from ..quant_research import MODEL_PROFILES, STRATEGIES, QuantConfig, evaluate_strategies
+from .analysis import browser_bars_to_history
 from .auth import require_current_user
 
 router = APIRouter()
@@ -89,6 +88,23 @@ class CorporateImportRequest(BaseModel):
     macro_observations: list[dict] = Field(default_factory=list, max_length=10000)
 
 
+class BrowserQuantHistory(BaseModel):
+    ticker: str
+    bars: list[dict] = Field(min_length=120, max_length=2_000)
+
+
+class BrowserQuantResearchRequest(QuantResearchRequest):
+    provider: str
+    histories: list[BrowserQuantHistory] = Field(min_length=2, max_length=40)
+
+    @field_validator("provider")
+    @classmethod
+    def validate_browser_provider(cls, value: str) -> str:
+        if value not in {"polygon", "twelvedata"}:
+            raise ValueError("provider must be polygon or twelvedata")
+        return value
+
+
 @router.get("/catalog")
 async def catalog():
     return {"strategies": [{"id": key, **value} for key, value in STRATEGIES.items()], "models": [{"id": key, **value} for key, value in MODEL_PROFILES.items()], "providers": [{"id": "cache_only", "label": "Local database only"}, {"id": "auto", "label": "Automatic (cache, then saved eligible provider)"}, {"id": "polygon", "label": "Polygon / Massive (EOD daily bars; Basic: 5 calls/min)"}, {"id": "twelvedata", "label": "Twelve Data (1-minute capability; Basic: 8 credits/min and 800/day; daily lab only)"}], "guardrails": ["No broker execution or order creation.", "Performance is net of configured turnover, borrow, and liquidity assumptions.", "Volatility targeting can reduce exposure only; it does not apply leverage.", "Corporate inputs must have an auditable public availability timestamp.", "Provider-plan capability does not grant redistribution or commercial rights.", "Chronological holdout and regime reports are diagnostics, not proof of future profitability."]}
@@ -115,9 +131,7 @@ async def corporate_snapshot(ticker: str, http_request: Request):
 
 @router.post("/run")
 async def run_research(request: QuantResearchRequest, http_request: Request):
-    user = require_current_user(http_request)
-    require_user_keys = os.getenv("ORYNTRA_REQUIRE_USER_PROVIDER_KEYS", "true").strip().lower() in {"1", "true", "yes", "on"}
-    provider_api_keys = decrypted_credentials(user["id"]) if os.getenv("ORYNTRA_CREDENTIAL_ENCRYPTION_KEY", "").strip() else {}
+    require_current_user(http_request)
     tickers: list[str] = []
     for raw in request.tickers[:40]:
         try:
@@ -137,7 +151,7 @@ async def run_research(request: QuantResearchRequest, http_request: Request):
     minimum_bars = max(config.trend_lookback, config.momentum_lookback, 63) + 5
     for ticker in tickers:
         try:
-            item = await asyncio.to_thread(repository.get_history, ticker, period=request.period, minimum_bars=minimum_bars, allow_api=provider != "cache_only", provider_preference=provider, provider_api_keys=provider_api_keys, allow_platform_provider_keys=not require_user_keys)
+            item = await asyncio.to_thread(repository.get_history, ticker, period=request.period, minimum_bars=minimum_bars, allow_api=provider != "cache_only", provider_preference=provider)
             histories[ticker], metadata[ticker] = item.history, item.metadata.__dict__
         except Exception as exc:
             errors.append({"ticker": ticker, "error": str(exc)})
@@ -155,4 +169,55 @@ async def run_research(request: QuantResearchRequest, http_request: Request):
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     report.update({"ok": True, "run_at": datetime.now(timezone.utc).isoformat(), "configuration": config.as_dict(), "data_source": request.data_source, "data_provider": provider, "source_metadata": metadata, "errors": errors, "dataset_fingerprint": repository.dataset_fingerprint(histories, configuration=config.as_dict())})
+    return report
+
+
+@router.post("/run-upload")
+async def run_browser_research(request: BrowserQuantResearchRequest, http_request: Request):
+    """Evaluate browser-fetched daily histories without accepting or retaining a provider key."""
+    require_current_user(http_request)
+    tickers: list[str] = []
+    for raw in request.tickers[:40]:
+        try:
+            ticker = normalize_ticker(raw)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        if ticker not in tickers:
+            tickers.append(ticker)
+    if len(tickers) < 2:
+        raise HTTPException(status_code=400, detail="Choose at least two unique symbols.")
+    strategy_ids = tuple(item for item in request.strategies if item in STRATEGIES)
+    if not strategy_ids:
+        raise HTTPException(status_code=400, detail="Choose at least one supported research strategy.")
+    supplied = {normalize_ticker(item.ticker): item.bars for item in request.histories}
+    missing = [ticker for ticker in tickers if ticker not in supplied]
+    if missing:
+        raise HTTPException(status_code=400, detail=f"Browser data is missing for: {', '.join(missing)}.")
+    config = QuantConfig(strategies=strategy_ids, trend_lookback=request.trend_lookback, momentum_lookback=request.momentum_lookback, reversal_lookback=request.reversal_lookback, cost_bps=request.cost_bps, borrow_bps_annual=request.borrow_bps_annual, long_short=request.long_short, model=request.model, strategy_weights=request.strategy_weights, target_annual_volatility=request.target_annual_volatility, max_gross_exposure=request.max_gross_exposure, max_single_name_weight=request.max_single_name_weight, rebalance_frequency=request.rebalance_frequency, walk_forward_folds=request.walk_forward_folds, regime_conditioned_weights=request.regime_conditioned_weights, liquidity_aware_costs=request.liquidity_aware_costs, portfolio_value_assumption=request.portfolio_value_assumption, impact_coefficient_bps=request.impact_coefficient_bps, max_adv_participation_pct=request.max_adv_participation_pct)
+    histories, metadata, errors = {}, {}, []
+    minimum_bars = max(config.trend_lookback, config.momentum_lookback, 63) + 5
+    for ticker in tickers:
+        try:
+            history = await asyncio.to_thread(browser_bars_to_history, supplied[ticker], minimum_bars)
+            if len(history) < minimum_bars:
+                raise ValueError(f"Need at least {minimum_bars} daily bars for this research configuration.")
+            histories[ticker] = history
+            metadata[ticker] = {"provider": f"browser_{request.provider}", "bars": len(history), "raw_history_persisted": False}
+        except (ValueError, TypeError) as exc:
+            errors.append({"ticker": ticker, "error": str(exc)})
+    if len(histories) < 2:
+        raise HTTPException(status_code=400, detail={"message": "Not enough usable browser histories for a comparison.", "errors": errors})
+    try:
+        index = pd.DatetimeIndex(sorted({timestamp for history in histories.values() for timestamp in history.index}))
+        corporate_repository = get_corporate_repository()
+        corporate_scores, corporate_metadata = await asyncio.to_thread(corporate_repository.factor_panel, list(histories), index)
+        macro_features, macro_metadata = await asyncio.to_thread(corporate_repository.macro_panel, index)
+        report = await asyncio.to_thread(evaluate_strategies, histories, config, corporate_scores, macro_features)
+        report["corporate_data"].update(corporate_metadata)
+        report["macro_data"].update(macro_metadata)
+        report["macro_context"] = await asyncio.to_thread(corporate_repository.macro_snapshot, index.max() if len(index) else None)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    repository = get_market_repository()
+    report.update({"ok": True, "run_at": datetime.now(timezone.utc).isoformat(), "configuration": config.as_dict(), "data_source": "browser_direct", "data_provider": f"browser_{request.provider}", "source_metadata": metadata, "errors": errors, "dataset_fingerprint": repository.dataset_fingerprint(histories, configuration=config.as_dict()), "raw_market_data_persisted": False})
     return report

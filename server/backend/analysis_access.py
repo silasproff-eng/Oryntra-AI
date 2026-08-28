@@ -47,13 +47,15 @@ def policy_status(user: dict[str, Any] | None = None) -> dict[str, Any]:
     mode = license_mode()
     owner = bool(user and is_owner(user))
     public_enabled = env_bool("ORYNTRA_PUBLIC_DERIVED_ANALYSIS_ENABLED", False)
+    browser_direct_enabled = env_bool("ORYNTRA_BROWSER_DIRECT_ANALYSIS_ENABLED", False)
     subscriptions_enforced = env_bool("ORYNTRA_SUBSCRIPTIONS_ENFORCED", False)
-    permitted = owner or (mode == "business_approved" and public_enabled)
+    permitted = owner or browser_direct_enabled or (mode == "business_approved" and public_enabled)
     return {
         "license_mode": mode,
         "owner_access": owner,
         "public_derived_analysis_enabled": public_enabled,
-        "user_provider_keys_required": env_bool("ORYNTRA_REQUIRE_USER_PROVIDER_KEYS", True),
+        "browser_direct_analysis_enabled": browser_direct_enabled,
+        "user_provider_keys_required": False,
         "subscriptions_enforced": subscriptions_enforced,
         "analysis_permitted": permitted,
         "daily_limit": daily_limit(),

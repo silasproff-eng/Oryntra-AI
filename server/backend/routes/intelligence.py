@@ -1,11 +1,10 @@
 from __future__ import annotations
 
 import asyncio
-import os
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, HTTPException, Request
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, Field, field_validator
 
 from ..analysis_access import (
     policy_status,
@@ -15,8 +14,7 @@ from ..analysis_access import (
     usage_status,
 )
 from ..public_payload import assert_no_raw_market_data, public_analysis_payload
-from ..provider_credentials import decrypted_credentials
-from .analysis import ScanRequest, _run_scan_pipeline
+from .analysis import ScanRequest, _run_scan_pipeline, _run_uploaded_scan_pipeline
 
 router = APIRouter()
 
@@ -65,17 +63,30 @@ class IntelligenceMultiScanRequest(BaseModel):
         return IntelligenceScanRequest.valid_period(value)
 
 
-def _require_user_provider_keys() -> bool:
-    return os.getenv("ORYNTRA_REQUIRE_USER_PROVIDER_KEYS", "true").strip().lower() in {"1", "true", "yes", "on"}
+class BrowserMarketBar(BaseModel):
+    timestamp: str
+    open: float
+    high: float
+    low: float
+    close: float
+    volume: float = Field(ge=0)
 
 
-async def _one_scan(ticker: str, period: str, quota: dict, policy: dict, user_id: int) -> dict:
-    require_user_keys = _require_user_provider_keys()
-    provider_keys = decrypted_credentials(user_id) if os.getenv("ORYNTRA_CREDENTIAL_ENCRYPTION_KEY", "").strip() else {}
+class BrowserScanRequest(IntelligenceScanRequest):
+    provider: str
+    bars: list[BrowserMarketBar] = Field(min_length=320, max_length=2_000)
+
+    @field_validator("provider")
+    @classmethod
+    def valid_provider(cls, value: str) -> str:
+        if value not in {"polygon", "twelvedata"}:
+            raise ValueError("provider must be polygon or twelvedata")
+        return value
+
+
+async def _one_scan(ticker: str, period: str, quota: dict, policy: dict) -> dict:
     raw = await _run_scan_pipeline(
         ScanRequest(ticker=ticker, period=period, pattern_mode="official"),
-        provider_api_keys=provider_keys,
-        allow_platform_provider_keys=not require_user_keys,
     )
     payload = public_analysis_payload(raw, quota=quota, policy=policy)
     assert_no_raw_market_data(payload)
@@ -103,10 +114,35 @@ async def quota_status(request: Request):
 @router.post("/scan")
 async def scan(req: IntelligenceScanRequest, request: Request):
     user = require_analysis_user(request)
+    if not policy_status(user)["owner_access"]:
+        raise HTTPException(status_code=410, detail="Use the browser-direct scan endpoint. Oryntra does not accept provider keys.")
     quota = reserve_quota(user["id"], 1)
     policy = policy_status(user)
     try:
-        return await _one_scan(req.ticker, req.period, quota, policy, user["id"])
+        return await _one_scan(req.ticker, req.period, quota, policy)
+    except HTTPException:
+        refund_quota(user["id"], 1)
+        raise
+    except Exception:
+        refund_quota(user["id"], 1)
+        raise
+
+
+@router.post("/scan-upload")
+async def scan_uploaded(req: BrowserScanRequest, request: Request):
+    """Authenticated browser-direct path: Oryntra receives bars, never a provider key."""
+    user = require_analysis_user(request)
+    quota = reserve_quota(user["id"], 1)
+    policy = policy_status(user)
+    try:
+        raw = await _run_uploaded_scan_pipeline(
+            ScanRequest(ticker=req.ticker, period=req.period, pattern_mode="official"),
+            [bar.model_dump() for bar in req.bars],
+            req.provider,
+        )
+        payload = public_analysis_payload(raw, quota=quota, policy=policy)
+        assert_no_raw_market_data(payload)
+        return payload
     except HTTPException:
         refund_quota(user["id"], 1)
         raise
@@ -126,7 +162,7 @@ async def scan_multiple(req: IntelligenceMultiScanRequest, request: Request):
     async def run_one(ticker: str):
         async with semaphore:
             try:
-                return ticker, await _one_scan(ticker, req.period, quota, policy, user["id"]), None
+                return ticker, await _one_scan(ticker, req.period, quota, policy), None
             except HTTPException as exc:
                 return ticker, None, exc.detail
             except Exception as exc:

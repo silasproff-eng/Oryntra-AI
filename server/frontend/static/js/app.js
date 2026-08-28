@@ -167,6 +167,8 @@ let analysisAccessState = {
 let analysisAccessPromise = null;
 let pendingAnalysisIntent = null;
 let providerOnboardingRequest = null;
+// Deliberately memory-only: a provider key never enters local storage, cookies, or an Oryntra request.
+let browserProviderKeys = { polygon: '', twelvedata: '' };
 
 function authHeaders(json=true) {
   const headers = json ? {'Content-Type':'application/json'} : {};
@@ -218,6 +220,12 @@ const API = {
     body: JSON.stringify({tickers, period})
   }).then(apiJson),
 
+  scanUploaded: (ticker, period, provider, bars) => apiFetch('/api/intelligence/scan-upload', {
+    method: 'POST',
+    headers: authHeaders(true),
+    body: JSON.stringify({ticker, period, provider, bars})
+  }).then(apiJson),
+
   explain: (ticker, analysis, question=null) => apiFetch(`/api/ai/explain`, {
     method: 'POST',
     headers: {'Content-Type':'application/json'},
@@ -229,6 +237,7 @@ const API = {
 
   quant: {
     run: (data) => apiFetch('/api/quant/run', {method:'POST', headers:authHeaders(true), body:JSON.stringify(data)}).then(apiJson),
+    runUploaded: (data) => apiFetch('/api/quant/run-upload', {method:'POST', headers:authHeaders(true), body:JSON.stringify(data)}).then(apiJson),
   },
 
   intelligence: {
@@ -243,8 +252,6 @@ const API = {
     logout: () => apiFetch('/api/auth/logout', {method:'POST', headers: authHeaders(false)}).then(r => r.json()),
     subscribe: (plan_code) => apiFetch('/api/auth/subscribe', {method:'POST', headers: authHeaders(true), body: JSON.stringify({plan_code})}).then(apiJson),
     providerCredentials: () => apiFetch('/api/auth/provider-credentials', {headers: authHeaders(false)}).then(apiJson),
-    saveProviderCredential: (provider, api_key) => apiFetch('/api/auth/provider-credentials', {method:'PUT', headers: authHeaders(true), body: JSON.stringify({provider, api_key})}).then(apiJson),
-    removeProviderCredential: (provider) => apiFetch(`/api/auth/provider-credentials/${encodeURIComponent(provider)}`, {method:'DELETE', headers: authHeaders(false)}).then(apiJson),
   },
 
   watchlist: {
@@ -641,29 +648,19 @@ function setProviderOnboardingMessage(message, warning=false) {
   target.classList.toggle('is-warning', Boolean(warning));
 }
 
-function hasSavedProviderKey(payload) {
-  return Boolean((payload?.providers || []).some(item => item?.saved && ['polygon', 'twelvedata'].includes(item.provider)));
+function hasBrowserProviderKey(preferred = 'auto') {
+  if (preferred && preferred !== 'auto' && preferred !== 'cache_only') return Boolean(browserProviderKeys[preferred]);
+  return Boolean(browserProviderKeys.polygon || browserProviderKeys.twelvedata);
 }
 
 async function openProviderOnboarding() {
   const modal = document.getElementById('providerOnboardingModal');
   if (!modal || !currentUser) return;
-  setProviderOnboardingMessage('Checking your secure provider-key status…');
+  setProviderOnboardingMessage('Choose a provider and keep its key in this browser session.');
   openAccessibleDialog(modal, document.getElementById('onboardingPolygonApiKey'));
-  try {
-    const payload = await API.auth.providerCredentials();
-    if (hasSavedProviderKey(payload)) {
-      closeProviderOnboarding();
-      resumePendingAnalysisIntent();
-      return;
-    }
-    if (!payload?.encryption_configured) {
-      setProviderOnboardingMessage('Secure key storage is not configured by the site operator yet. Provider-backed research is unavailable.', true);
-      return;
-    }
-    setProviderOnboardingMessage('Save either provider key to continue. The key is never displayed again.');
-  } catch (error) {
-    setProviderOnboardingMessage(error.message || String(error), true);
+  if (hasBrowserProviderKey()) {
+    closeProviderOnboarding();
+    resumePendingAnalysisIntent();
   }
 }
 
@@ -674,7 +671,7 @@ function closeProviderOnboarding() {
 function openProviderSavedChoice(provider) {
   const modal = document.getElementById('providerKeySavedModal');
   const copy = document.getElementById('providerKeySavedCopy');
-  if (copy) copy.textContent = `Your ${provider === 'polygon' ? 'Massive' : 'Twelve Data'} key is encrypted and is never displayed again.`;
+  if (copy) copy.textContent = `Your ${provider === 'polygon' ? 'Massive' : 'Twelve Data'} key is held only in this browser session and is sent directly to that provider. Oryntra never receives or stores it.`;
   openAccessibleDialog(modal, document.getElementById('continueToOryntra'));
 }
 
@@ -690,30 +687,71 @@ async function saveOnboardingProviderKey(provider) {
     setProviderOnboardingMessage(`Paste your ${provider === 'polygon' ? 'Polygon / Massive' : 'Twelve Data'} API key first.`, true);
     return;
   }
-  try {
-    const payload = await API.auth.saveProviderCredential(provider, apiKey);
-    if (input) input.value = '';
-    renderProviderCredentialSettings(payload);
-    setProviderOnboardingMessage('Key saved securely. Choose what you want to do next.');
-    openProviderSavedChoice(provider);
-  } catch (error) {
-    setProviderOnboardingMessage(error.message || String(error), true);
-  }
+  browserProviderKeys[provider] = apiKey.trim();
+  if (input) input.value = '';
+  renderProviderCredentialSettings();
+  setProviderOnboardingMessage('Key connected in this browser only. Choose what you want to do next.');
+  openProviderSavedChoice(provider);
 }
 
-async function requireProviderKey(intent = null) {
+async function requireProviderKey(intent = null, preferred = 'auto') {
   if (!currentUser) return false;
-  try {
-    const payload = await API.auth.providerCredentials();
-    if (hasSavedProviderKey(payload)) return true;
-    pendingAnalysisIntent = intent || pendingAnalysisIntent;
-    providerOnboardingRequest = intent;
-    openProviderOnboarding();
-    return false;
-  } catch (error) {
-    showError(error.message || 'Secure provider-key status could not be checked.');
-    return false;
+  if (hasBrowserProviderKey(preferred)) return true;
+  pendingAnalysisIntent = intent || pendingAnalysisIntent;
+  providerOnboardingRequest = intent;
+  openProviderOnboarding();
+  return false;
+}
+
+function directProviderFor(preferred = 'auto') {
+  if (preferred && preferred !== 'auto' && preferred !== 'cache_only' && browserProviderKeys[preferred]) return preferred;
+  if (browserProviderKeys.polygon) return 'polygon';
+  if (browserProviderKeys.twelvedata) return 'twelvedata';
+  throw new Error('Connect a Polygon / Massive or Twelve Data key in this browser first.');
+}
+
+function providerDateRange(period = '6mo') {
+  const now = new Date();
+  const from = new Date(now);
+  const days = { '1mo': 45, '6mo': 220, '1y': 390, '2y': 780, '5y': 1900, all: 3650, '5m': 420 }[period] || 220;
+  from.setUTCDate(from.getUTCDate() - days);
+  const date = value => value.toISOString().slice(0, 10);
+  return {from: date(from), to: date(now)};
+}
+
+function normalizeDirectBars(rows, provider, minimumBars = 120) {
+  const normalized = (rows || []).map((row) => {
+    if (provider === 'polygon') {
+      return {timestamp: new Date(Number(row.t)).toISOString(), open:Number(row.o), high:Number(row.h), low:Number(row.l), close:Number(row.c), volume:Number(row.v || 0)};
+    }
+    return {timestamp: row.datetime || row.timestamp, open:Number(row.open), high:Number(row.high), low:Number(row.low), close:Number(row.close), volume:Number(row.volume || 0)};
+  }).filter(bar => bar.timestamp && [bar.open, bar.high, bar.low, bar.close, bar.volume].every(Number.isFinite));
+  if (normalized.length < minimumBars) throw new Error(`The provider returned fewer than ${minimumBars} completed daily bars. Choose a longer window or verify your provider plan.`);
+  return normalized.slice(-2000);
+}
+
+async function fetchDirectMarketBars(ticker, period = '6mo', preferred = 'auto', minimumBars = 120) {
+  const provider = directProviderFor(preferred);
+  const key = browserProviderKeys[provider];
+  const range = providerDateRange(period);
+  let endpoint;
+  if (provider === 'polygon') {
+    endpoint = `https://api.polygon.io/v2/aggs/ticker/${encodeURIComponent(ticker)}/range/1/day/${range.from}/${range.to}?adjusted=true&sort=asc&limit=50000&apiKey=${encodeURIComponent(key)}`;
+  } else {
+    endpoint = `https://api.twelvedata.com/time_series?symbol=${encodeURIComponent(ticker)}&interval=1day&start_date=${range.from}&end_date=${range.to}&outputsize=5000&apikey=${encodeURIComponent(key)}`;
   }
+  let response;
+  try {
+    response = await nativeFetch(endpoint, {method:'GET', mode:'cors', credentials:'omit', cache:'no-store'});
+  } catch (_) {
+    throw new Error(`${provider === 'polygon' ? 'Polygon / Massive' : 'Twelve Data'} did not allow this browser request. Check the key, provider plan, and browser CORS support.`);
+  }
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok || payload?.status === 'error' || payload?.code) {
+    throw new Error(payload?.message || payload?.error || `${provider === 'polygon' ? 'Polygon / Massive' : 'Twelve Data'} rejected the market-data request.`);
+  }
+  const bars = normalizeDirectBars(provider === 'polygon' ? payload.results : payload.values, provider, minimumBars);
+  return {provider, bars};
 }
 
 async function submitAuth() {
@@ -772,6 +810,7 @@ async function logoutUser() {
   deleteClientCookie(AUTH_USER_COOKIE);
   pendingAnalysisIntent = null;
   providerOnboardingRequest = null;
+  browserProviderKeys = {polygon: '', twelvedata: ''};
   setAuthUI(null);
   refreshProviderCredentialSettings().catch(() => {});
   loadPaperTrades().catch(() => {});
@@ -934,20 +973,33 @@ async function runQuantResearch() {
     openAuthModal('signup');
     return;
   }
-  if (!await requireProviderKey({type:'quant'})) {
-    status.textContent = 'Connect a provider key to use Quant Lab.';
-    return;
-  }
   const tickers = (document.getElementById('quantTickers')?.value || '').split(/[\s,]+/).map(sanitizeTickerSymbol).filter(Boolean);
   const strategies = Array.from(document.querySelectorAll('.quant-strategy-set input:checked')).map(input => input.value);
   if (tickers.length < 2 || !strategies.length) { status.textContent = 'Choose at least two symbols and one strategy family.'; return; }
   const weights = Object.fromEntries(Array.from(document.querySelectorAll('.quant-allocation-slider')).map(slider => [slider.dataset.strategy, Number(slider.value) || 0]));
   if (!strategies.some(strategy => weights[strategy] > 0)) { status.textContent = 'Give at least one selected strategy an allocation above 0%.'; return; }
   const provider = document.getElementById('quantProvider')?.value || 'auto';
+  const requestedProvider = provider === 'cache_only' ? 'auto' : provider;
+  if (!await requireProviderKey({type:'quant'}, requestedProvider)) {
+    status.textContent = 'Connect the selected provider key in this browser to use Quant Lab.';
+    return;
+  }
   const lookback = Number(document.getElementById('quantLookback')?.value || 126);
-  const payload = {tickers, strategies, period: document.getElementById('quantPeriod')?.value || '2y', data_source: provider === 'cache_only' ? 'cache_only' : 'cache_first', data_provider: provider, model: document.getElementById('quantModel')?.value || 'v1_corporate_quant_system', strategy_weights: weights, trend_lookback: lookback, momentum_lookback: lookback, cost_bps: Number(document.getElementById('quantCost')?.value || 12), borrow_bps_annual: Number(document.getElementById('quantBorrow')?.value || 50), long_short: Boolean(document.getElementById('quantLongShort')?.checked), target_annual_volatility: Number(document.getElementById('quantTargetVol')?.value || 12), max_gross_exposure: Number(document.getElementById('quantMaxGross')?.value || 1), max_single_name_weight: Number(document.getElementById('quantMaxName')?.value || 35) / 100, rebalance_frequency: document.getElementById('quantRebalance')?.value || 'weekly', walk_forward_folds: Number(document.getElementById('quantWalkForward')?.value || 3), regime_conditioned_weights: true, liquidity_aware_costs: true};
+  const period = document.getElementById('quantPeriod')?.value || '2y';
+  const payload = {tickers, strategies, period, model: document.getElementById('quantModel')?.value || 'v1_corporate_quant_system', strategy_weights: weights, trend_lookback: lookback, momentum_lookback: lookback, cost_bps: Number(document.getElementById('quantCost')?.value || 12), borrow_bps_annual: Number(document.getElementById('quantBorrow')?.value || 50), long_short: Boolean(document.getElementById('quantLongShort')?.checked), target_annual_volatility: Number(document.getElementById('quantTargetVol')?.value || 12), max_gross_exposure: Number(document.getElementById('quantMaxGross')?.value || 1), max_single_name_weight: Number(document.getElementById('quantMaxName')?.value || 35) / 100, rebalance_frequency: document.getElementById('quantRebalance')?.value || 'weekly', walk_forward_folds: Number(document.getElementById('quantWalkForward')?.value || 3), regime_conditioned_weights: true, liquidity_aware_costs: true};
   button.disabled = true; results.hidden = true; status.textContent = 'Loading histories, applying fixed rules, and modeling next-session execution…';
-  try { const report = await API.quant.run(payload); renderQuantReport(report); status.textContent = `Completed ${report.universe.sessions} sessions across ${report.universe.symbols.length} usable symbols. Results are net of the entered costs.`; }
+  try {
+    const activeProvider = directProviderFor(requestedProvider);
+    const histories = [];
+    for (let index = 0; index < tickers.length; index += 1) {
+      status.textContent = `Loading ${tickers[index]} directly from ${activeProvider === 'polygon' ? 'Polygon / Massive' : 'Twelve Data'} (${index + 1}/${tickers.length})…`;
+      const market = await fetchDirectMarketBars(tickers[index], period, activeProvider);
+      histories.push({ticker: tickers[index], bars: market.bars});
+    }
+    const report = await API.quant.runUploaded({...payload, provider: activeProvider, histories});
+    renderQuantReport(report);
+    status.textContent = `Completed ${report.universe.sessions} sessions across ${report.universe.symbols.length} usable symbols. Raw browser-supplied bars were processed in memory only.`;
+  }
   catch (error) { status.textContent = `Research run could not finish: ${error.message || String(error)}`; }
   finally { button.disabled = false; }
 }
@@ -1243,7 +1295,8 @@ async function runScan(ticker = null, period = null) {
 
   try {
     animateLoadingSteps();
-    const data = await API.scan(raw, currentPeriod);
+    const market = await fetchDirectMarketBars(raw, currentPeriod, 'auto', 320);
+    const data = await API.scanUploaded(raw, currentPeriod, market.provider, market.bars);
     currentAnalysis = data;
     if (Number.isFinite(Number(data.search_counter))) {
       updateSearchCounter(data.search_counter);
@@ -2015,28 +2068,16 @@ function setProviderCredentialMessage(text, warning=false) {
   message.classList.toggle('is-warning', Boolean(warning));
 }
 
-function renderProviderCredentialSettings(payload) {
-  const records = Object.fromEntries((payload?.providers || []).map(item => [item.provider, item]));
+function renderProviderCredentialSettings() {
   ['polygon', 'twelvedata'].forEach(provider => {
     const status = document.getElementById(`${provider}CredentialStatus`);
-    const record = records[provider];
-    if (status) status.textContent = record?.saved ? 'SAVED · ENCRYPTED' : 'NOT SAVED';
+    if (status) status.textContent = browserProviderKeys[provider] ? 'CONNECTED · THIS BROWSER' : 'NOT CONNECTED';
   });
-  if (!payload?.encryption_configured) {
-    setProviderCredentialMessage('Secure key storage has not been configured by the site operator yet.', true);
-  } else {
-    setProviderCredentialMessage('Saved keys are encrypted at rest and are never returned to this browser.');
-  }
+  setProviderCredentialMessage('Keys are held only in this browser session and sent directly to your selected provider. Oryntra never receives or stores them.');
 }
 
 async function refreshProviderCredentialSettings() {
-  if (!currentUser) {
-    renderProviderCredentialSettings({providers: [], encryption_configured: true});
-    setProviderCredentialMessage('Sign in to add a key. Oryntra never displays a saved key.');
-    return;
-  }
-  const payload = await API.auth.providerCredentials();
-  renderProviderCredentialSettings(payload);
+  renderProviderCredentialSettings();
 }
 
 function initProviderCredentialSettings() {
@@ -2045,30 +2086,22 @@ function initProviderCredentialSettings() {
     const input = document.getElementById(`${provider}ApiKeyInput`);
     const apiKey = input?.value || '';
     if (!apiKey.trim()) { setProviderCredentialMessage(`Paste your ${provider === 'polygon' ? 'Polygon' : 'Twelve Data'} API key first.`, true); return; }
-    try {
-      const payload = await API.auth.saveProviderCredential(provider, apiKey);
-      if (input) input.value = '';
-      renderProviderCredentialSettings(payload);
-      setProviderCredentialMessage(`${provider === 'polygon' ? 'Polygon' : 'Twelve Data'} key saved securely.`);
-    } catch (error) {
-      setProviderCredentialMessage(error.message || String(error), true);
-    }
+    browserProviderKeys[provider] = apiKey.trim();
+    if (input) input.value = '';
+    renderProviderCredentialSettings();
+    setProviderCredentialMessage(`${provider === 'polygon' ? 'Polygon / Massive' : 'Twelve Data'} is connected for this browser session only.`);
   };
   const remove = async provider => {
     if (!currentUser) { openAuthModal('login'); return; }
-    try {
-      const payload = await API.auth.removeProviderCredential(provider);
-      renderProviderCredentialSettings(payload);
-      setProviderCredentialMessage(`${provider === 'polygon' ? 'Polygon' : 'Twelve Data'} key removed.`);
-    } catch (error) {
-      setProviderCredentialMessage(error.message || String(error), true);
-    }
+    browserProviderKeys[provider] = '';
+    renderProviderCredentialSettings();
+    setProviderCredentialMessage(`${provider === 'polygon' ? 'Polygon / Massive' : 'Twelve Data'} key removed from this browser session.`);
   };
   document.getElementById('savePolygonApiKeyBtn')?.addEventListener('click', () => save('polygon'));
   document.getElementById('saveTwelvedataApiKeyBtn')?.addEventListener('click', () => save('twelvedata'));
   document.getElementById('removePolygonApiKeyBtn')?.addEventListener('click', () => remove('polygon'));
   document.getElementById('removeTwelvedataApiKeyBtn')?.addEventListener('click', () => remove('twelvedata'));
-  refreshProviderCredentialSettings().catch(() => {});
+  refreshProviderCredentialSettings();
 }
 
 function initQuantSettings() {
@@ -2847,8 +2880,18 @@ async function scanAllWatchlist() {
 
   try {
     const tickers = items.map(i => i.ticker);
-    const result  = await API.scanMultiple(tickers, currentPeriod);
-    renderScannerResults(result.results);
+    const results = [], errors = [];
+    for (let index = 0; index < tickers.length; index += 1) {
+      btn.textContent = `⟳ ${index + 1}/${tickers.length}`;
+      try {
+        const market = await fetchDirectMarketBars(tickers[index], currentPeriod, 'auto', 320);
+        results.push(await API.scanUploaded(tickers[index], currentPeriod, market.provider, market.bars));
+      } catch (error) {
+        errors.push({ticker: tickers[index], error: error.message || String(error)});
+      }
+    }
+    renderScannerResults(results);
+    if (errors.length) showError(`${errors.length} watchlist symbol${errors.length === 1 ? '' : 's'} could not be scanned. ${errors[0].ticker}: ${errors[0].error}`);
   } finally {
     btn.textContent = '⬡ SCAN ALL';
     btn.disabled    = false;

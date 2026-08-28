@@ -1,11 +1,13 @@
 import asyncio
 import copy
 import json
+import math
 import os
 import time
 import traceback
 import weakref
 from datetime import datetime
+import pandas as pd
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, field_validator
 
@@ -116,6 +118,35 @@ def _compute_scan_artifacts(hist, ticker: str, pattern_mode: str):
     return analysis_hist, ind, setup, pattern_report, plan
 
 
+def browser_bars_to_history(bars: list[dict], minimum_bars: int = _ANALYSIS_LOOKBACK_BARS) -> pd.DataFrame:
+    """Validate browser-supplied daily bars without persisting their raw values."""
+    minimum_bars = max(2, int(minimum_bars))
+    if not isinstance(bars, list) or len(bars) < minimum_bars:
+        raise ValueError(f"Provide at least {minimum_bars} daily bars for this analysis.")
+    if len(bars) > 2_000:
+        raise ValueError("A scanner upload may contain at most 2,000 bars.")
+    records: list[dict] = []
+    seen: set[pd.Timestamp] = set()
+    for item in bars:
+        try:
+            timestamp = pd.Timestamp(item.get("timestamp"), tz="UTC").tz_localize(None)
+            values = {name: float(item.get(name)) for name in ("open", "high", "low", "close", "volume")}
+        except (TypeError, ValueError, OverflowError) as exc:
+            raise ValueError("Each bar needs a valid timestamp, OHLC price, and volume.") from exc
+        if timestamp in seen or not all(math.isfinite(value) for value in values.values()):
+            raise ValueError("Bars must have unique timestamps and finite numeric values.")
+        if values["open"] <= 0 or values["high"] <= 0 or values["low"] <= 0 or values["close"] <= 0 or values["volume"] < 0:
+            raise ValueError("Prices must be positive and volume cannot be negative.")
+        if values["low"] > min(values["open"], values["close"], values["high"]) or values["high"] < max(values["open"], values["close"], values["low"]):
+            raise ValueError("Each bar must have low <= OHLC <= high.")
+        seen.add(timestamp)
+        records.append({"timestamp": timestamp, "Open": values["open"], "High": values["high"], "Low": values["low"], "Close": values["close"], "Volume": values["volume"]})
+    frame = pd.DataFrame(records).set_index("timestamp").sort_index()
+    if len(frame) < minimum_bars:
+        raise ValueError(f"Provide at least {minimum_bars} unique daily bars for this analysis.")
+    return frame
+
+
 async def _persist_scan_side_effects(key, ticker, timeframe, hist, provider, pattern_report, result, should_store_bars):
     async with _ANALYSIS_PERSIST_SEMAPHORE:
         try:
@@ -214,6 +245,38 @@ async def _run_scan_pipeline(
 
             if not lock.locked():
                 _ANALYSIS_KEY_LOCKS.pop(key, None)
+
+
+async def _run_uploaded_scan_pipeline(req: ScanRequest, bars: list[dict], provider: str) -> dict:
+    """Analyze browser-fetched bars in memory; raw bars are never cached or persisted."""
+    try:
+        hist = await asyncio.to_thread(browser_bars_to_history, bars)
+        analysis_hist, ind, setup, pattern_report, plan = await asyncio.to_thread(
+            _compute_scan_artifacts, hist, req.ticker, req.pattern_mode
+        )
+        result = _build_result(
+            req.ticker,
+            {"company_name": req.ticker, "exchange": ""},
+            f"browser_{provider}",
+            _period_to_timeframe(req.period),
+            ind,
+            setup,
+            plan,
+            pattern_report,
+            {"status": "not_persisted", "reason": "Browser-supplied bars are analyzed in memory only."},
+            analysis_hist,
+        )
+        result["pattern_engine_mode"] = req.pattern_mode
+        result["response_cache"] = False
+        return await _attach_counter(result)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except HTTPException:
+        raise
+    except Exception as exc:
+        print("[Oryntra] browser-upload analysis traceback:")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Analysis error: {type(exc).__name__}: {exc}") from exc
 
 
 async def _scan_many(tickers: list[str], period: str, pattern_mode: str = "official"):

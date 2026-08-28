@@ -26,6 +26,16 @@ def test_business_mode_requires_explicit_public_enable(monkeypatch):
     assert policy_status({"email": "user@example.com"})["analysis_permitted"] is True
 
 
+def test_browser_direct_mode_is_an_explicit_authenticated_public_opt_in(monkeypatch):
+    monkeypatch.setenv("ORYNTRA_MARKET_DATA_LICENSE_MODE", "personal_research")
+    monkeypatch.setenv("ORYNTRA_PUBLIC_DERIVED_ANALYSIS_ENABLED", "false")
+    monkeypatch.setenv("ORYNTRA_BROWSER_DIRECT_ANALYSIS_ENABLED", "true")
+    status = policy_status({"email": "user@example.com"})
+    assert status["analysis_permitted"] is True
+    assert status["browser_direct_analysis_enabled"] is True
+    assert status["user_provider_keys_required"] is False
+
+
 def test_daily_quota_reserve_and_refund(monkeypatch, tmp_path):
     monkeypatch.setattr(database, "DB_PATH", str(tmp_path / "quota.db"))
     monkeypatch.setenv("ORYNTRA_DAILY_ANALYSIS_LIMIT", "2")
@@ -47,4 +57,3 @@ def test_daily_quota_reserve_and_refund(monkeypatch, tmp_path):
     refunded = refund_quota(7, 1)
     assert refunded["used"] == 1
     assert usage_status(7)["remaining"] == 1
-

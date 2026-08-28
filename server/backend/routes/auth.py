@@ -11,7 +11,7 @@ from fastapi import APIRouter, HTTPException, Request, Response
 from pydantic import BaseModel, field_validator
 
 from ..database import get_connection, init_db
-from ..provider_credentials import credential_status, delete_credential, ensure_provider_credential_schema, save_credential
+from ..provider_credentials import delete_credential, ensure_provider_credential_schema
 
 router = APIRouter()
 SESSION_DAYS = 90
@@ -296,14 +296,20 @@ async def me(request: Request, response: Response):
 
 @router.get("/provider-credentials")
 async def get_provider_credentials(request: Request):
-    user = require_current_user(request)
-    return credential_status(user["id"])
+    require_current_user(request)
+    return {
+        "mode": "browser_direct",
+        "message": "Provider keys stay in the browser and are sent directly to the selected provider. Oryntra does not receive or store them.",
+    }
 
 
 @router.put("/provider-credentials")
 async def put_provider_credential(req: ProviderCredentialRequest, request: Request):
-    user = require_current_user(request)
-    return save_credential(user["id"], req.provider, req.api_key)
+    require_current_user(request)
+    raise HTTPException(
+        status_code=410,
+        detail="Oryntra no longer accepts provider keys. Keep your key in the browser and connect directly to the provider.",
+    )
 
 
 @router.delete("/provider-credentials/{provider}")
