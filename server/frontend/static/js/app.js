@@ -785,7 +785,10 @@ function directProviderFor(preferred = 'auto') {
 function providerDateRange(period = '6mo') {
   const now = new Date();
   const from = new Date(now);
-  const days = { '1mo': 45, '6mo': 220, '1y': 390, '2y': 780, '5y': 1900, all: 3650, '5m': 420 }[period] || 220;
+  // The scanner uses 320 completed daily bars for long moving averages and
+  // pattern context, so short display windows still fetch a sufficient daily
+  // calculation history (weekends and market holidays reduce bar count).
+  const days = { '1mo': 540, '6mo': 540, '1y': 540, '2y': 780, '5y': 1900, all: 3650, '5m': 540 }[period] || 540;
   from.setUTCDate(from.getUTCDate() - days);
   const date = value => value.toISOString().slice(0, 10);
   return {from: date(from), to: date(now)};
