@@ -1533,8 +1533,10 @@ function renderResults(d) {
 
   const setupColor = setupColorMap(setup.setup_type, tp.direction);
   const setupEl    = document.getElementById('setupBadge');
-  setupEl.textContent = (setup.setup_type || '—').replace(/_/g, ' ');
-  setupEl.style.color = setupColor;
+  if (setupEl) {
+    setupEl.textContent = (setup.setup_type || '—').replace(/_/g, ' ');
+    setupEl.style.color = setupColor;
+  }
 
   const signal     = tp.signal || 'HOLD';
   const bannerEl   = document.getElementById('signalBanner');
@@ -1549,13 +1551,15 @@ function renderResults(d) {
     'STRONG_SELL': { cls: 'strong-sell', icon: '▼▼', label: 'STRONG SELL' },
   };
   const sm = signalMap[signal] || signalMap['HOLD'];
-  bannerEl.className   = `signal-banner ${sm.cls}`;
-  iconEl.textContent   = sm.icon;
-  labelEl.textContent  = sm.label;
+  if (bannerEl) bannerEl.className = `signal-banner ${sm.cls}`;
+  if (iconEl) iconEl.textContent = sm.icon;
+  if (labelEl) labelEl.textContent = sm.label;
 
   const dirEl = document.getElementById('setupDirection');
-  dirEl.textContent  = tp.direction ? `◀ ${tp.direction} ▶` : '—';
-  dirEl.style.color  = tp.direction === 'LONG' ? 'var(--bull)' : tp.direction === 'SHORT' ? 'var(--bear)' : 'var(--neutral)';
+  if (dirEl) {
+    dirEl.textContent = tp.direction ? `◀ ${tp.direction} ▶` : '—';
+    dirEl.style.color = tp.direction === 'LONG' ? 'var(--bull)' : tp.direction === 'SHORT' ? 'var(--bear)' : 'var(--neutral)';
+  }
 
   const score = tp.quality_score || 0;
   setText('qualityScore',    score.toFixed(0));
@@ -1563,11 +1567,13 @@ function renderResults(d) {
   setText('convictionLabel', tp.conviction || '—');
 
   const bar = document.getElementById('qualityBar');
-  bar.style.width      = `${score}%`;
-  bar.style.background = score >= 70 ? 'var(--bull)' : score >= 50 ? 'var(--neutral)' : 'var(--bear)';
+  if (bar) {
+    bar.style.width = `${score}%`;
+    bar.style.background = score >= 70 ? 'var(--bull)' : score >= 50 ? 'var(--neutral)' : 'var(--bear)';
+  }
 
   const cvEl = document.getElementById('convictionLabel');
-  cvEl.style.color = score >= 70 ? 'var(--bull)' : score >= 50 ? 'var(--neutral)' : 'var(--bear)';
+  if (cvEl) cvEl.style.color = score >= 70 ? 'var(--bull)' : score >= 50 ? 'var(--neutral)' : 'var(--bear)';
 
   const conf = d.confluence || {};
   const agreeing = Number(conf.agreeing || 0);
@@ -1679,21 +1685,27 @@ function renderResults(d) {
   const ratio = Number(vol.relative_ratio || 0);
   const volColor = ratio >= 2.0 ? 'var(--bull)' : ratio >= 1.5 ? 'var(--neutral)' : ratio > 0 && ratio < 0.8 ? 'var(--bear)' : 'var(--text-primary)';
   const ratioEl = document.getElementById('volRatio');
-  ratioEl.textContent = ratio > 0 ? `${ratio.toFixed(2)}×` : '—';
-  ratioEl.style.color = volColor;
+  if (ratioEl) {
+    ratioEl.textContent = ratio > 0 ? `${ratio.toFixed(2)}×` : '—';
+    ratioEl.style.color = volColor;
+  }
 
   const participation = ratio >= 2 ? 'SURGE' : ratio >= 1.5 ? 'ELEVATED' : ratio > 0 && ratio < 0.8 ? 'LIGHT' : ratio > 0 ? 'NORMAL' : 'UNAVAILABLE';
   const sigTagEl = document.getElementById('volSignal');
-  sigTagEl.textContent = participation;
-  sigTagEl.style.background = volColor + '22';
-  sigTagEl.style.color = volColor;
+  if (sigTagEl) {
+    sigTagEl.textContent = participation;
+    sigTagEl.style.background = volColor + '22';
+    sigTagEl.style.color = volColor;
+  }
 
   setText('volCurrent', participation);
   setText('volAvg', vol.price_divergence ? String(vol.price_divergence).replace(/_/g, ' ') : 'NONE');
 
   const vtEl = document.getElementById('volTrend');
-  vtEl.textContent = vol.trend || '—';
-  vtEl.style.color = vol.trend === 'INCREASING' ? 'var(--bull)' : vol.trend === 'DECLINING' ? 'var(--bear)' : 'var(--text-secondary)';
+  if (vtEl) {
+    vtEl.textContent = vol.trend || '—';
+    vtEl.style.color = vol.trend === 'INCREASING' ? 'var(--bull)' : vol.trend === 'DECLINING' ? 'var(--bear)' : 'var(--text-secondary)';
+  }
 
   const sideNote = document.getElementById('tradePlanSide');
   const targetLabel = document.querySelector('.zone-target .zone-label');
@@ -1730,10 +1742,12 @@ function renderResults(d) {
     setText('planStopPct',    tp.risk_pct   ? `−${tp.risk_pct}%` : '—');
     setText('planTargetPct',  tp.reward_pct ? `+${tp.reward_pct}%` : '—');
     const rrEl = document.getElementById('planRR');
-    rrEl.textContent = planIsValid && tp.risk_reward ? `${tp.risk_reward}:1` : 'CHECK';
-    rrEl.style.color = planIsValid
-      ? (tp.risk_reward >= 2 ? 'var(--bull)' : tp.risk_reward >= 1.5 ? 'var(--neutral)' : 'var(--bear)')
-      : 'var(--bear)';
+    if (rrEl) {
+      rrEl.textContent = planIsValid && tp.risk_reward ? `${tp.risk_reward}:1` : 'CHECK';
+      rrEl.style.color = planIsValid
+        ? (tp.risk_reward >= 2 ? 'var(--bull)' : tp.risk_reward >= 1.5 ? 'var(--neutral)' : 'var(--bear)')
+        : 'var(--bear)';
+    }
 
     const actionRow = document.getElementById('tradeActionRow');
     const paperBtn = document.getElementById('paperTradeBtn');
@@ -1750,7 +1764,8 @@ function renderResults(d) {
     }
     ['planEntry','planEntryRange','planStop','planTarget','planStopPct','planTargetPct'].forEach(id => setText(id, '—'));
     setText('planRR', 'N/A');
-    document.getElementById('tradeActionRow').style.display = 'none';
+    const actionRow = document.getElementById('tradeActionRow');
+    if (actionRow) actionRow.style.display = 'none';
   }
 
   renderPred('5d',  preds['5d']);
@@ -1758,13 +1773,15 @@ function renderResults(d) {
   renderPred('20d', preds['20d']);
 
   const trendEl = document.getElementById('trendBadge');
-  trendEl.textContent = (d.trend || 'UNKNOWN').replace(/_/g,' ');
   const isUp   = d.trend && d.trend.includes('UP');
   const isDown = d.trend && d.trend.includes('DOWN');
-  trendEl.style.background = isUp ? 'var(--bull-dim)' : isDown ? 'var(--bear-dim)' : 'var(--neutral-dim)';
-  trendEl.style.color      = isUp ? 'var(--bull)'     : isDown ? 'var(--bear)'     : 'var(--neutral)';
-  trendEl.style.padding    = '4px 12px';
-  trendEl.style.borderRadius = '4px';
+  if (trendEl) {
+    trendEl.textContent = (d.trend || 'UNKNOWN').replace(/_/g,' ');
+    trendEl.style.background = isUp ? 'var(--bull-dim)' : isDown ? 'var(--bear-dim)' : 'var(--neutral-dim)';
+    trendEl.style.color = isUp ? 'var(--bull)' : isDown ? 'var(--bear)' : 'var(--neutral)';
+    trendEl.style.padding = '4px 12px';
+    trendEl.style.borderRadius = '4px';
+  }
 
   setText('trendStrength', d.trend_strength != null ? `R²: ${d.trend_strength.toFixed(0)}%` : '');
 
@@ -1780,22 +1797,26 @@ function renderResults(d) {
 
   const rulesList = document.getElementById('rulesList');
   const rules     = setup.rules_fired || [];
-  rulesList.innerHTML = rules.length
-    ? rules.map(r => `<div class="rule-item"><span class="rule-bullet">▸</span>${escHtml(r)}</div>`).join('')
-    : '<div class="rule-item" style="color:var(--text-dim)">No strong rules triggered.</div>';
+  if (rulesList) {
+    rulesList.innerHTML = rules.length
+      ? rules.map(r => `<div class="rule-item"><span class="rule-bullet">▸</span>${escHtml(r)}</div>`).join('')
+      : '<div class="rule-item" style="color:var(--text-dim)">No strong rules triggered.</div>';
+  }
 
   const allScores = setup.all_scores || {};
   const winner    = setup.setup_type;
   const scoresGrid = document.getElementById('allScoresGrid');
-  scoresGrid.innerHTML = Object.entries(allScores)
-    .sort(([,a],[,b]) => b - a)
-    .map(([name, sc]) => `
-      <div class="score-chip ${name === winner ? 'winner' : ''}">
-        <div class="score-chip-name">${name.replace(/_/g,' ')}</div>
-        <div class="score-chip-val">${sc.toFixed(0)}</div>
-        <div class="score-chip-bar-wrap"><div class="score-chip-bar" style="width:${sc}%"></div></div>
-      </div>
-    `).join('');
+  if (scoresGrid) {
+    scoresGrid.innerHTML = Object.entries(allScores)
+      .sort(([,a],[,b]) => b - a)
+      .map(([name, sc]) => `
+        <div class="score-chip ${name === winner ? 'winner' : ''}">
+          <div class="score-chip-name">${name.replace(/_/g,' ')}</div>
+          <div class="score-chip-val">${sc.toFixed(0)}</div>
+          <div class="score-chip-bar-wrap"><div class="score-chip-bar" style="width:${sc}%"></div></div>
+        </div>
+      `).join('');
+  }
 }
 
 
@@ -3371,13 +3392,15 @@ function renderPred(horizon, pred) {
     'STRONG_SELL': 'strong-sell',
   }[signal] || 'hold';
 
-  sigEl.textContent  = signalDisplay;
-  sigEl.className    = `pred-signal ${signalClass}`;
-  sigEl.style.padding      = '2px 7px';
-  sigEl.style.borderRadius = '3px';
-  sigEl.style.fontSize     = '9px';
-  sigEl.style.letterSpacing = '0.08em';
-  sigEl.style.display      = 'inline-block';
+  if (sigEl) {
+    sigEl.textContent = signalDisplay;
+    sigEl.className = `pred-signal ${signalClass}`;
+    sigEl.style.padding = '2px 7px';
+    sigEl.style.borderRadius = '3px';
+    sigEl.style.fontSize = '9px';
+    sigEl.style.letterSpacing = '0.08em';
+    sigEl.style.display = 'inline-block';
+  }
 
   if (confEl) confEl.textContent = conf ? `${conf}% conf.` : '';
 }
