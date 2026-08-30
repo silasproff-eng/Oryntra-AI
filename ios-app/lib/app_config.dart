@@ -8,6 +8,13 @@ class AppConfig {
     defaultValue: 'https://api.oryntraai.com',
   );
 
+  /// Account records and sessions are served by the main Oryntra site. Market
+  /// intelligence remains on the dedicated API host.
+  static const authBaseUrl = String.fromEnvironment(
+    'ORYNTRA_AUTH_URL',
+    defaultValue: 'https://oryntraai.com',
+  );
+
   static const previewMode = bool.fromEnvironment(
     'ORYNTRA_PREVIEW_MODE',
     defaultValue: kIsWeb,
@@ -61,10 +68,10 @@ class AppConfig {
     return androidInterstitialAdUnitId;
   }
 
-  static String get privacyUrl => '$apiBaseUrl/legal/privacy';
-  static String get termsUrl => '$apiBaseUrl/legal/terms';
-  static String get riskUrl => '$apiBaseUrl/legal/risk-disclaimer';
-  static String get methodologyUrl => '$apiBaseUrl/legal/methodology';
-  static String get contactUrl => '$apiBaseUrl/legal/contact';
-  static String get reportAdUrl => '$apiBaseUrl/legal/contact?topic=ad-report';
+  static String get privacyUrl => '$authBaseUrl/legal/privacy';
+  static String get termsUrl => '$authBaseUrl/legal/terms';
+  static String get riskUrl => '$authBaseUrl/legal/risk-disclaimer';
+  static String get methodologyUrl => '$authBaseUrl/legal/methodology';
+  static String get contactUrl => '$authBaseUrl/legal/contact';
+  static String get reportAdUrl => '$authBaseUrl/legal/contact?topic=ad-report';
 }

@@ -15,6 +15,65 @@ class OryntraPalette {
   static const danger = Color(0xFFF18A9B);
 }
 
+class OryntraColors {
+  const OryntraColors._({
+    required this.navy,
+    required this.deepNavy,
+    required this.panel,
+    required this.panelRaised,
+    required this.ink,
+    required this.muted,
+    required this.blue,
+    required this.blueBright,
+    required this.green,
+    required this.rule,
+    required this.danger,
+  });
+
+  final Color navy;
+  final Color deepNavy;
+  final Color panel;
+  final Color panelRaised;
+  final Color ink;
+  final Color muted;
+  final Color blue;
+  final Color blueBright;
+  final Color green;
+  final Color rule;
+  final Color danger;
+
+  static OryntraColors of(BuildContext context) {
+    if (Theme.of(context).brightness == Brightness.dark) {
+      return const OryntraColors._(
+        navy: OryntraPalette.navy,
+        deepNavy: OryntraPalette.deepNavy,
+        panel: OryntraPalette.panel,
+        panelRaised: OryntraPalette.panelRaised,
+        ink: OryntraPalette.ink,
+        muted: OryntraPalette.muted,
+        blue: OryntraPalette.blue,
+        blueBright: OryntraPalette.blueBright,
+        green: OryntraPalette.green,
+        rule: OryntraPalette.rule,
+        danger: OryntraPalette.danger,
+      );
+    }
+    return const OryntraColors._(
+      navy: Color(0xFFEAF1F8),
+      deepNavy: Color(0xFFF7F9FC),
+      panel: Color(0xFFFFFFFF),
+      panelRaised: Color(0xFFF0F5FA),
+      ink: Color(0xFF13263C),
+      muted: Color(0xFF5D7187),
+      blue: Color(0xFF236EAA),
+      blueBright: Color(0xFF17629E),
+      green: Color(0xFF26735D),
+      rule: Color(0xFFD5E0EA),
+      danger: Color(0xFFB83B50),
+    );
+  }
+}
+
 class LiquidGlass extends StatelessWidget {
   const LiquidGlass({
     super.key,
@@ -31,6 +90,7 @@ class LiquidGlass extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = OryntraColors.of(context);
     final border = BorderRadius.circular(radius);
     return ClipRRect(
       borderRadius: border,
@@ -39,8 +99,8 @@ class LiquidGlass extends StatelessWidget {
         child: DecoratedBox(
           decoration: BoxDecoration(
             borderRadius: border,
-            color: OryntraPalette.panel.withValues(alpha: opacity),
-            border: Border.all(color: OryntraPalette.rule),
+            color: colors.panel.withValues(alpha: opacity),
+            border: Border.all(color: colors.rule),
             boxShadow: const [
               BoxShadow(
                 color: Color(0x52000000),
@@ -68,6 +128,7 @@ class GlassNavigationBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = OryntraColors.of(context);
     const items = [
       (Icons.search_rounded, 'Scanner'),
       (Icons.bookmark_border_rounded, 'Watchlist'),
@@ -96,14 +157,10 @@ class GlassNavigationBar extends StatelessWidget {
                     curve: Curves.easeOutCubic,
                     padding: const EdgeInsets.symmetric(vertical: 9),
                     decoration: BoxDecoration(
-                      color: selected
-                          ? OryntraPalette.panelRaised
-                          : Colors.transparent,
+                      color: selected ? colors.panelRaised : Colors.transparent,
                       borderRadius: BorderRadius.circular(18),
                       border: selected
-                          ? Border.all(
-                              color: OryntraPalette.blue.withValues(alpha: .7),
-                            )
+                          ? Border.all(color: colors.blue.withValues(alpha: .7))
                           : null,
                     ),
                     child: Column(
@@ -112,9 +169,7 @@ class GlassNavigationBar extends StatelessWidget {
                         Icon(
                           items[itemIndex].$1,
                           size: 20,
-                          color: selected
-                              ? OryntraPalette.blueBright
-                              : OryntraPalette.muted,
+                          color: selected ? colors.blueBright : colors.muted,
                         ),
                         const SizedBox(height: 4),
                         Text(
@@ -127,9 +182,7 @@ class GlassNavigationBar extends StatelessWidget {
                             fontWeight: selected
                                 ? FontWeight.w800
                                 : FontWeight.w600,
-                            color: selected
-                                ? OryntraPalette.ink
-                                : OryntraPalette.muted,
+                            color: selected ? colors.ink : colors.muted,
                           ),
                         ),
                       ],

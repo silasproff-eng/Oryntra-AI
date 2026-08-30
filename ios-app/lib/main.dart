@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'app_config.dart';
 import 'screens/account_screen.dart';
+import 'screens/auth_gate_screen.dart';
 import 'screens/paper_screen.dart';
 import 'screens/scanner_screen.dart';
 import 'screens/watchlist_screen.dart';
 import 'services/api_service.dart';
 import 'services/consent_service.dart';
 import 'services/notification_service.dart';
+import 'services/provider_key_store.dart';
 import 'services/widget_service.dart';
 import 'widgets/glass.dart';
 
@@ -31,11 +33,14 @@ class _OryntraAppState extends State<OryntraApp> {
   final _api = ApiService();
   final _notifications = NotificationService();
   final _widgetService = WidgetService();
+  final _providerKeyStore = ProviderKeyStore();
   final _pages = PageController();
   final _scannerKey = GlobalKey<ScannerScreenState>();
   final _paperKey = GlobalKey<PaperScreenState>();
   final _accountKey = GlobalKey<AccountScreenState>();
   Map<String, dynamic>? _user;
+  bool _initializing = true;
+  bool _providerReady = false;
   int _tab = 0;
 
   @override
@@ -55,14 +60,37 @@ class _OryntraAppState extends State<OryntraApp> {
       final result = await _api.me();
       final raw = result?['user'];
       if (raw is! Map) await _notifications.clearMarketAlerts();
+      final provider = raw is Map
+          ? await _providerKeyStore.readConnection()
+          : null;
       if (mounted) {
-        setState(
-          () => _user = raw is Map ? Map<String, dynamic>.from(raw) : null,
-        );
+        setState(() {
+          _user = raw is Map ? Map<String, dynamic>.from(raw) : null;
+          _providerReady = provider != null;
+          _initializing = false;
+        });
       }
     } catch (_) {
-      if (mounted) setState(() => _user = null);
+      if (mounted)
+        setState(() {
+          _user = null;
+          _providerReady = false;
+          _initializing = false;
+        });
     }
+  }
+
+  Future<void> _providerConnected() async {
+    if (mounted) setState(() => _providerReady = true);
+  }
+
+  void _openProviderSettings() {
+    setState(() => _providerReady = false);
+  }
+
+  Future<void> _signOutFromSetup() async {
+    await _api.logout();
+    await _refreshUser();
   }
 
   void _goTo(int value) {
@@ -99,7 +127,7 @@ class _OryntraAppState extends State<OryntraApp> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = ThemeData(
+    final darkTheme = ThemeData(
       useMaterial3: true,
       brightness: Brightness.dark,
       colorScheme:
@@ -214,6 +242,61 @@ class _OryntraAppState extends State<OryntraApp> {
       ),
     );
 
+    final lightTheme = ThemeData(
+      useMaterial3: true,
+      brightness: Brightness.light,
+      colorScheme:
+          ColorScheme.fromSeed(
+            seedColor: const Color(0xFF17629E),
+            brightness: Brightness.light,
+          ).copyWith(
+            primary: const Color(0xFF17629E),
+            onPrimary: Colors.white,
+            surface: Colors.white,
+            onSurface: const Color(0xFF13263C),
+            error: const Color(0xFFB83B50),
+          ),
+      scaffoldBackgroundColor: const Color(0xFFF7F9FC),
+      dividerColor: const Color(0xFFD5E0EA),
+      textTheme: Typography.material2021().black.apply(
+        bodyColor: const Color(0xFF13263C),
+        displayColor: const Color(0xFF13263C),
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: Colors.white,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 15,
+          vertical: 15,
+        ),
+        labelStyle: const TextStyle(color: Color(0xFF5D7187)),
+        hintStyle: const TextStyle(color: Color(0xFF7B8B9D)),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: Color(0xFFD5E0EA)),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: Color(0xFFD5E0EA)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: Color(0xFF17629E), width: 1.4),
+        ),
+      ),
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          backgroundColor: const Color(0xFF17629E),
+          foregroundColor: Colors.white,
+          minimumSize: const Size.fromHeight(52),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+          textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
+        ),
+      ),
+    );
+
     final screens = [
       ScannerScreen(
         key: _scannerKey,
@@ -243,6 +326,7 @@ class _OryntraAppState extends State<OryntraApp> {
         consent: widget.consent,
         user: _user,
         onAuthChanged: _refreshUser,
+        onManageProviderConnection: _openProviderSettings,
         notifications: _notifications,
       ),
     ];
@@ -250,96 +334,121 @@ class _OryntraAppState extends State<OryntraApp> {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Oryntra AI',
-      theme: theme,
-      home: DecoratedBox(
-        decoration: const BoxDecoration(
-          gradient: RadialGradient(
-            center: Alignment(-.9, -1.15),
-            radius: 1.45,
-            colors: [
-              Color(0xFF173B63),
-              OryntraPalette.navy,
-              OryntraPalette.deepNavy,
-            ],
-            stops: [0, .42, 1],
-          ),
-        ),
-        child: Scaffold(
-          backgroundColor: Colors.transparent,
-          extendBody: true,
-          appBar: AppBar(
-            toolbarHeight: 66,
-            backgroundColor: Colors.transparent,
-            surfaceTintColor: Colors.transparent,
-            title: Row(
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(10),
-                  child: Image.asset(
-                    'assets/oryntra-icon.png',
-                    width: 36,
-                    height: 36,
-                    fit: BoxFit.cover,
-                  ),
-                ),
-                const SizedBox(width: 10),
-                const Text(
-                  'Oryntra AI',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -.7,
-                  ),
-                ),
-                if (AppConfig.previewMode) ...[
-                  const SizedBox(width: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
+      theme: lightTheme,
+      darkTheme: darkTheme,
+      themeMode: ThemeMode.system,
+      home: _initializing
+          ? const Scaffold(body: Center(child: CircularProgressIndicator()))
+          : _user == null
+          ? AuthGateScreen(api: _api, onAuthenticated: _refreshUser)
+          : !_providerReady
+          ? ProviderSetupScreen(
+              onConnected: _providerConnected,
+              onSignOut: _signOutFromSetup,
+            )
+          : Builder(
+              builder: (context) {
+                final colors = OryntraColors.of(context);
+                return DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: RadialGradient(
+                      center: Alignment(-.9, -1.15),
+                      radius: 1.45,
+                      colors: Theme.of(context).brightness == Brightness.dark
+                          ? const [
+                              Color(0xFF173B63),
+                              OryntraPalette.navy,
+                              OryntraPalette.deepNavy,
+                            ]
+                          : const [
+                              Color(0xFFFFFFFF),
+                              Color(0xFFEAF1F8),
+                              Color(0xFFF7F9FC),
+                            ],
+                      stops: [0, .42, 1],
                     ),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(999),
-                      color: OryntraPalette.panelRaised,
-                      border: Border.all(color: OryntraPalette.rule),
-                    ),
-                    child: Text(
-                      'WEB PREVIEW · v${AppConfig.appVersion}',
-                      style: TextStyle(
-                        color: OryntraPalette.blueBright,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
+                  ),
+                  child: Scaffold(
+                    backgroundColor: Colors.transparent,
+                    extendBody: true,
+                    appBar: AppBar(
+                      toolbarHeight: 66,
+                      backgroundColor: Colors.transparent,
+                      surfaceTintColor: Colors.transparent,
+                      title: Row(
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(10),
+                            child: Image.asset(
+                              'assets/oryntra-icon.png',
+                              width: 36,
+                              height: 36,
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          const Text(
+                            'Oryntra AI',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -.7,
+                            ),
+                          ),
+                          if (AppConfig.previewMode) ...[
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(999),
+                                color: colors.panelRaised,
+                                border: Border.all(color: colors.rule),
+                              ),
+                              child: Text(
+                                'WEB PREVIEW · v${AppConfig.appVersion}',
+                                style: TextStyle(
+                                  color: colors.blueBright,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                     ),
+                    body: SafeArea(
+                      bottom: false,
+                      child: PageView(
+                        controller: _pages,
+                        allowImplicitScrolling: true,
+                        physics: const PageScrollPhysics(
+                          parent: BouncingScrollPhysics(),
+                        ),
+                        onPageChanged: (value) {
+                          if (value != _tab) HapticFeedback.selectionClick();
+                          setState(() => _tab = value);
+                          if (value == 2 && _user != null) {
+                            _paperKey.currentState?.refresh();
+                          } else if (value == 3) {
+                            _accountKey.currentState
+                                ?.refreshNotificationSettings();
+                            _accountKey.currentState?.refreshProviderStatus();
+                          }
+                        },
+                        children: screens,
+                      ),
+                    ),
+                    bottomNavigationBar: GlassNavigationBar(
+                      index: _tab,
+                      onChanged: _goTo,
+                    ),
                   ),
-                ],
-              ],
-            ),
-          ),
-          body: SafeArea(
-            bottom: false,
-            child: PageView(
-              controller: _pages,
-              allowImplicitScrolling: true,
-              physics: const PageScrollPhysics(parent: BouncingScrollPhysics()),
-              onPageChanged: (value) {
-                if (value != _tab) HapticFeedback.selectionClick();
-                setState(() => _tab = value);
-                if (value == 2 && _user != null) {
-                  _paperKey.currentState?.refresh();
-                } else if (value == 3) {
-                  _accountKey.currentState?.refreshNotificationSettings();
-                  _accountKey.currentState?.refreshProviderStatus();
-                }
+                );
               },
-              children: screens,
             ),
-          ),
-          bottomNavigationBar: GlassNavigationBar(
-            index: _tab,
-            onChanged: _goTo,
-          ),
-        ),
-      ),
     );
   }
 }

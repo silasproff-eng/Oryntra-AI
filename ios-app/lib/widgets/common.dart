@@ -12,12 +12,13 @@ class AppCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = OryntraColors.of(context);
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
       decoration: BoxDecoration(
-        color: OryntraPalette.panel.withValues(alpha: .93),
+        color: colors.panel.withValues(alpha: .93),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: OryntraPalette.rule),
+        border: Border.all(color: colors.rule),
         boxShadow: const [
           BoxShadow(
             color: Color(0x3D000000),
@@ -44,13 +45,14 @@ class EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = OryntraColors.of(context);
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 46, color: OryntraPalette.blueBright),
+            Icon(icon, size: 46, color: colors.blueBright),
             const SizedBox(height: 14),
             Text(title, style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 8),
@@ -74,6 +76,7 @@ class AccountRequiredState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = OryntraColors.of(context);
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 28, 16, 130),
       children: [
@@ -96,10 +99,10 @@ class AccountRequiredState extends StatelessWidget {
                   ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
                 ),
                 const SizedBox(height: 8),
-                const Text(
+                Text(
                   'Your information stays connected to your Oryntra AI account and syncs across signed-in devices.',
                   textAlign: TextAlign.center,
-                  style: TextStyle(color: OryntraPalette.muted, height: 1.45),
+                  style: TextStyle(color: colors.muted, height: 1.45),
                 ),
                 const SizedBox(height: 20),
                 SizedBox(
@@ -130,6 +133,7 @@ class InstitutionalSectionLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = OryntraColors.of(context);
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 19, 20, 5),
       child: Row(
@@ -137,8 +141,8 @@ class InstitutionalSectionLabel extends StatelessWidget {
           Expanded(
             child: Text(
               label.toUpperCase(),
-              style: const TextStyle(
-                color: OryntraPalette.blueBright,
+              style: TextStyle(
+                color: colors.blueBright,
                 fontSize: 11,
                 letterSpacing: 1.25,
                 fontWeight: FontWeight.w800,

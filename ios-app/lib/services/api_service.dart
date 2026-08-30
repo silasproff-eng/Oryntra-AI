@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:math' as math;
 import 'package:http/http.dart' as http;
 import '../app_config.dart';
+import 'provider_key_store.dart';
 import 'session_store.dart';
 
 class ApiException implements Exception {
@@ -15,11 +16,13 @@ class ApiException implements Exception {
 }
 
 class ApiService {
-  ApiService({SessionStore? sessionStore})
-    : _sessionStore = sessionStore ?? SessionStore();
+  ApiService({SessionStore? sessionStore, ProviderKeyStore? providerKeyStore})
+    : _sessionStore = sessionStore ?? SessionStore(),
+      _providerKeyStore = providerKeyStore ?? ProviderKeyStore();
 
   final SessionStore _sessionStore;
-  bool _previewSignedIn = true;
+  final ProviderKeyStore _providerKeyStore;
+  bool _previewSignedIn = false;
   int _previewScanCount = 20383;
 
   final List<Map<String, dynamic>> _previewWatchlist = [
@@ -67,6 +70,7 @@ class ApiService {
   ];
 
   Uri _uri(String path) => Uri.parse('${AppConfig.apiBaseUrl}$path');
+  Uri _authUri(String path) => Uri.parse('${AppConfig.authBaseUrl}$path');
 
   Future<void> _previewPause([int milliseconds = 280]) =>
       Future<void>.delayed(Duration(milliseconds: milliseconds));
@@ -128,7 +132,7 @@ class ApiService {
     }
     final response = await http
         .post(
-          _uri('/api/auth/signup'),
+          _authUri('/api/auth/signup'),
           headers: await _headers(jsonBody: true),
           body: jsonEncode({
             'email': email,
@@ -153,7 +157,7 @@ class ApiService {
     }
     final response = await http
         .delete(
-          _uri('/api/auth/account'),
+          _authUri('/api/auth/account'),
           headers: await _headers(jsonBody: true),
           body: jsonEncode({'password': password}),
         )
@@ -171,7 +175,7 @@ class ApiService {
     }
     final response = await http
         .post(
-          _uri('/api/auth/login'),
+          _authUri('/api/auth/login'),
           headers: await _headers(jsonBody: true),
           body: jsonEncode({'email': email, 'password': password}),
         )
@@ -188,7 +192,7 @@ class ApiService {
       return _previewSignedIn ? _previewUser() : null;
     }
     final response = await http
-        .get(_uri('/api/auth/me'), headers: await _headers())
+        .get(_authUri('/api/auth/me'), headers: await _headers())
         .timeout(const Duration(seconds: 15));
     if (response.statusCode == 401) return null;
     return Map<String, dynamic>.from(_decode(response) as Map);
@@ -202,7 +206,7 @@ class ApiService {
       return;
     }
     try {
-      await http.post(_uri('/api/auth/logout'), headers: await _headers());
+      await http.post(_authUri('/api/auth/logout'), headers: await _headers());
     } finally {
       await _sessionStore.clear();
     }
@@ -223,11 +227,7 @@ class ApiService {
           'market_history_included': false,
           'chart_provider': 'TradingView',
         },
-        'quota': {
-          'used': 12,
-          'limit': 100,
-          'remaining': 88,
-        },
+        'quota': {'used': 12, 'limit': 100, 'remaining': 88},
         'chart_provider': 'TradingView',
       };
     }
@@ -354,15 +354,174 @@ class ApiService {
         },
       };
     }
+    final connection = await _providerKeyStore.readConnection();
+    if (connection == null) {
+      throw ApiException(
+        'Connect a Polygon / Massive or Twelve Data key in API settings before scanning.',
+      );
+    }
+    final bars = await _fetchDirectDailyBars(
+      ticker.trim().toUpperCase(),
+      period,
+      connection,
+    );
     final response = await http
         .post(
-          _uri('/api/intelligence/scan'),
+          _uri('/api/intelligence/scan-upload'),
           headers: await _headers(jsonBody: true),
-          body: jsonEncode({'ticker': ticker, 'period': period}),
+          body: jsonEncode({
+            'ticker': ticker,
+            'period': period,
+            'provider': connection.provider,
+            'bars': bars,
+          }),
         )
         .timeout(const Duration(seconds: 60));
     final data = Map<String, dynamic>.from(_decode(response) as Map);
     return _normalizeScanResult(data);
+  }
+
+  Future<List<Map<String, dynamic>>> _fetchDirectDailyBars(
+    String ticker,
+    String period,
+    ProviderConnection connection,
+  ) async {
+    final range = _providerDateRange(period);
+    final Uri endpoint;
+    if (connection.provider == 'polygon') {
+      endpoint = Uri.parse(
+        'https://api.polygon.io/v2/aggs/ticker/${Uri.encodeComponent(ticker)}/range/1/day/${range.$1}/${range.$2}?adjusted=true&sort=asc&limit=50000&apiKey=${Uri.encodeQueryComponent(connection.apiKey)}',
+      );
+    } else {
+      endpoint = Uri.https('api.twelvedata.com', '/time_series', {
+        'symbol': ticker,
+        'interval': '1day',
+        'start_date': range.$1,
+        'end_date': range.$2,
+        'outputsize': '5000',
+        'apikey': connection.apiKey,
+      });
+    }
+    late http.Response response;
+    try {
+      response = await http
+          .get(endpoint, headers: const {'Accept': 'application/json'})
+          .timeout(const Duration(seconds: 30));
+    } catch (_) {
+      throw ApiException(
+        '${connection.provider == 'polygon' ? 'Polygon / Massive' : 'Twelve Data'} could not be reached. Check your connection and try again.',
+      );
+    }
+    dynamic payload;
+    try {
+      payload = jsonDecode(response.body);
+    } catch (_) {
+      payload = const <String, dynamic>{};
+    }
+    if (response.statusCode < 200 ||
+        response.statusCode >= 300 ||
+        (payload is Map &&
+            (payload['status'] == 'error' || payload['code'] != null))) {
+      final message = payload is Map
+          ? payload['message']?.toString() ?? payload['error']?.toString()
+          : null;
+      throw ApiException(
+        message?.isNotEmpty == true
+            ? message!
+            : '${connection.provider == 'polygon' ? 'Polygon / Massive' : 'Twelve Data'} rejected the market-data request.',
+      );
+    }
+    final rows = connection.provider == 'polygon'
+        ? (payload is Map ? payload['results'] : null)
+        : (payload is Map ? payload['values'] : null);
+    if (rows is! List) {
+      throw ApiException('The provider returned no completed daily bars.');
+    }
+    final bars = <Map<String, dynamic>>[];
+    for (final row in rows) {
+      if (row is! Map) continue;
+      final timestamp = connection.provider == 'polygon'
+          ? _polygonTimestamp(row['t'])
+          : row['datetime']?.toString() ?? row['timestamp']?.toString();
+      final open = _finiteNumber(
+        connection.provider == 'polygon' ? row['o'] : row['open'],
+      );
+      final high = _finiteNumber(
+        connection.provider == 'polygon' ? row['h'] : row['high'],
+      );
+      final low = _finiteNumber(
+        connection.provider == 'polygon' ? row['l'] : row['low'],
+      );
+      final close = _finiteNumber(
+        connection.provider == 'polygon' ? row['c'] : row['close'],
+      );
+      final volume =
+          _finiteNumber(
+            connection.provider == 'polygon' ? row['v'] : row['volume'],
+          ) ??
+          0;
+      if (timestamp == null ||
+          open == null ||
+          high == null ||
+          low == null ||
+          close == null ||
+          open <= 0 ||
+          high <= 0 ||
+          low <= 0 ||
+          close <= 0 ||
+          volume < 0) {
+        continue;
+      }
+      bars.add({
+        'timestamp': timestamp,
+        'open': open,
+        'high': high,
+        'low': low,
+        'close': close,
+        'volume': volume,
+      });
+    }
+    bars.sort(
+      (a, b) => a['timestamp'].toString().compareTo(b['timestamp'].toString()),
+    );
+    if (bars.length < 320) {
+      throw ApiException(
+        'The provider returned fewer than 320 completed daily bars. Choose a longer window or verify your provider plan.',
+      );
+    }
+    return bars.length > 2000 ? bars.sublist(bars.length - 2000) : bars;
+  }
+
+  (String, String) _providerDateRange(String period) {
+    final days = switch (period) {
+      '5y' => 1900,
+      'all' => 3650,
+      '1y' => 780,
+      _ => 540,
+    };
+    final now = DateTime.now().toUtc();
+    final start = now.subtract(Duration(days: days));
+    String date(DateTime value) => value.toIso8601String().substring(0, 10);
+    return (date(start), date(now));
+  }
+
+  double? _finiteNumber(dynamic value) {
+    final number = value is num
+        ? value.toDouble()
+        : double.tryParse(value?.toString() ?? '');
+    return number != null && number.isFinite ? number : null;
+  }
+
+  String? _polygonTimestamp(dynamic value) {
+    final milliseconds = value is num
+        ? value.toInt()
+        : int.tryParse(value?.toString() ?? '');
+    return milliseconds == null
+        ? null
+        : DateTime.fromMillisecondsSinceEpoch(
+            milliseconds,
+            isUtc: true,
+          ).toIso8601String();
   }
 
   Future<List<dynamic>> watchlist() async {

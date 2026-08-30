@@ -14,12 +14,14 @@ class AccountScreen extends StatefulWidget {
     required this.consent,
     required this.user,
     required this.onAuthChanged,
+    required this.onManageProviderConnection,
     required this.notifications,
   });
   final ApiService api;
   final ConsentService consent;
   final Map<String, dynamic>? user;
   final VoidCallback onAuthChanged;
+  final VoidCallback onManageProviderConnection;
   final NotificationService notifications;
 
   @override
@@ -397,6 +399,21 @@ class AccountScreenState extends State<AccountScreen>
         const SizedBox(height: 14),
         if (user != null) _buildAnalysisCard(context),
         if (user != null) const SizedBox(height: 14),
+        if (user != null) ...[
+          const InstitutionalSectionLabel(label: 'Data connection'),
+          AppCard(
+            padding: EdgeInsets.zero,
+            child: ListTile(
+              leading: const Icon(Icons.key_outlined),
+              title: const Text('API settings'),
+              subtitle: const Text(
+                'Change the Polygon / Massive or Twelve Data key on this phone.',
+              ),
+              trailing: const Icon(Icons.chevron_right_rounded),
+              onTap: widget.onManageProviderConnection,
+            ),
+          ),
+        ],
         const InstitutionalSectionLabel(label: 'Preferences'),
         AppCard(
           padding: EdgeInsets.zero,
