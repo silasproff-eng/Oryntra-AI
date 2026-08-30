@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:oryntra_ai/app_config.dart';
+import 'package:oryntra_ai/screens/auth_gate_screen.dart';
+import 'package:oryntra_ai/services/api_service.dart';
 import 'package:oryntra_ai/widgets/common.dart';
 import 'package:oryntra_ai/widgets/glass.dart';
 
@@ -26,5 +28,19 @@ void main() {
     );
 
     expect(find.text('MARKET INTELLIGENCE'), findsOneWidget);
+  });
+
+  testWidgets('sign-in gate has a Material surface for form controls', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AuthGateScreen(api: ApiService(), onAuthenticated: () async {}),
+      ),
+    );
+
+    expect(find.text('Sign in to continue.'), findsOneWidget);
+    expect(find.byType(TextField), findsNWidgets(2));
+    expect(tester.takeException(), isNull);
   });
 }

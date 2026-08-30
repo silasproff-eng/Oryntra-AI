@@ -338,7 +338,7 @@ class _OryntraAppState extends State<OryntraApp> {
       darkTheme: darkTheme,
       themeMode: ThemeMode.system,
       home: _initializing
-          ? const Scaffold(body: Center(child: CircularProgressIndicator()))
+          ? const AppStartupScreen()
           : _user == null
           ? AuthGateScreen(api: _api, onAuthenticated: _refreshUser)
           : !_providerReady

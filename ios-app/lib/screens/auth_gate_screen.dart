@@ -73,216 +73,221 @@ class _AuthGateScreenState extends State<AuthGateScreen> {
   @override
   Widget build(BuildContext context) {
     final colors = OryntraColors.of(context);
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: Theme.of(context).brightness == Brightness.dark
-              ? const [Color(0xFF0A2341), Color(0xFF030B18)]
-              : const [Color(0xFFF9FCFF), Color(0xFFE9F1F8)],
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      body: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: Theme.of(context).brightness == Brightness.dark
+                ? const [Color(0xFF0A2341), Color(0xFF030B18)]
+                : const [Color(0xFFF9FCFF), Color(0xFFE9F1F8)],
+          ),
         ),
-      ),
-      child: SafeArea(
-        child: LayoutBuilder(
-          builder: (context, constraints) => SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                minHeight: constraints.maxHeight - 44,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Row(
-                    children: [
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(11),
-                        child: Image.asset(
-                          'assets/oryntra-icon.png',
-                          width: 42,
-                          height: 42,
-                        ),
-                      ),
-                      const SizedBox(width: 11),
-                      Text(
-                        'ORYNTRA AI',
-                        style: Theme.of(context).textTheme.titleMedium
-                            ?.copyWith(
-                              letterSpacing: -.4,
-                              fontWeight: FontWeight.w900,
-                            ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 38),
-                  Text(
-                    'MARKET INTELLIGENCE',
-                    style: TextStyle(
-                      color: colors.blueBright,
-                      fontSize: 11,
-                      letterSpacing: 1.4,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    'Find intelligence\nin every trade.',
-                    style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    'A private market-research workspace for structured evidence—not brokerage execution or automated trading.',
-                    style: Theme.of(
-                      context,
-                    ).textTheme.bodyMedium?.copyWith(color: colors.muted),
-                  ),
-                  const SizedBox(height: 26),
-                  LiquidGlass(
-                    radius: 24,
-                    padding: const EdgeInsets.all(18),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
+        child: SafeArea(
+          child: LayoutBuilder(
+            builder: (context, constraints) => SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minHeight: constraints.maxHeight - 44,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
                       children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(11),
+                          child: Image.asset(
+                            'assets/oryntra-icon.png',
+                            width: 42,
+                            height: 42,
+                          ),
+                        ),
+                        const SizedBox(width: 11),
                         Text(
-                          _create
-                              ? 'Create your account.'
-                              : 'Sign in to continue.',
-                          style: Theme.of(context).textTheme.headlineSmall
-                              ?.copyWith(fontWeight: FontWeight.w900),
-                        ),
-                        const SizedBox(height: 5),
-                        Text(
-                          _create
-                              ? 'Then connect one provider key directly from this phone.'
-                              : 'Your workspace is tied to your Oryntra account.',
-                          style: Theme.of(
-                            context,
-                          ).textTheme.bodySmall?.copyWith(color: colors.muted),
-                        ),
-                        const SizedBox(height: 18),
-                        SegmentedButton<bool>(
-                          segments: const [
-                            ButtonSegment(value: false, label: Text('Sign in')),
-                            ButtonSegment(
-                              value: true,
-                              label: Text('Create account'),
-                            ),
-                          ],
-                          selected: {_create},
-                          onSelectionChanged: _loading
-                              ? null
-                              : (value) => setState(() {
-                                  _create = value.first;
-                                  _error = null;
-                                }),
-                        ),
-                        const SizedBox(height: 16),
-                        if (_create) ...[
-                          TextField(
-                            controller: _name,
-                            textCapitalization: TextCapitalization.words,
-                            autofillHints: const [AutofillHints.name],
-                            decoration: const InputDecoration(
-                              labelText: 'Name',
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-                        ],
-                        TextField(
-                          controller: _email,
-                          keyboardType: TextInputType.emailAddress,
-                          autofillHints: const [AutofillHints.email],
-                          decoration: const InputDecoration(
-                            labelText: 'Email address',
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        TextField(
-                          controller: _password,
-                          obscureText: true,
-                          autofillHints: [
-                            _create
-                                ? AutofillHints.newPassword
-                                : AutofillHints.password,
-                          ],
-                          decoration: InputDecoration(
-                            labelText: _create
-                                ? 'Password (8+ characters)'
-                                : 'Password',
-                          ),
-                        ),
-                        if (_create) ...[
-                          const SizedBox(height: 6),
-                          CheckboxListTile(
-                            contentPadding: EdgeInsets.zero,
-                            value: _acceptLegal,
-                            onChanged: _loading
-                                ? null
-                                : (value) => setState(
-                                    () => _acceptLegal = value ?? false,
-                                  ),
-                            title: const Text(
-                              'I accept the Terms, Privacy Policy, and research-only risk disclosure.',
-                              style: TextStyle(fontSize: 12),
-                            ),
-                            controlAffinity: ListTileControlAffinity.leading,
-                          ),
-                          Wrap(
-                            spacing: 2,
-                            children: [
-                              TextButton(
-                                onPressed: () => _open(AppConfig.termsUrl),
-                                child: const Text('Terms'),
+                          'ORYNTRA AI',
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(
+                                letterSpacing: -.4,
+                                fontWeight: FontWeight.w900,
                               ),
-                              TextButton(
-                                onPressed: () => _open(AppConfig.privacyUrl),
-                                child: const Text('Privacy'),
-                              ),
-                              TextButton(
-                                onPressed: () => _open(AppConfig.riskUrl),
-                                child: const Text('Risk disclosure'),
-                              ),
-                            ],
-                          ),
-                        ],
-                        if (_error != null)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 10),
-                            child: Text(
-                              _error!,
-                              style: TextStyle(
-                                color: Theme.of(context).colorScheme.error,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ),
-                        const SizedBox(height: 14),
-                        FilledButton(
-                          onPressed: _loading ? null : _submit,
-                          child: Text(
-                            _loading
-                                ? 'Please wait…'
-                                : (_create ? 'Create account' : 'Sign in'),
-                          ),
                         ),
                       ],
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'V1.0 · RESEARCH ONLY · NO BROKER EXECUTION',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: colors.muted,
-                      fontSize: 10,
-                      letterSpacing: .8,
-                      fontWeight: FontWeight.w700,
+                    const SizedBox(height: 38),
+                    Text(
+                      'MARKET INTELLIGENCE',
+                      style: TextStyle(
+                        color: colors.blueBright,
+                        fontSize: 11,
+                        letterSpacing: 1.4,
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 10),
+                    Text(
+                      'Find intelligence\nin every trade.',
+                      style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'A private market-research workspace for structured evidence—not brokerage execution or automated trading.',
+                      style: Theme.of(
+                        context,
+                      ).textTheme.bodyMedium?.copyWith(color: colors.muted),
+                    ),
+                    const SizedBox(height: 26),
+                    LiquidGlass(
+                      radius: 24,
+                      padding: const EdgeInsets.all(18),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Text(
+                            _create
+                                ? 'Create your account.'
+                                : 'Sign in to continue.',
+                            style: Theme.of(context).textTheme.headlineSmall
+                                ?.copyWith(fontWeight: FontWeight.w900),
+                          ),
+                          const SizedBox(height: 5),
+                          Text(
+                            _create
+                                ? 'Then connect one provider key directly from this phone.'
+                                : 'Your workspace is tied to your Oryntra account.',
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(color: colors.muted),
+                          ),
+                          const SizedBox(height: 18),
+                          SegmentedButton<bool>(
+                            segments: const [
+                              ButtonSegment(
+                                value: false,
+                                label: Text('Sign in'),
+                              ),
+                              ButtonSegment(
+                                value: true,
+                                label: Text('Create account'),
+                              ),
+                            ],
+                            selected: {_create},
+                            onSelectionChanged: _loading
+                                ? null
+                                : (value) => setState(() {
+                                    _create = value.first;
+                                    _error = null;
+                                  }),
+                          ),
+                          const SizedBox(height: 16),
+                          if (_create) ...[
+                            TextField(
+                              controller: _name,
+                              textCapitalization: TextCapitalization.words,
+                              autofillHints: const [AutofillHints.name],
+                              decoration: const InputDecoration(
+                                labelText: 'Name',
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                          ],
+                          TextField(
+                            controller: _email,
+                            keyboardType: TextInputType.emailAddress,
+                            autofillHints: const [AutofillHints.email],
+                            decoration: const InputDecoration(
+                              labelText: 'Email address',
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          TextField(
+                            controller: _password,
+                            obscureText: true,
+                            autofillHints: [
+                              _create
+                                  ? AutofillHints.newPassword
+                                  : AutofillHints.password,
+                            ],
+                            decoration: InputDecoration(
+                              labelText: _create
+                                  ? 'Password (8+ characters)'
+                                  : 'Password',
+                            ),
+                          ),
+                          if (_create) ...[
+                            const SizedBox(height: 6),
+                            CheckboxListTile(
+                              contentPadding: EdgeInsets.zero,
+                              value: _acceptLegal,
+                              onChanged: _loading
+                                  ? null
+                                  : (value) => setState(
+                                      () => _acceptLegal = value ?? false,
+                                    ),
+                              title: const Text(
+                                'I accept the Terms, Privacy Policy, and research-only risk disclosure.',
+                                style: TextStyle(fontSize: 12),
+                              ),
+                              controlAffinity: ListTileControlAffinity.leading,
+                            ),
+                            Wrap(
+                              spacing: 2,
+                              children: [
+                                TextButton(
+                                  onPressed: () => _open(AppConfig.termsUrl),
+                                  child: const Text('Terms'),
+                                ),
+                                TextButton(
+                                  onPressed: () => _open(AppConfig.privacyUrl),
+                                  child: const Text('Privacy'),
+                                ),
+                                TextButton(
+                                  onPressed: () => _open(AppConfig.riskUrl),
+                                  child: const Text('Risk disclosure'),
+                                ),
+                              ],
+                            ),
+                          ],
+                          if (_error != null)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 10),
+                              child: Text(
+                                _error!,
+                                style: TextStyle(
+                                  color: Theme.of(context).colorScheme.error,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ),
+                          const SizedBox(height: 14),
+                          FilledButton(
+                            onPressed: _loading ? null : _submit,
+                            child: Text(
+                              _loading
+                                  ? 'Please wait…'
+                                  : (_create ? 'Create account' : 'Sign in'),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'V1.0 · RESEARCH ONLY · NO BROKER EXECUTION',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: colors.muted,
+                        fontSize: 10,
+                        letterSpacing: .8,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -311,7 +316,23 @@ class _ProviderSetupScreenState extends State<ProviderSetupScreen> {
   final _store = ProviderKeyStore();
   String _provider = 'polygon';
   bool _saving = false;
+  bool _hasSavedKey = false;
   String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSavedConnection();
+  }
+
+  Future<void> _loadSavedConnection() async {
+    final connection = await _store.readConnection();
+    if (!mounted || connection == null) return;
+    setState(() {
+      _provider = connection.provider;
+      _hasSavedKey = true;
+    });
+  }
 
   @override
   void dispose() {
@@ -330,6 +351,7 @@ class _ProviderSetupScreenState extends State<ProviderSetupScreen> {
     });
     try {
       await _store.saveConnection(_provider, _key.text);
+      if (mounted) setState(() => _hasSavedKey = true);
       if (!mounted) return;
       final choice = await showDialog<bool>(
         context: context,
@@ -366,9 +388,9 @@ class _ProviderSetupScreenState extends State<ProviderSetupScreen> {
     final colors = OryntraColors.of(context);
     final polygon = _provider == 'polygon';
     final providerName = polygon ? 'Polygon / Massive' : 'Twelve Data';
-    return DecoratedBox(
-      decoration: BoxDecoration(color: colors.deepNavy),
-      child: SafeArea(
+    return Scaffold(
+      backgroundColor: colors.deepNavy,
+      body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(20),
@@ -487,6 +509,17 @@ class _ProviderSetupScreenState extends State<ProviderSetupScreen> {
                             hintText: 'Paste your key',
                           ),
                         ),
+                        if (_hasSavedKey)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 8),
+                            child: Text(
+                              'A saved $providerName connection is already on this phone. Paste a new key only to replace it.',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: colors.muted,
+                              ),
+                            ),
+                          ),
                         if (_error != null)
                           Padding(
                             padding: const EdgeInsets.only(top: 10),
@@ -519,6 +552,60 @@ class _ProviderSetupScreenState extends State<ProviderSetupScreen> {
                 ],
               ),
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class AppStartupScreen extends StatelessWidget {
+  const AppStartupScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const Scaffold(backgroundColor: Colors.black, body: _StartupMark());
+  }
+}
+
+class _StartupMark extends StatefulWidget {
+  const _StartupMark();
+
+  @override
+  State<_StartupMark> createState() => _StartupMarkState();
+}
+
+class _StartupMarkState extends State<_StartupMark>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1450),
+  )..repeat(reverse: true);
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: AnimatedBuilder(
+        animation: _controller,
+        builder: (context, child) {
+          final curve = Curves.easeInOutCubic.transform(_controller.value);
+          return Opacity(
+            opacity: .78 + curve * .22,
+            child: Transform.scale(scale: .94 + curve * .06, child: child),
+          );
+        },
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(25),
+          child: Image.asset(
+            'assets/oryntra-icon.png',
+            width: 104,
+            height: 104,
           ),
         ),
       ),
