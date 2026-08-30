@@ -1517,8 +1517,10 @@ function renderResults(d) {
   setText('rCompany', d.company_name || '');
   setText('rPrice', Number.isFinite(referencePrice) ? fmt$(referencePrice) : '—');
   const chEl = document.getElementById('rChange');
-  chEl.textContent = Number.isFinite(referencePrice) ? 'MODEL ENTRY' : 'DERIVED';
-  chEl.className = 'price-change';
+  if (chEl) {
+    chEl.textContent = Number.isFinite(referencePrice) ? 'MODEL ENTRY' : 'DERIVED';
+    chEl.className = 'price-change';
+  }
   setText('r52wHigh', fmt$(levels.resistance));
   setText('r52wLow',  fmt$(levels.support));
   setText('rAtrPct',  d.atr_pct ? `${d.atr_pct}%` : '—');
