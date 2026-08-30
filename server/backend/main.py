@@ -181,6 +181,10 @@ if _private_research:
     app.include_router(patterns.router, prefix="/api/patterns", tags=["Private Patterns"])
     app.include_router(dev_tools.router, prefix="/api/dev", tags=["Private Developer Tools"])
     app.include_router(pro.router, prefix="/api/pro", tags=["Private Oryntra Pro"])
+else:
+    # Signed-in public users may submit browser-fetched daily bars for one
+    # research backtest. Provider keys never enter this service.
+    app.include_router(backtest.public_router, prefix="/api/backtest", tags=["Browser Backtesting"])
 
 if _private_research or _public_quant_lab:
     app.include_router(quant.router, prefix="/api/quant", tags=["Quant Lab"])

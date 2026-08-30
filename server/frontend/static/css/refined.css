@@ -600,3 +600,53 @@ body.auth-gated .oryntra-auth-close { display:none; }
 .provider-key-saved-actions { display:grid; grid-template-columns:1fr 1.25fr; gap:10px; margin-top:24px; }
 @media (max-width:760px) { .oryntra-auth-layout { grid-template-columns:1fr; } .auth-story.oryntra-auth-story { display:none; } .auth-panel.oryntra-auth-panel { min-height:100vh; padding:28px 22px; } .auth-modal-box { max-height:none; } }
 @media (max-width: 560px) { .quant-principles,.quant-kpi-grid,.quant-field-grid,.quant-risk-grid,.quant-strategy-set,.quant-metrics,.quant-risk-list { grid-template-columns:1fr; }.quant-principles > div,.quant-principles > div:nth-child(3) { border-left:0; border-bottom:1px solid var(--line); }.quant-principles > div:last-child { border-bottom:0; }.quant-universe-field { grid-column:auto; }.quant-runbar { align-items:stretch; flex-direction:column; }.quant-runbar .button { width:100%; }.quant-section-heading { align-items:start; flex-direction:column; }.quant-section-heading > span { text-align:left; }.quant-kpi { min-height:82px; }.quant-risk-list span { border-right:0; border-bottom:1px solid var(--line); }.quant-risk-list span:last-child { border-bottom:0; } }
+
+/* Scanner evidence and paper-trade workspace share the Quant Lab's measured card language. */
+.scanner-kpi .metric-value { display:flex; align-items:center; gap:8px; }
+.signal-kpi #signalIcon { color:var(--brand); font:700 14px/1 'DM Mono',monospace; }
+.panel-heading { display:flex; align-items:flex-start; justify-content:space-between; gap:14px; margin-bottom:18px; }
+.panel-heading h3 { margin:0; font-size:19px; }
+.research-badge,.panel-status { flex:0 0 auto; padding:5px 7px; border:1px solid var(--line-strong); color:var(--muted); background:var(--surface-soft); font:600 9px/1 'DM Mono',monospace; letter-spacing:.08em; white-space:nowrap; }
+.trade-plan-panel { min-height:280px; padding:23px; }
+.trade-plan-side { max-width:360px; color:var(--ink); font-size:17px !important; line-height:1.45; }
+.trade-level-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); margin:0 -2px; border-top:1px solid var(--line); border-bottom:1px solid var(--line); }
+.trade-level { display:grid; gap:5px; min-width:0; padding:14px 12px; border-left:1px solid var(--line); }
+.trade-level:first-child { border-left:0; }
+.trade-level span { color:var(--muted); font:600 9px/1.3 'DM Mono',monospace; letter-spacing:.08em; text-transform:uppercase; }
+.trade-level strong { color:var(--ink); font-size:17px; letter-spacing:-.045em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.trade-level small { min-height:14px; color:var(--muted); font-size:10px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.trade-level.entry { border-top:2px solid var(--brand); }.trade-level.stop { border-top:2px solid #a66c73; }.trade-level.target { border-top:2px solid #4c8d7d; }
+.trade-plan-actions { display:flex; align-items:center; justify-content:space-between; gap:14px; margin-top:18px; }
+.trade-plan-actions span { color:var(--muted); font-size:10px; text-align:right; }
+.scanner-evidence-panel { min-height:286px; padding:23px; overflow:hidden; }
+.pattern-summary-row { display:flex; flex-wrap:wrap; gap:6px; margin:-5px 0 13px; }
+.pattern-summary-chip { padding:4px 6px; color:var(--muted); background:var(--surface-soft); font:600 9px/1.2 'DM Mono',monospace; letter-spacing:.04em; }
+.pattern-card-list,.rules-card-list { display:grid; gap:8px; }
+.pattern-item { display:grid; width:100%; padding:12px; border:1px solid var(--line); border-left:3px solid var(--brand); border-radius:10px; color:var(--ink); background:var(--surface-soft); text-align:left; cursor:pointer; transition:border-color .18s ease, transform .18s ease, background .18s ease; }
+.pattern-item:hover { border-color:var(--brand); background:var(--surface); transform:translateY(-1px); }
+.pattern-item.bearish { border-left-color:#a66c73; }.pattern-item.bullish { border-left-color:#4c8d7d; }
+.pattern-head { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.pattern-name { color:var(--ink); font:700 11px 'DM Mono',monospace; letter-spacing:.03em; }
+.pattern-confidence { color:var(--brand); font:700 12px 'DM Mono',monospace; }
+.pattern-meta { display:flex; flex-wrap:wrap; gap:5px; margin-top:8px; }
+.pattern-tag { color:var(--muted); font-size:9px; }
+.pattern-click-hint { margin-top:8px; color:var(--brand); font:600 9px 'DM Mono',monospace; letter-spacing:.05em; }
+.pattern-zone { margin-top:8px; color:var(--muted); font:10px 'DM Mono',monospace; }
+.rule-item { position:relative; padding:10px 12px 10px 27px; border:1px solid var(--line); border-radius:8px; color:var(--muted); background:var(--surface-soft); font-size:11px; line-height:1.45; }
+.rule-bullet { position:absolute; left:11px; color:var(--brand); font-weight:800; }
+
+#paperStats { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); margin-bottom:18px; border:1px solid var(--line); background:var(--surface); }
+.stat-chip { min-height:98px; display:grid; align-content:center; gap:7px; padding:16px 18px; border-left:1px solid var(--line); }
+.stat-chip:first-child { border-left:0; }.stat-chip-label { color:var(--muted); font:600 9px 'DM Mono',monospace; letter-spacing:.08em; }.stat-chip-val { color:var(--ink); font-size:22px; font-weight:800; letter-spacing:-.05em; }
+.paper-list { display:grid; gap:12px; padding:18px 22px; background:linear-gradient(180deg,var(--surface) 0%,var(--surface-soft) 100%); }
+.paper-list > * { border-bottom:0; }
+.pt-card { display:grid; grid-template-columns:minmax(104px,.6fr) minmax(155px,.95fr) minmax(155px,.95fr) minmax(170px,1.05fr) minmax(150px,.9fr) minmax(120px,.65fr); gap:0; overflow:hidden; border:1px solid var(--line); border-top:2px solid var(--brand); background:var(--surface); box-shadow:0 10px 28px rgba(25,62,99,.055); }
+.pt-card > * { min-width:0; padding:16px; border-left:1px solid var(--line); }.pt-card > *:first-child { border-left:0; }
+.pt-id-block { display:grid; align-content:start; gap:7px; }.pt-ticker { color:var(--ink); font:800 19px/1 'DM Mono',monospace; letter-spacing:-.06em; }.pt-dir { width:max-content; padding:4px 6px; border-radius:4px; font:700 9px/1 'DM Mono',monospace; letter-spacing:.08em; }.pt-dir.long { color:#276f61; background:#e3f0ed; }.pt-dir.short { color:#87535a; background:#f4e8e9; }.pt-setup-label { color:var(--muted); font:600 9px/1.35 'DM Mono',monospace; letter-spacing:.04em; text-transform:uppercase; }
+.pt-info { display:grid; align-content:start; gap:10px; color:var(--ink); font-size:13px; }.pt-info > div { display:grid; gap:3px; }.pt-info span,.pt-mini-chart-head { color:var(--muted); font:600 9px/1.2 'DM Mono',monospace; letter-spacing:.07em; text-transform:uppercase; }.pt-trade-levels > div:first-child { color:var(--brand); }.pt-trade-levels > div:nth-child(2) { color:#985e65; }.pt-trade-levels > div:nth-child(3) { color:#397a6c; }
+.pt-mini-chart-wrap { display:grid; align-content:start; gap:10px; }.pt-mini-chart-head { display:flex; justify-content:space-between; gap:8px; }.pt-sparkline { width:100%; height:52px; color:var(--brand); }.pt-sparkline.up { color:#397a6c; }.pt-sparkline.down { color:#985e65; }.pt-spark-empty { display:grid; height:52px; place-items:center; border:1px dashed var(--line-strong); color:var(--muted); font:9px 'DM Mono',monospace; }
+.pt-notes-block { color:var(--muted); line-height:1.5; }.pt-pnl { display:grid; align-content:start; gap:5px; text-align:right; }.pnl-val { color:var(--ink); font-size:20px; font-weight:800; letter-spacing:-.05em; }.pnl-pct { color:var(--muted); font:700 11px 'DM Mono',monospace; }.pt-pnl.win .pnl-val,.pt-pnl.win .pnl-pct { color:#397a6c; }.pt-pnl.loss .pnl-val,.pt-pnl.loss .pnl-pct { color:#985e65; }.pt-status-line { color:var(--muted); font-size:9px; }.pt-close-btn { justify-self:end; margin-top:8px; padding:7px 9px; border:1px solid var(--line-strong); border-radius:6px; color:var(--brand-deep); background:var(--surface); cursor:pointer; font:700 9px 'DM Mono',monospace; letter-spacing:.06em; }.pt-close-btn:hover { border-color:#985e65; color:#985e65; }.pt-empty { display:grid; min-height:180px; place-items:center; padding:24px; color:var(--muted); text-align:center; font-size:12px; }
+
+@media (max-width:1200px) { .pt-card { grid-template-columns:repeat(3,minmax(0,1fr)); }.pt-card > *:nth-child(4) { border-left:0; border-top:1px solid var(--line); }.pt-card > *:nth-child(n+4) { border-top:1px solid var(--line); } }
+@media (max-width:900px) { #paperStats { grid-template-columns:repeat(2,minmax(0,1fr)); }.stat-chip:nth-child(3) { border-left:0; border-top:1px solid var(--line); }.stat-chip:nth-child(4) { border-top:1px solid var(--line); }.trade-level-grid { grid-template-columns:1fr; }.trade-level { border-left:0; border-top:1px solid var(--line); }.trade-level:first-child { border-top:0; }.trade-plan-actions { align-items:stretch; flex-direction:column; }.trade-plan-actions .button { width:100%; }.trade-plan-actions span { text-align:left; } }
+@media (max-width:640px) { .panel-heading { align-items:flex-start; flex-direction:column; }.pt-card { grid-template-columns:1fr; }.pt-card > * { border-left:0; border-top:1px solid var(--line); }.pt-card > *:first-child { border-top:0; }.pt-pnl { text-align:left; }.pt-close-btn { justify-self:start; }.paper-list { padding:12px; } #paperStats { grid-template-columns:1fr; }.stat-chip { border-left:0; border-top:1px solid var(--line); }.stat-chip:first-child { border-top:0; } }

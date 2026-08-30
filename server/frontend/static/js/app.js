@@ -303,6 +303,10 @@ const API = {
     runUploaded: (data) => apiFetch('/api/quant/run-upload', {method:'POST', headers:authHeaders(true), body:JSON.stringify(data)}).then(apiJson),
   },
 
+  backtest: {
+    runUploaded: (data) => apiFetch('/api/backtest/run-upload', {method:'POST', headers:authHeaders(true), body:JSON.stringify(data)}).then(apiJson),
+  },
+
   intelligence: {
     status: () => apiFetch('/api/intelligence/status', {headers:authHeaders(false), cache:'no-store'}).then(apiJson),
     quota: () => apiFetch('/api/intelligence/quota', {headers:authHeaders(false), cache:'no-store'}).then(apiJson),
@@ -3573,6 +3577,17 @@ function animateLoadingSteps() {
 
 document.addEventListener('DOMContentLoaded', () => {
   initAuth();
+  const newPaperTradeBtn = document.getElementById('newPaperTradeBtn');
+  if (newPaperTradeBtn) {
+    newPaperTradeBtn.addEventListener('click', () => {
+      if (!currentAnalysis) {
+        showError('Run a scanner analysis first so the paper trade has a documented research context.');
+        activateTab('scanner');
+        return;
+      }
+      openPaperModal(currentAnalysis);
+    });
+  }
   const btRunBtn = document.getElementById('btRunBtn');
   if (btRunBtn) {
     btRunBtn.addEventListener('click', runBacktest);
@@ -3589,6 +3604,12 @@ async function runBacktest() {
   const setupFil = document.getElementById('btSetup').value;
 
   if (!ticker) { alert('Enter a ticker first.'); return; }
+  if (!currentUser) {
+    openAuthModal('login');
+    showError('Sign in and connect a provider key to run historical research.');
+    return;
+  }
+  if (!await requireProviderKey({type: 'backtest'}, 'auto')) return;
 
   const btn = document.getElementById('btRunBtn');
   btn.disabled    = true;
@@ -3597,25 +3618,22 @@ async function runBacktest() {
   document.getElementById('btResults').style.display  = 'none';
 
   try {
-    const res = await apiFetch('/api/backtest/run', {
-      method:  'POST',
-      headers: {'Content-Type':'application/json'},
-      body:    JSON.stringify({
-        ticker,
-        period,
-        min_score:  minScore,
-        setups:     setupFil ? [setupFil] : [],
-      }),
+    const provider = directProviderFor('auto');
+    document.getElementById('btLoading').textContent = `Loading completed daily history directly from ${provider === 'polygon' ? 'Polygon / Massive' : 'Twelve Data'}…`;
+    const market = await fetchDirectMarketBars(ticker, period, provider, 222);
+    document.getElementById('btLoading').textContent = 'Testing fixed rules with next-session entries and modeled costs…';
+    const data = await API.backtest.runUploaded({
+      ticker,
+      period,
+      min_score: minScore,
+      setups: setupFil ? [setupFil] : [],
+      provider: market.provider,
+      bars: market.bars,
     });
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.detail || 'Backtest failed');
-    }
-    const data = await res.json();
     renderBacktestResults(data);
     document.getElementById('btResults').style.display = 'block';
   } catch (e) {
-    alert(`Backtest error: ${e.message}`);
+    alert(`Backtest error: ${e.message || 'The research run could not finish.'}`);
   } finally {
     document.getElementById('btLoading').style.display = 'none';
     btn.disabled    = false;

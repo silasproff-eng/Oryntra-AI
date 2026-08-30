@@ -405,30 +405,14 @@ def _calculate_stats(
     }
 
 
-def _run_backtest_sync(req: BacktestRequest) -> dict[str, Any]:
-    tickers = _clean_tickers(req)
-    repository = get_market_repository()
-    allow_api = str(req.data_source).lower() != "cache_only"
-    per_ticker: list[dict[str, Any]] = []
-    errors: list[dict[str, str]] = []
-    trades: list[dict[str, Any]] = []
-    sources: dict[str, int] = defaultdict(int)
-
-    for ticker in tickers:
-        try:
-            result = repository.get_history(
-                ticker,
-                period=req.period,
-                minimum_bars=max(40, int(req.min_history)) + 2,
-                allow_api=allow_api,
-            )
-            sources[result.metadata.source] += 1
-            run = _run_one(ticker, result.history, req, source=result.metadata.source)
-            per_ticker.append({key: value for key, value in run.items() if key != "trades"})
-            trades.extend(run["trades"])
-        except Exception as exc:
-            errors.append({"ticker": ticker, "error": str(exc)})
-
+def _finalize_backtest(
+    req: BacktestRequest,
+    tickers: list[str],
+    per_ticker: list[dict[str, Any]],
+    errors: list[dict[str, str]],
+    trades: list[dict[str, Any]],
+    sources: dict[str, int],
+) -> dict[str, Any]:
     trades, capacity_rejections = _enforce_portfolio_capacity(trades, req.max_concurrent_positions)
     stats = _calculate_stats(
         trades,
@@ -507,9 +491,74 @@ def _run_backtest_sync(req: BacktestRequest) -> dict[str, Any]:
     }
 
 
+def _run_backtest_sync(req: BacktestRequest) -> dict[str, Any]:
+    tickers = _clean_tickers(req)
+    repository = get_market_repository()
+    allow_api = str(req.data_source).lower() != "cache_only"
+    per_ticker: list[dict[str, Any]] = []
+    errors: list[dict[str, str]] = []
+    trades: list[dict[str, Any]] = []
+    sources: dict[str, int] = defaultdict(int)
+
+    for ticker in tickers:
+        try:
+            result = repository.get_history(
+                ticker,
+                period=req.period,
+                minimum_bars=max(40, int(req.min_history)) + 2,
+                allow_api=allow_api,
+            )
+            sources[result.metadata.source] += 1
+            run = _run_one(ticker, result.history, req, source=result.metadata.source)
+            per_ticker.append({key: value for key, value in run.items() if key != "trades"})
+            trades.extend(run["trades"])
+        except Exception as exc:
+            errors.append({"ticker": ticker, "error": str(exc)})
+
+    return _finalize_backtest(req, tickers, per_ticker, errors, trades, sources)
+
+
+def _run_backtest_from_histories_sync(
+    req: BacktestRequest,
+    histories: dict[str, pd.DataFrame],
+    source: str,
+) -> dict[str, Any]:
+    """Run a validated, browser-supplied daily-bar backtest without provider credentials."""
+    tickers = _clean_tickers(req)
+    per_ticker: list[dict[str, Any]] = []
+    errors: list[dict[str, str]] = []
+    trades: list[dict[str, Any]] = []
+    sources: dict[str, int] = defaultdict(int)
+
+    for ticker in tickers:
+        history = histories.get(ticker)
+        if history is None:
+            errors.append({"ticker": ticker, "error": "Browser data is missing for this symbol."})
+            continue
+        try:
+            if len(history) < max(40, int(req.min_history)) + 2:
+                raise ValueError(f"Need at least {max(40, int(req.min_history)) + 2} completed daily bars.")
+            sources[source] += 1
+            run = _run_one(ticker, history, req, source=source)
+            per_ticker.append({key: value for key, value in run.items() if key != "trades"})
+            trades.extend(run["trades"])
+        except Exception as exc:
+            errors.append({"ticker": ticker, "error": str(exc)})
+
+    return _finalize_backtest(req, tickers, per_ticker, errors, trades, sources)
+
+
 @router.post("/run")
 async def run_backtest(req: BacktestRequest) -> dict[str, Any]:
     return await asyncio.to_thread(_run_backtest_sync, req)
+
+
+async def run_backtest_from_histories(
+    req: BacktestRequest,
+    histories: dict[str, pd.DataFrame],
+    source: str,
+) -> dict[str, Any]:
+    return await asyncio.to_thread(_run_backtest_from_histories_sync, req, histories, source)
 
 
 if __name__ == "__main__":
@@ -521,4 +570,3 @@ if __name__ == "__main__":
     period = sys.argv[2] if len(sys.argv) > 2 else "2y"
     result = asyncio.run(run_backtest(BacktestRequest(ticker=ticker, period=period)))
     print(json.dumps({"stats": result["stats"], "errors": result["errors"]}, indent=2))
-
