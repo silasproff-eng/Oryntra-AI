@@ -102,29 +102,114 @@ class _OryntraAppState extends State<OryntraApp> {
     final theme = ThemeData(
       useMaterial3: true,
       brightness: Brightness.dark,
-      colorScheme: ColorScheme.fromSeed(
-        seedColor: const Color(0xFF38CFF3),
-        brightness: Brightness.dark,
-      ),
-      scaffoldBackgroundColor: const Color(0xFF000000),
+      colorScheme:
+          ColorScheme.fromSeed(
+            seedColor: OryntraPalette.blue,
+            brightness: Brightness.dark,
+          ).copyWith(
+            primary: OryntraPalette.blueBright,
+            onPrimary: OryntraPalette.deepNavy,
+            surface: OryntraPalette.panel,
+            onSurface: OryntraPalette.ink,
+            error: OryntraPalette.danger,
+          ),
+      scaffoldBackgroundColor: OryntraPalette.deepNavy,
+      dividerColor: OryntraPalette.rule,
+      textTheme: Typography.material2021().white
+          .apply(
+            bodyColor: OryntraPalette.ink,
+            displayColor: OryntraPalette.ink,
+          )
+          .copyWith(
+            displaySmall: const TextStyle(
+              fontSize: 34,
+              height: 1.04,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -1.1,
+            ),
+            headlineSmall: const TextStyle(
+              fontSize: 24,
+              height: 1.12,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -.6,
+            ),
+            titleLarge: const TextStyle(
+              fontSize: 20,
+              height: 1.15,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -.35,
+            ),
+            titleMedium: const TextStyle(
+              fontSize: 16,
+              height: 1.2,
+              fontWeight: FontWeight.w700,
+            ),
+            bodyMedium: const TextStyle(
+              fontSize: 14,
+              height: 1.45,
+              color: OryntraPalette.muted,
+            ),
+            bodySmall: const TextStyle(
+              fontSize: 12,
+              height: 1.4,
+              color: OryntraPalette.muted,
+            ),
+          ),
       cardTheme: CardThemeData(
-        color: const Color(0xFF071A2D).withValues(alpha: .82),
+        color: OryntraPalette.panel,
         elevation: 0,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(22),
-          side: BorderSide(color: Colors.white.withValues(alpha: .08)),
+          borderRadius: BorderRadius.circular(20),
+          side: const BorderSide(color: OryntraPalette.rule),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: Colors.white.withValues(alpha: .045),
+        fillColor: OryntraPalette.deepNavy.withValues(alpha: .62),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 15,
+          vertical: 15,
+        ),
+        labelStyle: const TextStyle(color: OryntraPalette.muted),
+        hintStyle: const TextStyle(color: Color(0xFF6E849C)),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide.none,
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: OryntraPalette.rule),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(color: Colors.white.withValues(alpha: .08)),
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: OryntraPalette.rule),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(
+            color: OryntraPalette.blueBright,
+            width: 1.4,
+          ),
+        ),
+      ),
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          backgroundColor: OryntraPalette.blueBright,
+          foregroundColor: OryntraPalette.deepNavy,
+          minimumSize: const Size.fromHeight(52),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+          textStyle: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w800,
+            letterSpacing: .1,
+          ),
+        ),
+      ),
+      chipTheme: ChipThemeData(
+        backgroundColor: OryntraPalette.deepNavy,
+        side: const BorderSide(color: OryntraPalette.rule),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        labelStyle: const TextStyle(
+          color: OryntraPalette.ink,
+          fontWeight: FontWeight.w700,
         ),
       ),
     );
@@ -169,26 +254,31 @@ class _OryntraAppState extends State<OryntraApp> {
       home: DecoratedBox(
         decoration: const BoxDecoration(
           gradient: RadialGradient(
-            center: Alignment(-.8, -1),
-            radius: 1.7,
-            colors: [Color(0xFF102944), Color(0xFF04101C), Color(0xFF000000)],
-            stops: [0, .58, 1],
+            center: Alignment(-.9, -1.15),
+            radius: 1.45,
+            colors: [
+              Color(0xFF173B63),
+              OryntraPalette.navy,
+              OryntraPalette.deepNavy,
+            ],
+            stops: [0, .42, 1],
           ),
         ),
         child: Scaffold(
           backgroundColor: Colors.transparent,
           extendBody: true,
           appBar: AppBar(
+            toolbarHeight: 66,
             backgroundColor: Colors.transparent,
             surfaceTintColor: Colors.transparent,
             title: Row(
               children: [
                 ClipRRect(
-                  borderRadius: BorderRadius.circular(9),
+                  borderRadius: BorderRadius.circular(10),
                   child: Image.asset(
                     'assets/oryntra-icon.png',
-                    width: 34,
-                    height: 34,
+                    width: 36,
+                    height: 36,
                     fit: BoxFit.cover,
                   ),
                 ),
@@ -197,7 +287,7 @@ class _OryntraAppState extends State<OryntraApp> {
                   'Oryntra AI',
                   style: TextStyle(
                     fontWeight: FontWeight.w800,
-                    letterSpacing: -.5,
+                    letterSpacing: -.7,
                   ),
                 ),
                 if (AppConfig.previewMode) ...[
@@ -209,15 +299,13 @@ class _OryntraAppState extends State<OryntraApp> {
                     ),
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(999),
-                      color: const Color(0xFF38CFF3).withValues(alpha: .14),
-                      border: Border.all(
-                        color: const Color(0xFF38CFF3).withValues(alpha: .28),
-                      ),
+                      color: OryntraPalette.panelRaised,
+                      border: Border.all(color: OryntraPalette.rule),
                     ),
                     child: Text(
                       'WEB PREVIEW · v${AppConfig.appVersion}',
                       style: TextStyle(
-                        color: Color(0xFF7DE6FF),
+                        color: OryntraPalette.blueBright,
                         fontSize: 10,
                         fontWeight: FontWeight.w700,
                       ),

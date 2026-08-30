@@ -115,6 +115,18 @@ class _WatchlistScreenState extends State<WatchlistScreen> {
       child: ListView(
         padding: const EdgeInsets.only(bottom: 130),
         children: [
+          InstitutionalSectionLabel(
+            label: 'Watchlist',
+            trailing: Text(
+              '${_items.length} SYMBOLS',
+              style: const TextStyle(
+                fontSize: 10,
+                letterSpacing: .8,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF9CB0C7),
+              ),
+            ),
+          ),
           AppCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -147,7 +159,10 @@ class _WatchlistScreenState extends State<WatchlistScreen> {
                     const Expanded(
                       child: Text(
                         'Swipe right to scan. Swipe left to remove.',
-                        style: TextStyle(fontSize: 12, color: Colors.white70),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF9CB0C7),
+                        ),
                       ),
                     ),
                   ],

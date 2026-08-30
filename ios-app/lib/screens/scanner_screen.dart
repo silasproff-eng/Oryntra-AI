@@ -7,6 +7,7 @@ import '../services/notification_service.dart';
 import '../services/widget_service.dart';
 import '../widgets/adaptive_banner.dart';
 import '../widgets/common.dart';
+import '../widgets/glass.dart';
 import '../widgets/tradingview_chart.dart';
 
 class ScannerScreen extends StatefulWidget {
@@ -351,7 +352,7 @@ class ScannerScreenState extends State<ScannerScreen> {
           MediaQuery.viewInsetsOf(context).bottom + 12,
         ),
         child: Material(
-          color: const Color(0xFF071A2D),
+          color: OryntraPalette.navy,
           borderRadius: BorderRadius.circular(24),
           child: Padding(
             padding: const EdgeInsets.all(20),
@@ -368,7 +369,7 @@ class ScannerScreenState extends State<ScannerScreen> {
                 const SizedBox(height: 8),
                 Text(
                   '$direction • Entry \$${entry.toStringAsFixed(2)} • Stop \$${stop.toStringAsFixed(2)} • Target \$${target.toStringAsFixed(2)}',
-                  style: const TextStyle(color: Colors.white70),
+                  style: const TextStyle(color: OryntraPalette.muted),
                 ),
                 const SizedBox(height: 16),
                 TextField(
@@ -384,7 +385,7 @@ class ScannerScreenState extends State<ScannerScreen> {
                 const SizedBox(height: 12),
                 const Text(
                   'This is an educational simulation only. No real order will be placed.',
-                  style: TextStyle(fontSize: 12, color: Colors.white60),
+                  style: TextStyle(fontSize: 12, color: OryntraPalette.muted),
                 ),
                 const SizedBox(height: 18),
                 FilledButton(
@@ -437,7 +438,6 @@ class ScannerScreenState extends State<ScannerScreen> {
     }
   }
 
-
   @override
   Widget build(BuildContext context) {
     final primary = Theme.of(context).colorScheme.primary;
@@ -449,18 +449,30 @@ class ScannerScreenState extends State<ScannerScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              const Text(
+                'MARKET INTELLIGENCE',
+                style: TextStyle(
+                  color: OryntraPalette.blueBright,
+                  fontSize: 11,
+                  letterSpacing: 1.25,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 9),
               Row(
                 children: [
                   Container(
-                    width: 44,
-                    height: 44,
+                    width: 46,
+                    height: 46,
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(14),
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF22D3EE), Color(0xFF6366F1)],
-                      ),
+                      color: OryntraPalette.panelRaised,
+                      border: Border.all(color: OryntraPalette.rule),
                     ),
-                    child: const Icon(Icons.radar_rounded, color: Colors.white),
+                    child: const Icon(
+                      Icons.radar_rounded,
+                      color: OryntraPalette.blueBright,
+                    ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -468,20 +480,23 @@ class ScannerScreenState extends State<ScannerScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Oryntra Market Intelligence',
+                          'Find the setup.',
                           style: Theme.of(context).textTheme.titleLarge
                               ?.copyWith(fontWeight: FontWeight.w900),
                         ),
                         const Text(
-                          'Server-side derived analysis with independent TradingView charts.',
-                          style: TextStyle(color: Colors.white60, fontSize: 12),
+                          'Structured analysis. Clear evidence. No broker execution.',
+                          style: TextStyle(
+                            color: OryntraPalette.muted,
+                            fontSize: 12,
+                          ),
                         ),
                       ],
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 18),
+              const SizedBox(height: 20),
               TextField(
                 controller: _ticker,
                 textCapitalization: TextCapitalization.characters,
@@ -496,7 +511,9 @@ class ScannerScreenState extends State<ScannerScreen> {
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
                 initialValue: _period,
-                decoration: const InputDecoration(labelText: 'Analysis lookback'),
+                decoration: const InputDecoration(
+                  labelText: 'Analysis lookback',
+                ),
                 items: const [
                   DropdownMenuItem(value: '1mo', child: Text('1 month')),
                   DropdownMenuItem(value: '6mo', child: Text('6 months')),
@@ -524,7 +541,7 @@ class ScannerScreenState extends State<ScannerScreen> {
                   const Text(
                     'By searching for a stock using our scanner, you agree to our ',
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 11, color: Colors.white60),
+                    style: TextStyle(fontSize: 11, color: OryntraPalette.muted),
                   ),
                   InkWell(
                     borderRadius: BorderRadius.circular(6),
@@ -549,7 +566,7 @@ class ScannerScreenState extends State<ScannerScreen> {
                   ),
                   const Text(
                     '.',
-                    style: TextStyle(fontSize: 11, color: Colors.white60),
+                    style: TextStyle(fontSize: 11, color: OryntraPalette.muted),
                   ),
                 ],
               ),
@@ -581,15 +598,15 @@ class ScannerScreenState extends State<ScannerScreen> {
               style: TextStyle(color: Theme.of(context).colorScheme.error),
             ),
           ),
-        if (_result != null)
+        if (_result != null) ...[
+          const InstitutionalSectionLabel(label: 'Analysis output'),
           _ScanResult(
             result: _result!,
             period: _period,
-            chartSymbol: _read(
-              _result,
-              ['chart', 'symbol'],
-              fallback: _read(_result, ['ticker']),
-            ),
+            chartSymbol: _read(_result, [
+              'chart',
+              'symbol',
+            ], fallback: _read(_result, ['ticker'])),
             patterns: _patterns(),
             setup: _setup(),
             entry: _entry(),
@@ -604,6 +621,8 @@ class ScannerScreenState extends State<ScannerScreen> {
             ),
             onTestNotification: _notifyAboutResult,
           ),
+        ],
+        const InstitutionalSectionLabel(label: 'Methodology'),
         AppCard(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -635,7 +654,7 @@ class ScannerScreenState extends State<ScannerScreen> {
               const Divider(height: 26),
               const Text(
                 'Results use historical market data and may be delayed. They do not predict future performance or place real trades.',
-                style: TextStyle(fontSize: 12, color: Colors.white70),
+                style: TextStyle(fontSize: 12, color: OryntraPalette.muted),
               ),
               const SizedBox(height: 8),
               TextButton.icon(
@@ -690,14 +709,14 @@ class _ScanResult extends StatelessWidget {
     if (upper.contains('BUY') ||
         upper.contains('BULL') ||
         upper.contains('LONG')) {
-      return const Color(0xFF2DD4BF);
+      return OryntraPalette.green;
     }
     if (upper.contains('SELL') ||
         upper.contains('BEAR') ||
         upper.contains('SHORT')) {
-      return const Color(0xFFFB7185);
+      return OryntraPalette.danger;
     }
-    return const Color(0xFFFBBF24);
+    return OryntraPalette.blueBright;
   }
 
   @override
@@ -727,8 +746,8 @@ class _ScanResult extends StatelessWidget {
                 gradient: LinearGradient(
                   colors: [
                     signalColor.withValues(alpha: .30),
-                    const Color(0xFF0C1F38),
-                    const Color(0xFF07111F),
+                    OryntraPalette.panelRaised,
+                    OryntraPalette.navy,
                   ],
                 ),
               ),
@@ -754,7 +773,7 @@ class _ScanResult extends StatelessWidget {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
-                                color: Colors.white60,
+                                color: OryntraPalette.muted,
                                 fontSize: 12,
                               ),
                             ),
@@ -827,47 +846,50 @@ class _ScanResult extends StatelessWidget {
                       _MetricTile(
                         label: 'Quality',
                         value: quality,
-                        color: const Color(0xFF38BDF8),
+                        color: OryntraPalette.blueBright,
                       ),
                       _MetricTile(
                         label: 'Entry',
                         value: '\$$entry',
-                        color: const Color(0xFFA78BFA),
+                        color: OryntraPalette.blue,
                       ),
                       _MetricTile(
                         label: 'Stop',
                         value: '\$$stop',
-                        color: const Color(0xFFFB7185),
+                        color: OryntraPalette.danger,
                       ),
                       _MetricTile(
                         label: 'Target',
                         value: '\$$target',
-                        color: const Color(0xFF2DD4BF),
+                        color: OryntraPalette.green,
                       ),
                       _MetricTile(
                         label: 'Risk / reward',
                         value: riskReward == '—' ? '—' : '$riskReward×',
-                        color: const Color(0xFFFBBF24),
+                        color: OryntraPalette.blueBright,
                       ),
                       _MetricTile(
                         label: 'Analyses',
                         value: scanCount,
-                        color: const Color(0xFF60A5FA),
+                        color: OryntraPalette.blue,
                       ),
                     ],
                   ),
                   const SizedBox(height: 16),
                   TradingViewChart(
                     symbol: chartSymbol,
-                    height: MediaQuery.sizeOf(context).height
-                        .clamp(320.0, 410.0)
-                        .toDouble(),
+                    height: MediaQuery.sizeOf(
+                      context,
+                    ).height.clamp(320.0, 410.0).toDouble(),
                   ),
                   const SizedBox(height: 7),
                   Text(
                     '${period.toUpperCase()} analysis · chart data supplied independently by TradingView',
                     textAlign: TextAlign.center,
-                    style: const TextStyle(fontSize: 10, color: Colors.white54),
+                    style: const TextStyle(
+                      fontSize: 10,
+                      color: OryntraPalette.muted,
+                    ),
                   ),
                   const SizedBox(height: 14),
                   _IndicatorSummary(read: read),
@@ -904,14 +926,14 @@ class _ScanResult extends StatelessWidget {
                   const Text(
                     'Up to 5 stocks. Weekday reminders at 9:35 AM, noon, and 4:00 PM ET.',
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 11, color: Colors.white60),
+                    style: TextStyle(fontSize: 11, color: OryntraPalette.muted),
                   ),
                   Align(
                     alignment: Alignment.centerRight,
                     child: TextButton.icon(
                       onPressed: onTestNotification,
                       style: TextButton.styleFrom(
-                        foregroundColor: Colors.white54,
+                        foregroundColor: OryntraPalette.muted,
                         visualDensity: VisualDensity.compact,
                         padding: const EdgeInsets.symmetric(
                           horizontal: 8,
@@ -929,7 +951,7 @@ class _ScanResult extends StatelessWidget {
                   const SizedBox(height: 12),
                   const Text(
                     'Oryntra provides educational market intelligence, not investment advice. Charts are supplied independently by TradingView. Oryntra does not execute trades.',
-                    style: TextStyle(fontSize: 12, color: Colors.white60),
+                    style: TextStyle(fontSize: 12, color: OryntraPalette.muted),
                   ),
                 ],
               ),
@@ -1019,11 +1041,9 @@ class _IndicatorSummary extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(15),
       decoration: BoxDecoration(
-        color: const Color(0xFF081827),
+        color: OryntraPalette.navy,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: const Color(0xFF38BDF8).withValues(alpha: .18),
-        ),
+        border: Border.all(color: OryntraPalette.rule),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1039,7 +1059,7 @@ class _IndicatorSummary extends StatelessWidget {
                 child: _IndicatorPill(
                   label: 'RSI 14',
                   value: rsi,
-                  color: const Color(0xFFA78BFA),
+                  color: OryntraPalette.blue,
                 ),
               ),
               const SizedBox(width: 8),
@@ -1047,7 +1067,7 @@ class _IndicatorSummary extends StatelessWidget {
                 child: _IndicatorPill(
                   label: 'Volume',
                   value: volume == '—' ? '—' : '$volume×',
-                  color: const Color(0xFF38BDF8),
+                  color: OryntraPalette.blueBright,
                 ),
               ),
             ],
@@ -1059,7 +1079,7 @@ class _IndicatorSummary extends StatelessWidget {
                 child: _IndicatorPill(
                   label: 'Trend',
                   value: trend,
-                  color: const Color(0xFF2DD4BF),
+                  color: OryntraPalette.green,
                 ),
               ),
               const SizedBox(width: 8),
@@ -1067,7 +1087,7 @@ class _IndicatorSummary extends StatelessWidget {
                 child: _IndicatorPill(
                   label: 'Strength',
                   value: strength,
-                  color: const Color(0xFFFBBF24),
+                  color: OryntraPalette.blueBright,
                 ),
               ),
             ],
@@ -1079,7 +1099,7 @@ class _IndicatorSummary extends StatelessWidget {
                 child: _IndicatorPill(
                   label: 'Support',
                   value: support == '—' ? '—' : '\$$support',
-                  color: const Color(0xFF60A5FA),
+                  color: OryntraPalette.blue,
                 ),
               ),
               const SizedBox(width: 8),
@@ -1087,7 +1107,7 @@ class _IndicatorSummary extends StatelessWidget {
                 child: _IndicatorPill(
                   label: 'Resistance',
                   value: resistance == '—' ? '—' : '\$$resistance',
-                  color: const Color(0xFFFB7185),
+                  color: OryntraPalette.danger,
                 ),
               ),
             ],
@@ -1146,12 +1166,12 @@ class _PatternCard extends StatelessWidget {
   Color _biasColor(String bias) {
     final upper = bias.toUpperCase();
     if (upper.contains('BULL') || upper.contains('LONG')) {
-      return const Color(0xFF2DD4BF);
+      return OryntraPalette.green;
     }
     if (upper.contains('BEAR') || upper.contains('SHORT')) {
-      return const Color(0xFFFB7185);
+      return OryntraPalette.danger;
     }
-    return const Color(0xFFFBBF24);
+    return OryntraPalette.blueBright;
   }
 
   String _confidence(Map<String, dynamic> pattern) {
@@ -1170,18 +1190,20 @@ class _PatternCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(15),
       decoration: BoxDecoration(
-        color: const Color(0xFF101326),
+        color: OryntraPalette.navy,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: const Color(0xFFA78BFA).withValues(alpha: .24),
-        ),
+        border: Border.all(color: OryntraPalette.rule),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const Icon(Icons.hub_rounded, color: Color(0xFFA78BFA), size: 20),
+              const Icon(
+                Icons.hub_rounded,
+                color: OryntraPalette.blueBright,
+                size: 20,
+              ),
               const SizedBox(width: 9),
               const Expanded(
                 child: Text(
@@ -1192,7 +1214,7 @@ class _PatternCard extends StatelessWidget {
               Text(
                 '${patterns.length}',
                 style: const TextStyle(
-                  color: Color(0xFFA78BFA),
+                  color: OryntraPalette.blueBright,
                   fontWeight: FontWeight.w900,
                 ),
               ),
@@ -1202,7 +1224,7 @@ class _PatternCard extends StatelessWidget {
           if (patterns.isEmpty)
             const Text(
               'No qualifying patterns were detected in this scan.',
-              style: TextStyle(fontSize: 12, color: Colors.white60),
+              style: TextStyle(fontSize: 12, color: OryntraPalette.muted),
             )
           else
             ...patterns.take(5).map((pattern) {
@@ -1229,7 +1251,7 @@ class _PatternCard extends StatelessWidget {
                     gradient: LinearGradient(
                       colors: [
                         color.withValues(alpha: .12),
-                        Colors.white.withValues(alpha: .025),
+                        OryntraPalette.panelRaised.withValues(alpha: .35),
                       ],
                     ),
                     borderRadius: BorderRadius.circular(14),
@@ -1335,52 +1357,10 @@ class _ScannerFeature extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   body,
-                  style: const TextStyle(fontSize: 13, color: Colors.white70),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _EmptyPanel extends StatelessWidget {
-  const _EmptyPanel({
-    required this.icon,
-    required this.title,
-    required this.message,
-  });
-
-  final IconData icon;
-  final String title;
-  final String message;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: .16),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white12),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, color: Colors.white54),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(fontWeight: FontWeight.w800),
-                ),
-                Text(
-                  message,
-                  style: const TextStyle(fontSize: 12, color: Colors.white60),
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: OryntraPalette.muted,
+                  ),
                 ),
               ],
             ),

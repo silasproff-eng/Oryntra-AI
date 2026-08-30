@@ -26,7 +26,8 @@ class AccountScreen extends StatefulWidget {
   State<AccountScreen> createState() => AccountScreenState();
 }
 
-class AccountScreenState extends State<AccountScreen> with WidgetsBindingObserver {
+class AccountScreenState extends State<AccountScreen>
+    with WidgetsBindingObserver {
   bool _notificationsEnabled = false;
   bool _dailyReminderEnabled = false;
   String _notificationStatus = 'unknown';
@@ -196,9 +197,7 @@ class AccountScreenState extends State<AccountScreen> with WidgetsBindingObserve
     if (widget.user != null) {
       try {
         await widget.api.removeStockAlertSubscription(ticker);
-      } on ApiException {
-        
-      }
+      } on ApiException {}
     }
     await _loadNotificationSettings();
   }
@@ -218,9 +217,7 @@ class AccountScreenState extends State<AccountScreen> with WidgetsBindingObserve
         token: registration['token']!,
         environment: registration['environment']!,
       );
-    } on ApiException {
-      
-    }
+    } on ApiException {}
   }
 
   Future<void> _syncMarketAlertsFromServer() async {
@@ -236,22 +233,25 @@ class AccountScreenState extends State<AccountScreen> with WidgetsBindingObserve
         await widget.api.addStockAlertSubscription(ticker);
       }
       await widget.notifications.replaceMarketAlerts(merged);
-    } on ApiException {
-      
-    }
+    } on ApiException {}
     await _loadNotificationSettings();
   }
 
   Widget _buildAnalysisCard(BuildContext context) {
     final policyRaw = _analysisStatus?['policy'];
     final quotaRaw = _analysisStatus?['quota'];
-    final policy = policyRaw is Map ? Map<String, dynamic>.from(policyRaw) : <String, dynamic>{};
-    final quota = quotaRaw is Map ? Map<String, dynamic>.from(quotaRaw) : <String, dynamic>{};
+    final policy = policyRaw is Map
+        ? Map<String, dynamic>.from(policyRaw)
+        : <String, dynamic>{};
+    final quota = quotaRaw is Map
+        ? Map<String, dynamic>.from(quotaRaw)
+        : <String, dynamic>{};
     final permitted = policy['analysis_permitted'] == true;
     final used = quota['used']?.toString() ?? '—';
     final limit = quota['limit']?.toString() ?? '100';
     final remaining = quota['remaining']?.toString() ?? '—';
-    final licenseMode = policy['license_mode']?.toString().replaceAll('_', ' ') ?? 'unknown';
+    final licenseMode =
+        policy['license_mode']?.toString().replaceAll('_', ' ') ?? 'unknown';
     return AppCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -297,7 +297,9 @@ class AccountScreenState extends State<AccountScreen> with WidgetsBindingObserve
                 Text(
                   permitted ? 'ANALYSIS ENABLED' : 'ANALYSIS RESTRICTED',
                   style: TextStyle(
-                    color: permitted ? const Color(0xFF2DD4BF) : const Color(0xFFFBBF24),
+                    color: permitted
+                        ? const Color(0xFF2DD4BF)
+                        : const Color(0xFFFBBF24),
                     fontWeight: FontWeight.w900,
                   ),
                 ),
@@ -339,19 +341,20 @@ class AccountScreenState extends State<AccountScreen> with WidgetsBindingObserve
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 130),
       children: [
+        const InstitutionalSectionLabel(label: 'Account & controls'),
         LiquidGlass(
           child: user == null
               ? Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Text(
-                      'Your Oryntra AI',
+                      'Your research workspace',
                       style: Theme.of(context).textTheme.headlineSmall
                           ?.copyWith(fontWeight: FontWeight.w800),
                     ),
                     const SizedBox(height: 6),
                     const Text(
-                      'Create an account to sync watchlists and paper trades across devices.',
+                      'Sign in to keep your research, watchlist, and paper activity together.',
                     ),
                     const SizedBox(height: 16),
                     FilledButton(
@@ -377,7 +380,7 @@ class AccountScreenState extends State<AccountScreen> with WidgetsBindingObserve
                     ),
                     Text(
                       user['email']?.toString() ?? '',
-                      style: const TextStyle(color: Colors.white70),
+                      style: const TextStyle(color: OryntraPalette.muted),
                     ),
                     const SizedBox(height: 16),
                     OutlinedButton(
@@ -394,6 +397,7 @@ class AccountScreenState extends State<AccountScreen> with WidgetsBindingObserve
         const SizedBox(height: 14),
         if (user != null) _buildAnalysisCard(context),
         if (user != null) const SizedBox(height: 14),
+        const InstitutionalSectionLabel(label: 'Preferences'),
         AppCard(
           padding: EdgeInsets.zero,
           child: Column(
@@ -422,56 +426,58 @@ class AccountScreenState extends State<AccountScreen> with WidgetsBindingObserve
           ),
         ),
         if (user != null)
-          AppCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(
-                      Icons.notifications_active_outlined,
-                      color: Theme.of(context).colorScheme.primary,
-                    ),
-                    const SizedBox(width: 10),
-                    const Expanded(
-                      child: Text(
-                        'Stock market alerts',
-                        style: TextStyle(fontWeight: FontWeight.w800),
-                      ),
-                    ),
-                    Text(
-                      '${_marketAlerts.length}/${NotificationService.marketAlertLimit}',
-                      style: const TextStyle(color: Colors.white70),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 7),
-                const Text(
-                  'Choose stocks after scanning. Reminders run at 9:35 AM, noon, and 4:00 PM ET on weekdays.',
-                  style: TextStyle(fontSize: 12, color: Colors.white70),
-                ),
-                const SizedBox(height: 12),
-                if (_marketAlerts.isEmpty)
-                  const Text(
-                    'No stocks selected yet.',
-                    style: TextStyle(color: Colors.white60),
-                  )
-                else
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: _marketAlerts
-                        .map(
-                          (ticker) => InputChip(
-                            label: Text(ticker),
-                            onDeleted: () => _removeMarketAlert(ticker),
-                          ),
-                        )
-                        .toList(),
+          const InstitutionalSectionLabel(label: 'Market alerts'),
+        AppCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    Icons.notifications_active_outlined,
+                    color: Theme.of(context).colorScheme.primary,
                   ),
-              ],
-            ),
+                  const SizedBox(width: 10),
+                  const Expanded(
+                    child: Text(
+                      'Stock market alerts',
+                      style: TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                  ),
+                  Text(
+                    '${_marketAlerts.length}/${NotificationService.marketAlertLimit}',
+                    style: const TextStyle(color: OryntraPalette.muted),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 7),
+              const Text(
+                'Choose stocks after scanning. Reminders run at 9:35 AM, noon, and 4:00 PM ET on weekdays.',
+                style: TextStyle(fontSize: 12, color: OryntraPalette.muted),
+              ),
+              const SizedBox(height: 12),
+              if (_marketAlerts.isEmpty)
+                const Text(
+                  'No stocks selected yet.',
+                  style: TextStyle(color: OryntraPalette.muted),
+                )
+              else
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: _marketAlerts
+                      .map(
+                        (ticker) => InputChip(
+                          label: Text(ticker),
+                          onDeleted: () => _removeMarketAlert(ticker),
+                        ),
+                      )
+                      .toList(),
+                ),
+            ],
           ),
+        ),
+        const InstitutionalSectionLabel(label: 'Policies & support'),
         AppCard(
           padding: EdgeInsets.zero,
           child: Column(
@@ -509,7 +515,8 @@ class AccountScreenState extends State<AccountScreen> with WidgetsBindingObserve
             ],
           ),
         ),
-        if (user != null)
+        if (user != null) ...[
+          const InstitutionalSectionLabel(label: 'Account management'),
           AppCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -532,12 +539,13 @@ class AccountScreenState extends State<AccountScreen> with WidgetsBindingObserve
               ],
             ),
           ),
+        ],
         Padding(
           padding: const EdgeInsets.all(20),
           child: Text(
             'Oryntra provides educational market intelligence, not investment advice, brokerage services, or order execution. Charts are supplied independently by TradingView.\nOryntra AI v${AppConfig.appVersion}${AppConfig.previewMode ? ' · browser preview' : ''}',
             textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 12, color: Colors.white60),
+            style: const TextStyle(fontSize: 12, color: OryntraPalette.muted),
           ),
         ),
       ],
@@ -653,15 +661,24 @@ class _AuthSheetState extends State<_AuthSheet> {
                 spacing: 6,
                 children: [
                   TextButton(
-                    onPressed: () => launchUrl(Uri.parse(AppConfig.termsUrl), mode: LaunchMode.externalApplication),
+                    onPressed: () => launchUrl(
+                      Uri.parse(AppConfig.termsUrl),
+                      mode: LaunchMode.externalApplication,
+                    ),
                     child: const Text('Terms'),
                   ),
                   TextButton(
-                    onPressed: () => launchUrl(Uri.parse(AppConfig.privacyUrl), mode: LaunchMode.externalApplication),
+                    onPressed: () => launchUrl(
+                      Uri.parse(AppConfig.privacyUrl),
+                      mode: LaunchMode.externalApplication,
+                    ),
                     child: const Text('Privacy'),
                   ),
                   TextButton(
-                    onPressed: () => launchUrl(Uri.parse(AppConfig.riskUrl), mode: LaunchMode.externalApplication),
+                    onPressed: () => launchUrl(
+                      Uri.parse(AppConfig.riskUrl),
+                      mode: LaunchMode.externalApplication,
+                    ),
                     child: const Text('Risk disclaimer'),
                   ),
                 ],

@@ -118,6 +118,18 @@ class PaperScreenState extends State<PaperScreen> {
       child: ListView(
         padding: const EdgeInsets.only(bottom: 130),
         children: [
+          InstitutionalSectionLabel(
+            label: 'Paper portfolio',
+            trailing: Text(
+              '${_trades.length} POSITIONS',
+              style: const TextStyle(
+                fontSize: 10,
+                letterSpacing: .8,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF9CB0C7),
+              ),
+            ),
+          ),
           AppCard(
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -138,7 +150,10 @@ class PaperScreenState extends State<PaperScreen> {
                       SizedBox(height: 4),
                       Text(
                         'These positions are educational simulations. Oryntra AI does not connect to a brokerage or execute real orders.',
-                        style: TextStyle(fontSize: 12, color: Colors.white70),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF9CB0C7),
+                        ),
                       ),
                     ],
                   ),

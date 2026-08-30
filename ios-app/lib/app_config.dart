@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 class AppConfig {
-  static const appVersion = '0.9.1';
+  static const appVersion = '1.0.0';
 
   static const apiBaseUrl = String.fromEnvironment(
     'ORYNTRA_API_URL',
