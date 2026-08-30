@@ -16,6 +16,7 @@ class AccountScreen extends StatefulWidget {
     required this.user,
     required this.onAuthChanged,
     required this.onManageProviderConnection,
+    required this.onOpenStoredLabResult,
     required this.notifications,
   });
   final ApiService api;
@@ -23,6 +24,7 @@ class AccountScreen extends StatefulWidget {
   final Map<String, dynamic>? user;
   final VoidCallback onAuthChanged;
   final VoidCallback onManageProviderConnection;
+  final Future<void> Function(Map<String, dynamic> item) onOpenStoredLabResult;
   final NotificationService notifications;
 
   @override
@@ -190,10 +192,11 @@ class AccountScreenState extends State<AccountScreen>
                     overflow: TextOverflow.ellipsis,
                   ),
                   subtitle: Text(
-                    '${_storedLabWhen(item)}${fingerprint.isEmpty ? '' : ' · ${fingerprint.substring(0, fingerprint.length.clamp(0, 8))}'}',
+                    'Tap to reopen · ${_storedLabWhen(item)}${fingerprint.isEmpty ? '' : ' · ${fingerprint.substring(0, fingerprint.length.clamp(0, 8))}'}',
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
+                  onTap: () => widget.onOpenStoredLabResult(item),
                   trailing: IconButton(
                     tooltip: 'Delete stored report',
                     icon: const Icon(Icons.delete_outline_rounded),

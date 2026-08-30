@@ -43,6 +43,14 @@ class QuantLabScreenState extends State<QuantLabScreen> {
     super.dispose();
   }
 
+  void showStoredReport(Map<String, dynamic> report) {
+    setState(() {
+      _report = report;
+      _error = null;
+      _progress = 'Loaded a report saved on this device.';
+    });
+  }
+
   Map<String, double> _weights() => {
     'time_series_trend': _strategies.contains('time_series_trend') ? 25 : 0,
     'cross_sectional_momentum': _strategies.contains('cross_sectional_momentum')
@@ -144,6 +152,7 @@ class QuantLabScreenState extends State<QuantLabScreen> {
           ),
         ),
         const SizedBox(height: 10),
+        if (_report != null) _QuantReport(report: _report!),
         AppCard(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -394,7 +403,6 @@ class QuantLabScreenState extends State<QuantLabScreen> {
             ),
           ),
         ),
-        if (_report != null) _QuantReport(report: _report!),
       ],
     );
   }

@@ -40,6 +40,7 @@ class _OryntraAppState extends State<OryntraApp> {
   final _pages = PageController();
   final _scannerKey = GlobalKey<ScannerScreenState>();
   final _paperKey = GlobalKey<PaperScreenState>();
+  final _quantLabKey = GlobalKey<QuantLabScreenState>();
   final _accountKey = GlobalKey<AccountScreenState>();
   Map<String, dynamic>? _user;
   bool _initializing = true;
@@ -124,6 +125,17 @@ class _OryntraAppState extends State<OryntraApp> {
 
   Future<void> _showPaperTrades() async {
     _goTo(2);
+  }
+
+  Future<void> _openStoredLabResult(Map<String, dynamic> item) async {
+    final rawReport = item['report'];
+    if (rawReport is! Map) return;
+    _goTo(3);
+    await Future<void>.delayed(const Duration(milliseconds: 340));
+    if (!mounted) return;
+    _quantLabKey.currentState?.showStoredReport(
+      Map<String, dynamic>.from(rawReport),
+    );
   }
 
   Future<void> _scanFromWatchlist(String ticker) async {
@@ -329,7 +341,7 @@ class _OryntraAppState extends State<OryntraApp> {
         signedIn: _user != null,
         onCreateAccount: _openCreateAccount,
       ),
-      QuantLabScreen(api: _api),
+      QuantLabScreen(key: _quantLabKey, api: _api),
       AccountScreen(
         key: _accountKey,
         api: _api,
@@ -337,6 +349,7 @@ class _OryntraAppState extends State<OryntraApp> {
         user: _user,
         onAuthChanged: _refreshUser,
         onManageProviderConnection: _openProviderSettings,
+        onOpenStoredLabResult: _openStoredLabResult,
         notifications: _notifications,
       ),
     ];

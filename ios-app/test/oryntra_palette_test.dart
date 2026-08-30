@@ -70,4 +70,29 @@ void main() {
     expect(find.byType(Slider), findsNothing);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('saved Quant Lab report can be reopened on device', (tester) async {
+    final key = GlobalKey<QuantLabScreenState>();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(body: QuantLabScreen(key: key, api: ApiService())),
+      ),
+    );
+
+    key.currentState!.showStoredReport({
+      'dataset_fingerprint': 'saved-device-report',
+      'portfolio_risk': {'latest_gross_exposure': 0.8},
+      'validation': {
+        'holdout': {'total_return_pct': 2.1, 'max_drawdown_pct': -1.4},
+      },
+    });
+    await tester.pumpAndSettle();
+
+    expect(find.text('RESEARCH REPORT', skipOffstage: false), findsOneWidget);
+    expect(
+      find.text('saved-device-report', skipOffstage: false),
+      findsOneWidget,
+    );
+    expect(tester.takeException(), isNull);
+  });
 }

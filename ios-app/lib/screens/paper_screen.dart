@@ -23,6 +23,7 @@ class PaperScreenState extends State<PaperScreen> {
   List<dynamic> _trades = const [];
   bool _loading = false;
   String? _error;
+  int _loadGeneration = 0;
 
   @override
   void initState() {
@@ -41,17 +42,26 @@ class PaperScreenState extends State<PaperScreen> {
   }
 
   Future<void> _load() async {
+    final generation = ++_loadGeneration;
     setState(() {
       _loading = true;
       _error = null;
     });
     try {
       final trades = await widget.api.paperTrades();
-      if (mounted) setState(() => _trades = trades);
-    } catch (e) {
-      if (mounted) setState(() => _error = e.toString());
+      if (!mounted || generation != _loadGeneration) return;
+      setState(() => _trades = trades);
+    } catch (_) {
+      if (!mounted || generation != _loadGeneration) return;
+      if (_trades.isEmpty) {
+        setState(() {
+          _error = 'Paper trades could not be refreshed. Pull down to try again.';
+        });
+      }
     } finally {
-      if (mounted) setState(() => _loading = false);
+      if (mounted && generation == _loadGeneration) {
+        setState(() => _loading = false);
+      }
     }
   }
 
