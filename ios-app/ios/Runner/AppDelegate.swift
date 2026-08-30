@@ -93,8 +93,6 @@ import WidgetKit
         return
       }
 
-      let environment = "sandbox"
-
       let environment = "production"
 
       result(["token": token, "environment": environment])
@@ -307,7 +305,7 @@ import WidgetKit
     defaults.set(args["updatedAt"] as? String ?? "", forKey: "updatedAt")
     defaults.synchronize()
 
-    if (14.0, *) {
+    if #available(iOS 14.0, *) {
       WidgetCenter.shared.reloadAllTimelines()
     }
     result(nil)
