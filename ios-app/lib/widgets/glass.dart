@@ -133,6 +133,7 @@ class GlassNavigationBar extends StatelessWidget {
       (Icons.search_rounded, 'Scanner'),
       (Icons.bookmark_border_rounded, 'Watchlist'),
       (Icons.assignment_outlined, 'Paper'),
+      (Icons.science_outlined, 'Quant'),
       (Icons.tune_rounded, 'Account'),
     ];
     return SafeArea(

@@ -381,6 +381,154 @@ class ApiService {
     return _normalizeScanResult(data);
   }
 
+  Future<Map<String, dynamic>> runQuantResearch({
+    required List<String> tickers,
+    required String period,
+    required String model,
+    required List<String> strategies,
+    required Map<String, double> strategyWeights,
+    required int lookback,
+    required double targetVolatility,
+    required double maxGrossExposure,
+    required double maxNameWeight,
+    required String rebalanceFrequency,
+    required double costBps,
+    required double borrowBps,
+    required bool longShort,
+    required bool regimeConditionedWeights,
+    required bool liquidityAwareCosts,
+  }) async {
+    final universe = <String>[];
+    for (final ticker in tickers) {
+      final clean = ticker.trim().toUpperCase();
+      if (clean.isNotEmpty && !universe.contains(clean)) universe.add(clean);
+    }
+    if (universe.length < 2) {
+      throw ApiException('Choose at least two unique ticker symbols.');
+    }
+    if (universe.length > 8) {
+      throw ApiException(
+        'Mobile Quant Lab supports up to eight symbols per run.',
+      );
+    }
+    if (AppConfig.previewMode) return _previewQuantReport(universe, model);
+    final connection = await _providerKeyStore.readConnection();
+    if (connection == null) {
+      throw ApiException(
+        'Connect a data provider in API settings before running Quant Lab.',
+      );
+    }
+    final histories = <Map<String, dynamic>>[];
+    for (var index = 0; index < universe.length; index++) {
+      if (index > 0) {
+        await Future<void>.delayed(
+          Duration(
+            milliseconds: connection.provider == 'polygon' ? 12500 : 8000,
+          ),
+        );
+      }
+      final bars = await _fetchDirectDailyBars(
+        universe[index],
+        period,
+        connection,
+      );
+      histories.add({'ticker': universe[index], 'bars': bars});
+    }
+    final response = await http
+        .post(
+          _uri('/api/quant/run-upload'),
+          headers: await _headers(jsonBody: true),
+          body: jsonEncode({
+            'tickers': universe,
+            'period': period,
+            'provider': connection.provider,
+            'histories': histories,
+            'model': model,
+            'strategies': strategies,
+            'strategy_weights': strategyWeights,
+            'trend_lookback': lookback,
+            'momentum_lookback': lookback,
+            'cost_bps': costBps,
+            'borrow_bps_annual': borrowBps,
+            'long_short': longShort,
+            'target_annual_volatility': targetVolatility,
+            'max_gross_exposure': maxGrossExposure,
+            'max_single_name_weight': maxNameWeight,
+            'rebalance_frequency': rebalanceFrequency,
+            'walk_forward_folds': 3,
+            'regime_conditioned_weights': regimeConditionedWeights,
+            'liquidity_aware_costs': liquidityAwareCosts,
+          }),
+        )
+        .timeout(const Duration(seconds: 150));
+    return Map<String, dynamic>.from(_decode(response) as Map);
+  }
+
+  Map<String, dynamic> _previewQuantReport(List<String> tickers, String model) {
+    return {
+      'ok': true,
+      'data_provider': 'browser_preview',
+      'dataset_fingerprint': 'preview-research-fingerprint-v1',
+      'universe': {
+        'start': '2024-01-02',
+        'end': '2026-08-28',
+        'symbols': tickers,
+      },
+      'configuration': {'model': model},
+      'portfolio_risk': {
+        'latest_gross_exposure': .94,
+        'latest_net_exposure': .42,
+        'effective_number_of_positions': tickers.length.toDouble(),
+        'largest_name_weight_pct': 28.4,
+        'average_abs_correlation_126_sessions': .41,
+        'latest_positions': tickers
+            .map(
+              (ticker) => {
+                'symbol': ticker,
+                'weight_pct': 100 / tickers.length,
+              },
+            )
+            .toList(),
+      },
+      'validation': {
+        'holdout': {
+          'total_return_pct': 8.4,
+          'max_drawdown_pct': -5.7,
+          'observations': 126,
+        },
+        'development': {'total_return_pct': 18.7, 'observations': 504},
+      },
+      'regime_breakdown': [
+        {
+          'regime': 'UPTREND / NORMAL VOL',
+          'sessions': 302,
+          'total_return_pct': 15.2,
+          'annualized_volatility_pct': 11.8,
+        },
+        {
+          'regime': 'STRESSED',
+          'sessions': 74,
+          'total_return_pct': -2.8,
+          'annualized_volatility_pct': 17.6,
+        },
+      ],
+      'strategy_health': [
+        {
+          'strategy': 'Trend',
+          'recent_mean_daily_bps': 4.2,
+          'alpha_decay_daily_bps': -1.1,
+          'status': 'MONITOR',
+        },
+        {
+          'strategy': 'Relative strength',
+          'recent_mean_daily_bps': 5.8,
+          'alpha_decay_daily_bps': .4,
+          'status': 'HEALTHY',
+        },
+      ],
+    };
+  }
+
   Future<List<Map<String, dynamic>>> _fetchDirectDailyBars(
     String ticker,
     String period,
@@ -496,7 +644,8 @@ class ApiService {
     final days = switch (period) {
       '5y' => 1900,
       'all' => 3650,
-      '1y' => 780,
+      '2y' => 780,
+      '1y' => 540,
       _ => 540,
     };
     final now = DateTime.now().toUtc();

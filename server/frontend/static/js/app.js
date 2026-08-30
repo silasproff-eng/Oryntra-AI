@@ -313,6 +313,7 @@ const API = {
     login:  (data) => apiFetch('/api/auth/login',  {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(data)}).then(apiJson),
     me:     () => apiFetch('/api/auth/me', {headers: authHeaders(false)}).then(r => r.json()),
     logout: () => apiFetch('/api/auth/logout', {method:'POST', headers: authHeaders(false)}).then(r => r.json()),
+    deleteAccount: (password) => apiFetch('/api/auth/account', {method:'DELETE', headers:authHeaders(true), body:JSON.stringify({password})}).then(apiJson),
     subscribe: (plan_code) => apiFetch('/api/auth/subscribe', {method:'POST', headers: authHeaders(true), body: JSON.stringify({plan_code})}).then(apiJson),
     providerCredentials: () => apiFetch('/api/auth/provider-credentials', {headers: authHeaders(false)}).then(apiJson),
   },
@@ -1063,7 +1064,7 @@ async function runQuantResearch() {
   }
   const lookback = Number(document.getElementById('quantLookback')?.value || 126);
   const period = document.getElementById('quantPeriod')?.value || '2y';
-  const payload = {tickers, strategies, period, model: document.getElementById('quantModel')?.value || 'v1_corporate_quant_system', strategy_weights: weights, trend_lookback: lookback, momentum_lookback: lookback, cost_bps: Number(document.getElementById('quantCost')?.value || 12), borrow_bps_annual: Number(document.getElementById('quantBorrow')?.value || 50), long_short: Boolean(document.getElementById('quantLongShort')?.checked), target_annual_volatility: Number(document.getElementById('quantTargetVol')?.value || 12), max_gross_exposure: Number(document.getElementById('quantMaxGross')?.value || 1), max_single_name_weight: Number(document.getElementById('quantMaxName')?.value || 35) / 100, rebalance_frequency: document.getElementById('quantRebalance')?.value || 'weekly', walk_forward_folds: Number(document.getElementById('quantWalkForward')?.value || 3), regime_conditioned_weights: true, liquidity_aware_costs: true};
+  const payload = {tickers, strategies, period, model: document.getElementById('quantModel')?.value || 'v1_corporate_quant_system', strategy_weights: weights, trend_lookback: lookback, momentum_lookback: lookback, cost_bps: Number(document.getElementById('quantCost')?.value || 12), borrow_bps_annual: Number(document.getElementById('quantBorrow')?.value || 50), long_short: Boolean(document.getElementById('quantLongShort')?.checked), target_annual_volatility: Number(document.getElementById('quantTargetVol')?.value || 12), max_gross_exposure: Number(document.getElementById('quantMaxGross')?.value || 1), max_single_name_weight: Number(document.getElementById('quantMaxName')?.value || 35) / 100, rebalance_frequency: document.getElementById('quantRebalance')?.value || 'weekly', walk_forward_folds: Number(document.getElementById('quantWalkForward')?.value || 3), regime_conditioned_weights: Boolean(document.getElementById('quantRegimeWeights')?.checked), liquidity_aware_costs: Boolean(document.getElementById('quantLiquidityCosts')?.checked), portfolio_value_assumption: Number(document.getElementById('quantPortfolioValue')?.value || 1000000), impact_coefficient_bps: Number(document.getElementById('quantImpactCoefficient')?.value || 18), max_adv_participation_pct: Number(document.getElementById('quantAdvParticipation')?.value || 2)};
   button.disabled = true; results.hidden = true; status.textContent = 'Loading histories, applying fixed rules, and modeling next-session execution…';
   try {
     const activeProvider = directProviderFor(requestedProvider);
@@ -2135,7 +2136,22 @@ function initSettingsPage() {
   initQuantSettings();
   initProviderCredentialSettings();
   initThemeSettings();
+  document.getElementById('settingsDeleteAccountBtn')?.addEventListener('click', deleteCurrentAccount);
   updateSettingsEngineDisplay();
+}
+
+async function deleteCurrentAccount() {
+  if (!currentUser) { openAuthModal('login'); return; }
+  const password = window.prompt('Enter your password to permanently delete this Oryntra account. This cannot be undone.');
+  if (!password) return;
+  try {
+    await API.auth.deleteAccount(password);
+    await Promise.all(['polygon', 'twelvedata'].map(provider => persistBrowserProviderKey(provider, ''))).catch(() => {});
+    await logoutUser();
+    window.alert('Your account has been deleted.');
+  } catch (error) {
+    window.alert(error.message || 'Account deletion could not be completed.');
+  }
 }
 
 function setProviderCredentialMessage(text, warning=false) {

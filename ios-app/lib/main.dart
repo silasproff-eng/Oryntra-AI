@@ -4,6 +4,7 @@ import 'app_config.dart';
 import 'screens/account_screen.dart';
 import 'screens/auth_gate_screen.dart';
 import 'screens/paper_screen.dart';
+import 'screens/quant_lab_screen.dart';
 import 'screens/scanner_screen.dart';
 import 'screens/watchlist_screen.dart';
 import 'services/api_service.dart';
@@ -107,7 +108,7 @@ class _OryntraAppState extends State<OryntraApp> {
   }
 
   Future<void> _openCreateAccount() async {
-    _goTo(3);
+    _goTo(4);
     await Future<void>.delayed(const Duration(milliseconds: 340));
     if (!mounted) return;
     await _accountKey.currentState?.showCreateAccount();
@@ -320,6 +321,7 @@ class _OryntraAppState extends State<OryntraApp> {
         signedIn: _user != null,
         onCreateAccount: _openCreateAccount,
       ),
+      QuantLabScreen(api: _api),
       AccountScreen(
         key: _accountKey,
         api: _api,
@@ -432,7 +434,7 @@ class _OryntraAppState extends State<OryntraApp> {
                           setState(() => _tab = value);
                           if (value == 2 && _user != null) {
                             _paperKey.currentState?.refresh();
-                          } else if (value == 3) {
+                          } else if (value == 4) {
                             _accountKey.currentState
                                 ?.refreshNotificationSettings();
                             _accountKey.currentState?.refreshProviderStatus();
