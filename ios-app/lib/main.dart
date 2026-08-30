@@ -31,6 +31,8 @@ class OryntraApp extends StatefulWidget {
 }
 
 class _OryntraAppState extends State<OryntraApp> {
+  static const _minimumStartupDuration = Duration(milliseconds: 2100);
+  final _startupBeganAt = DateTime.now();
   final _api = ApiService();
   final _notifications = NotificationService();
   final _widgetService = WidgetService();
@@ -47,7 +49,7 @@ class _OryntraAppState extends State<OryntraApp> {
   @override
   void initState() {
     super.initState();
-    _refreshUser();
+    _refreshUser(keepStartupVisible: true);
   }
 
   @override
@@ -56,7 +58,9 @@ class _OryntraAppState extends State<OryntraApp> {
     super.dispose();
   }
 
-  Future<void> _refreshUser() async {
+  Future<void> _refreshUser({bool keepStartupVisible = false}) async {
+    Map<String, dynamic>? user;
+    var providerReady = false;
     try {
       final result = await _api.me();
       final raw = result?['user'];
@@ -64,20 +68,24 @@ class _OryntraAppState extends State<OryntraApp> {
       final provider = raw is Map
           ? await _providerKeyStore.readConnection()
           : null;
-      if (mounted) {
-        setState(() {
-          _user = raw is Map ? Map<String, dynamic>.from(raw) : null;
-          _providerReady = provider != null;
-          _initializing = false;
-        });
-      }
+      user = raw is Map ? Map<String, dynamic>.from(raw) : null;
+      providerReady = provider != null;
     } catch (_) {
-      if (mounted)
-        setState(() {
-          _user = null;
-          _providerReady = false;
-          _initializing = false;
-        });
+      user = null;
+      providerReady = false;
+    }
+
+    if (keepStartupVisible) {
+      final elapsed = DateTime.now().difference(_startupBeganAt);
+      final remaining = _minimumStartupDuration - elapsed;
+      if (remaining > Duration.zero) await Future<void>.delayed(remaining);
+    }
+    if (mounted) {
+      setState(() {
+        _user = user;
+        _providerReady = providerReady;
+        _initializing = false;
+      });
     }
   }
 

@@ -43,4 +43,15 @@ void main() {
     expect(find.byType(TextField), findsNWidgets(2));
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('startup screen presents the animated workspace intro', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const MaterialApp(home: AppStartupScreen()));
+
+    expect(find.text('ORYNTRA AI'), findsOneWidget);
+    expect(find.text('Opening your research workspace'), findsOneWidget);
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(tester.takeException(), isNull);
+  });
 }

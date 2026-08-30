@@ -584,8 +584,8 @@ class _StartupMarkState extends State<_StartupMark>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 1450),
-  )..repeat(reverse: true);
+    duration: const Duration(milliseconds: 2000),
+  )..repeat();
 
   @override
   void dispose() {
@@ -599,18 +599,95 @@ class _StartupMarkState extends State<_StartupMark>
       child: AnimatedBuilder(
         animation: _controller,
         builder: (context, child) {
-          final curve = Curves.easeInOutCubic.transform(_controller.value);
-          return Opacity(
-            opacity: .78 + curve * .22,
-            child: Transform.scale(scale: .94 + curve * .06, child: child),
+          final progress = _controller.value;
+          final arrival = Curves.easeOutCubic.transform(
+            (progress / .42).clamp(0.0, 1.0),
+          );
+          final breathe =
+              (Curves.easeInOut.transform(((progress + .16) % 1.0)) - .5) * 2;
+          return Stack(
+            alignment: Alignment.center,
+            children: [
+              _StartupRing(
+                progress: (progress + .08) % 1.0,
+                size: 150,
+                opacity: .30,
+              ),
+              _StartupRing(
+                progress: (progress + .52) % 1.0,
+                size: 150,
+                opacity: .18,
+              ),
+              Transform.translate(
+                offset: Offset(0, 18 * (1 - arrival) + breathe * 3),
+                child: Opacity(
+                  opacity: .25 + arrival * .75,
+                  child: Transform.scale(
+                    scale: .72 + arrival * .28 + breathe * .025,
+                    child: child,
+                  ),
+                ),
+              ),
+            ],
           );
         },
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(25),
-          child: Image.asset(
-            'assets/oryntra-icon.png',
-            width: 104,
-            height: 104,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(25),
+              child: Image.asset(
+                'assets/oryntra-icon.png',
+                width: 104,
+                height: 104,
+              ),
+            ),
+            const SizedBox(height: 22),
+            const Text(
+              'ORYNTRA AI',
+              style: TextStyle(
+                color: Color(0xFFEAF7FF),
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 2.6,
+              ),
+            ),
+            const SizedBox(height: 9),
+            const Text(
+              'Opening your research workspace',
+              style: TextStyle(color: Color(0xFF7E9CB9), fontSize: 11),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _StartupRing extends StatelessWidget {
+  const _StartupRing({
+    required this.progress,
+    required this.size,
+    required this.opacity,
+  });
+
+  final double progress;
+  final double size;
+  final double opacity;
+
+  @override
+  Widget build(BuildContext context) {
+    final expansion = Curves.easeOut.transform(progress);
+    return Opacity(
+      opacity: (1 - expansion) * opacity,
+      child: Transform.scale(
+        scale: .62 + expansion * 1.2,
+        child: Container(
+          width: size,
+          height: size,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(color: const Color(0xFF3ACBF4), width: 1.3),
           ),
         ),
       ),

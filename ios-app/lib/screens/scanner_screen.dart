@@ -839,43 +839,90 @@ class _ScanResult extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 12,
+                    ),
+                    decoration: BoxDecoration(
+                      color: OryntraPalette.deepNavy.withValues(alpha: .52),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: OryntraPalette.rule),
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: _TradeLevel(
+                            label: 'Entry',
+                            value: '\$$entry',
+                            color: OryntraPalette.blueBright,
+                          ),
+                        ),
+                        _LevelDivider(color: OryntraPalette.rule),
+                        Expanded(
+                          child: _TradeLevel(
+                            label: 'Stop',
+                            value: '\$$stop',
+                            color: OryntraPalette.danger,
+                          ),
+                        ),
+                        _LevelDivider(color: OryntraPalette.rule),
+                        Expanded(
+                          child: _TradeLevel(
+                            label: 'Target',
+                            value: '\$$target',
+                            color: OryntraPalette.green,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 9),
                   Wrap(
-                    spacing: 9,
-                    runSpacing: 9,
+                    spacing: 7,
+                    runSpacing: 7,
                     children: [
-                      _MetricTile(
+                      _SummaryPill(
                         label: 'Quality',
                         value: quality,
                         color: OryntraPalette.blueBright,
                       ),
-                      _MetricTile(
-                        label: 'Entry',
-                        value: '\$$entry',
-                        color: OryntraPalette.blue,
-                      ),
-                      _MetricTile(
-                        label: 'Stop',
-                        value: '\$$stop',
-                        color: OryntraPalette.danger,
-                      ),
-                      _MetricTile(
-                        label: 'Target',
-                        value: '\$$target',
+                      _SummaryPill(
+                        label: 'R/R',
+                        value: riskReward == '—' ? '—' : '$riskReward×',
                         color: OryntraPalette.green,
                       ),
-                      _MetricTile(
-                        label: 'Risk / reward',
-                        value: riskReward == '—' ? '—' : '$riskReward×',
-                        color: OryntraPalette.blueBright,
-                      ),
-                      _MetricTile(
+                      _SummaryPill(
                         label: 'Analyses',
                         value: scanCount,
-                        color: OryntraPalette.blue,
+                        color: OryntraPalette.muted,
                       ),
                     ],
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 14),
+                  const Row(
+                    children: [
+                      Icon(
+                        Icons.touch_app_outlined,
+                        size: 15,
+                        color: OryntraPalette.blueBright,
+                      ),
+                      SizedBox(width: 6),
+                      Text(
+                        'Interactive chart',
+                        style: TextStyle(fontWeight: FontWeight.w800),
+                      ),
+                      Spacer(),
+                      Text(
+                        'Drag · pinch to zoom',
+                        style: TextStyle(
+                          color: OryntraPalette.muted,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
                   TradingViewChart(
                     symbol: chartSymbol,
                     height: MediaQuery.sizeOf(
@@ -963,8 +1010,8 @@ class _ScanResult extends StatelessWidget {
   }
 }
 
-class _MetricTile extends StatelessWidget {
-  const _MetricTile({
+class _TradeLevel extends StatelessWidget {
+  const _TradeLevel({
     required this.label,
     required this.value,
     required this.color,
@@ -976,43 +1023,68 @@ class _MetricTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final width = (MediaQuery.sizeOf(context).width - 73) / 2;
-        return Container(
-          width: width,
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: .10),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: color.withValues(alpha: .28)),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Text(
+          label.toUpperCase(),
+          style: TextStyle(
+            fontSize: 9,
+            letterSpacing: .7,
+            color: color.withValues(alpha: .88),
+            fontWeight: FontWeight.w800,
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 10,
-                  color: color.withValues(alpha: .85),
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                value,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-            ],
-          ),
-        );
-      },
+        ),
+        const SizedBox(height: 5),
+        Text(
+          value,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900),
+        ),
+      ],
     );
   }
+}
+
+class _LevelDivider extends StatelessWidget {
+  const _LevelDivider({required this.color});
+
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    width: 1,
+    height: 32,
+    margin: const EdgeInsets.symmetric(horizontal: 3),
+    color: color,
+  );
+}
+
+class _SummaryPill extends StatelessWidget {
+  const _SummaryPill({
+    required this.label,
+    required this.value,
+    required this.color,
+  });
+
+  final String label;
+  final String value;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+    decoration: BoxDecoration(
+      color: color.withValues(alpha: .11),
+      borderRadius: BorderRadius.circular(999),
+      border: Border.all(color: color.withValues(alpha: .26)),
+    ),
+    child: Text(
+      '$label  $value',
+      style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w800),
+    ),
+  );
 }
 
 class _IndicatorSummary extends StatelessWidget {

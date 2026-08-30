@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart' show Factory;
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
@@ -84,9 +86,9 @@ class _TradingViewChartState extends State<TradingViewChart> {
       'gridColor': 'rgba(56, 207, 243, 0.08)',
       'hide_top_toolbar': true,
       'hide_side_toolbar': true,
-      'hide_legend': true,
+      'hide_legend': false,
       'hide_volume': true,
-      'withdateranges': false,
+      'withdateranges': true,
       'allow_symbol_change': false,
       'save_image': false,
       'details': false,
@@ -95,7 +97,7 @@ class _TradingViewChartState extends State<TradingViewChart> {
       'support_host': 'https://www.tradingview.com',
     });
     return '''<!doctype html>
-<html><head><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<html><head><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=5,user-scalable=yes">
 <style>
 html,body{width:100%;height:100%;margin:0;overflow:hidden;background:#07111f;color:#9fb4c7;font-family:-apple-system,BlinkMacSystemFont,sans-serif}
 .tradingview-widget-container{width:100%;height:100%;background:#07111f}
@@ -122,7 +124,15 @@ html,body{width:100%;height:100%;margin:0;overflow:hidden;background:#07111f;col
             ColoredBox(
               color: const Color(0xFF07111F),
               child: _error == null
-                  ? WebViewWidget(controller: _controller)
+                  ? WebViewWidget(
+                      controller: _controller,
+                      gestureRecognizers:
+                          <Factory<OneSequenceGestureRecognizer>>{
+                            Factory<EagerGestureRecognizer>(
+                              () => EagerGestureRecognizer(),
+                            ),
+                          },
+                    )
                   : Center(
                       child: Padding(
                         padding: const EdgeInsets.all(18),
