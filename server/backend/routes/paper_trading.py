@@ -150,6 +150,23 @@ async def close_trade(req: CloseTradeRequest, request: Request):
     }
 
 
+@router.delete("/trades/{trade_id}")
+async def delete_trade(trade_id: int, request: Request):
+    user = require_current_user(request)
+    conn = get_connection()
+    try:
+        cursor = conn.execute(
+            "DELETE FROM paper_trades WHERE id = ? AND user_id = ?",
+            (trade_id, user["id"]),
+        )
+        if cursor.rowcount != 1:
+            raise HTTPException(status_code=404, detail="Paper trade not found")
+        conn.commit()
+    finally:
+        conn.close()
+    return {"status": "deleted", "trade_id": trade_id}
+
+
 @router.get("/stats")
 async def get_paper_stats(request: Request):
     user = require_current_user(request)
@@ -184,4 +201,3 @@ async def get_paper_stats(request: Request):
         "best_trade": max((trade["pnl"] or 0 for trade in trades), default=0),
         "worst_trade": min((trade["pnl"] or 0 for trade in trades), default=0),
     }
-

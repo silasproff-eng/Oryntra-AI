@@ -423,15 +423,16 @@ class ScannerScreenState extends State<ScannerScreen> {
         qualityScore: quality,
       );
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('$ticker simulated paper trade opened.')),
-      );
       await widget.onPaperTradeOpened();
-    } catch (error) {
+    } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(error.toString())));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Could not save this simulated trade. Please try again.',
+            ),
+          ),
+        );
       }
     } finally {
       if (mounted) setState(() => _openingPaperTrade = false);

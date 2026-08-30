@@ -35,6 +35,7 @@ class ApiService {
 
   final List<Map<String, dynamic>> _previewPaperTrades = [
     {
+      'id': 1,
       'ticker': 'AAPL',
       'status': 'OPEN',
       'direction': 'LONG',
@@ -46,6 +47,7 @@ class ApiService {
       'success_label': 'IN PROGRESS',
     },
     {
+      'id': 2,
       'ticker': 'NVDA',
       'status': 'OPEN',
       'direction': 'LONG',
@@ -57,6 +59,7 @@ class ApiService {
       'success_label': 'IN PROGRESS',
     },
     {
+      'id': 3,
       'ticker': 'TSLA',
       'status': 'CLOSED',
       'direction': 'SHORT',
@@ -912,6 +915,62 @@ class ApiService {
     return decoded is Map
         ? Map<String, dynamic>.from(decoded)
         : <String, dynamic>{'status': 'ok'};
+  }
+
+  Future<void> closePaperTrade({
+    required int tradeId,
+    required double closePrice,
+    String notes = '',
+  }) async {
+    if (AppConfig.previewMode) {
+      await _previewPause(180);
+      final index = _previewPaperTrades.indexWhere(
+        (trade) => trade['id'] == tradeId && trade['status'] == 'OPEN',
+      );
+      if (index < 0) throw ApiException('Open paper trade not found.');
+      final trade = _previewPaperTrades[index];
+      final entry = (trade['entry_price'] as num).toDouble();
+      final size = (trade['size'] as num).toDouble();
+      final direction = trade['direction']?.toString().toUpperCase();
+      final pnl = direction == 'SHORT'
+          ? (entry - closePrice) * size
+          : (closePrice - entry) * size;
+      _previewPaperTrades[index] = {
+        ...trade,
+        'status': 'CLOSED',
+        'close_price': closePrice,
+        'current_price': closePrice,
+        'current_pnl': pnl,
+        'current_pnl_pct': entry == 0 ? 0 : pnl / (entry * size) * 100,
+        'notes': notes.isEmpty ? trade['notes'] : notes,
+        'success_label': pnl > 0 ? 'YES' : 'NO',
+      };
+      return;
+    }
+    final response = await http
+        .post(
+          _uri('/api/paper/close'),
+          headers: await _headers(jsonBody: true),
+          body: jsonEncode({
+            'trade_id': tradeId,
+            'close_price': closePrice,
+            'notes': notes,
+          }),
+        )
+        .timeout(const Duration(seconds: 20));
+    _decode(response);
+  }
+
+  Future<void> deletePaperTrade(int tradeId) async {
+    if (AppConfig.previewMode) {
+      await _previewPause(140);
+      _previewPaperTrades.removeWhere((trade) => trade['id'] == tradeId);
+      return;
+    }
+    final response = await http
+        .delete(_uri('/api/paper/trades/$tradeId'), headers: await _headers())
+        .timeout(const Duration(seconds: 20));
+    _decode(response);
   }
 
   Future<void> registerPushDevice({
