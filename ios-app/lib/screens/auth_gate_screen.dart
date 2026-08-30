@@ -300,10 +300,12 @@ class _AuthGateScreenState extends State<AuthGateScreen> {
 class ProviderSetupScreen extends StatefulWidget {
   const ProviderSetupScreen({
     super.key,
+    required this.api,
     required this.onConnected,
     this.onSignOut,
   });
 
+  final ApiService api;
   final Future<void> Function() onConnected;
   final Future<void> Function()? onSignOut;
 
@@ -350,6 +352,7 @@ class _ProviderSetupScreenState extends State<ProviderSetupScreen> {
       _error = null;
     });
     try {
+      await widget.api.verifyProviderKey(_provider, _key.text);
       await _store.saveConnection(_provider, _key.text);
       if (mounted) setState(() => _hasSavedKey = true);
       if (!mounted) return;
@@ -533,7 +536,9 @@ class _ProviderSetupScreenState extends State<ProviderSetupScreen> {
                         const SizedBox(height: 16),
                         FilledButton(
                           onPressed: _saving ? null : _save,
-                          child: Text(_saving ? 'Saving…' : 'Save key'),
+                          child: Text(
+                            _saving ? 'Verifying key…' : 'Verify and save key',
+                          ),
                         ),
                       ],
                     ),

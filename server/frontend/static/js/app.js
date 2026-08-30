@@ -752,12 +752,15 @@ async function saveOnboardingProviderKey(provider) {
     setProviderOnboardingMessage(`Paste your ${provider === 'polygon' ? 'Polygon / Massive' : 'Twelve Data'} API key first.`, true);
     return;
   }
+  const previous = browserProviderKeys[provider];
   browserProviderKeys[provider] = apiKey.trim();
   try {
+    setProviderOnboardingMessage(`Verifying ${provider === 'polygon' ? 'Polygon / Massive' : 'Twelve Data'} with a completed SPY daily candle…`);
+    await fetchDirectMarketBars('SPY', '1y', provider, 1);
     await persistBrowserProviderKey(provider, browserProviderKeys[provider]);
   } catch (error) {
-    browserProviderKeys[provider] = '';
-    setProviderOnboardingMessage(error.message || 'This browser could not save the key locally.', true);
+    browserProviderKeys[provider] = previous;
+    setProviderOnboardingMessage(error.message || 'The provider could not return a completed SPY daily OHLCV candle for this key.', true);
     return;
   }
   if (input) input.value = '';
@@ -2179,12 +2182,15 @@ function initProviderCredentialSettings() {
     const input = document.getElementById(`${provider}ApiKeyInput`);
     const apiKey = input?.value || '';
     if (!apiKey.trim()) { setProviderCredentialMessage(`Paste your ${provider === 'polygon' ? 'Polygon' : 'Twelve Data'} API key first.`, true); return; }
+    const previous = browserProviderKeys[provider];
     browserProviderKeys[provider] = apiKey.trim();
     try {
+      setProviderCredentialMessage(`Verifying ${provider === 'polygon' ? 'Polygon / Massive' : 'Twelve Data'} with a completed SPY daily candle…`);
+      await fetchDirectMarketBars('SPY', '1y', provider, 1);
       await persistBrowserProviderKey(provider, browserProviderKeys[provider]);
     } catch (error) {
-      browserProviderKeys[provider] = '';
-      setProviderCredentialMessage(error.message || 'This browser could not save the key locally.', true);
+      browserProviderKeys[provider] = previous;
+      setProviderCredentialMessage(error.message || 'The provider could not return a completed SPY daily OHLCV candle for this key.', true);
       return;
     }
     if (input) input.value = '';

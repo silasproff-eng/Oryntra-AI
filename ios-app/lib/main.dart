@@ -345,6 +345,7 @@ class _OryntraAppState extends State<OryntraApp> {
           ? AuthGateScreen(api: _api, onAuthenticated: _refreshUser)
           : !_providerReady
           ? ProviderSetupScreen(
+              api: _api,
               onConnected: _providerConnected,
               onSignOut: _signOutFromSetup,
             )

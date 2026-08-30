@@ -464,6 +464,94 @@ class ApiService {
     return Map<String, dynamic>.from(_decode(response) as Map);
   }
 
+  Future<void> verifyProviderKey(String provider, String apiKey) async {
+    final connection = ProviderConnection(
+      provider: provider == 'polygon' ? 'polygon' : 'twelvedata',
+      apiKey: apiKey.trim(),
+    );
+    if (connection.apiKey.isEmpty) {
+      throw ApiException('Paste a valid provider API key first.');
+    }
+    final now = DateTime.now().toUtc();
+    final start = now.subtract(const Duration(days: 14));
+    String date(DateTime value) => value.toIso8601String().substring(0, 10);
+    final Uri endpoint;
+    if (connection.provider == 'polygon') {
+      endpoint = Uri.parse(
+        'https://api.polygon.io/v2/aggs/ticker/SPY/range/1/day/${date(start)}/${date(now)}?adjusted=true&sort=desc&limit=5&apiKey=${Uri.encodeQueryComponent(connection.apiKey)}',
+      );
+    } else {
+      endpoint = Uri.https('api.twelvedata.com', '/time_series', {
+        'symbol': 'SPY',
+        'interval': '1day',
+        'outputsize': '5',
+        'apikey': connection.apiKey,
+      });
+    }
+    late http.Response response;
+    try {
+      response = await http
+          .get(endpoint, headers: const {'Accept': 'application/json'})
+          .timeout(const Duration(seconds: 20));
+    } catch (_) {
+      throw ApiException(
+        '${connection.provider == 'polygon' ? 'Polygon / Massive' : 'Twelve Data'} could not be reached. Check your connection and try again.',
+      );
+    }
+    dynamic payload;
+    try {
+      payload = jsonDecode(response.body);
+    } catch (_) {
+      payload = const <String, dynamic>{};
+    }
+    if (response.statusCode < 200 ||
+        response.statusCode >= 300 ||
+        (payload is Map &&
+            (payload['status'] == 'error' || payload['code'] != null))) {
+      final message = payload is Map
+          ? payload['message']?.toString() ?? payload['error']?.toString()
+          : null;
+      throw ApiException(
+        message?.isNotEmpty == true
+            ? message!
+            : '${connection.provider == 'polygon' ? 'Polygon / Massive' : 'Twelve Data'} rejected that API key.',
+      );
+    }
+    final rows = connection.provider == 'polygon'
+        ? (payload is Map ? payload['results'] : null)
+        : (payload is Map ? payload['values'] : null);
+    if (rows is! List ||
+        rows.isEmpty ||
+        !_hasValidOhlcv(rows.first, connection.provider)) {
+      throw ApiException(
+        '${connection.provider == 'polygon' ? 'Polygon / Massive' : 'Twelve Data'} did not return a completed SPY daily OHLCV candle. Check the key and plan.',
+      );
+    }
+  }
+
+  bool _hasValidOhlcv(dynamic row, String provider) {
+    if (row is! Map) return false;
+    final open = _finiteNumber(provider == 'polygon' ? row['o'] : row['open']);
+    final high = _finiteNumber(provider == 'polygon' ? row['h'] : row['high']);
+    final low = _finiteNumber(provider == 'polygon' ? row['l'] : row['low']);
+    final close = _finiteNumber(
+      provider == 'polygon' ? row['c'] : row['close'],
+    );
+    final volume = _finiteNumber(
+      provider == 'polygon' ? row['v'] : row['volume'],
+    );
+    return open != null &&
+        high != null &&
+        low != null &&
+        close != null &&
+        volume != null &&
+        open > 0 &&
+        high >= low &&
+        low > 0 &&
+        close > 0 &&
+        volume >= 0;
+  }
+
   Map<String, dynamic> _previewQuantReport(List<String> tickers, String model) {
     return {
       'ok': true,
