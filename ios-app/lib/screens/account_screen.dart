@@ -250,8 +250,6 @@ class AccountScreenState extends State<AccountScreen>
         : <String, dynamic>{};
     final permitted = policy['analysis_permitted'] == true;
     final used = quota['used']?.toString() ?? '—';
-    final limit = quota['limit']?.toString() ?? '100';
-    final remaining = quota['remaining']?.toString() ?? '—';
     final licenseMode =
         policy['license_mode']?.toString().replaceAll('_', ' ') ?? 'unknown';
     return AppCard(
@@ -306,7 +304,7 @@ class AccountScreenState extends State<AccountScreen>
                   ),
                 ),
                 const SizedBox(height: 5),
-                Text('Usage today: $used / $limit · $remaining remaining'),
+                Text('API calls made today: $used'),
                 Text(
                   'License mode: ${licenseMode.toUpperCase()} · Chart: TradingView',
                   style: const TextStyle(fontSize: 11, color: Colors.white60),

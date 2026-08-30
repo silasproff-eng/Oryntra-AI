@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:math' as math;
 import 'package:http/http.dart' as http;
 import '../app_config.dart';
+import 'background_task_service.dart';
 import 'provider_key_store.dart';
 import 'session_store.dart';
 
@@ -22,6 +23,7 @@ class ApiService {
 
   final SessionStore _sessionStore;
   final ProviderKeyStore _providerKeyStore;
+  final _backgroundTaskService = BackgroundTaskService();
   bool _previewSignedIn = false;
   int _previewScanCount = 20383;
 
@@ -397,6 +399,7 @@ class ApiService {
     required bool longShort,
     required bool regimeConditionedWeights,
     required bool liquidityAwareCosts,
+    Future<void> Function(String message)? onProgress,
   }) async {
     final universe = <String>[];
     for (final ticker in tickers) {
@@ -418,50 +421,73 @@ class ApiService {
         'Connect a data provider in API settings before running Quant Lab.',
       );
     }
-    final histories = <Map<String, dynamic>>[];
-    for (var index = 0; index < universe.length; index++) {
-      if (index > 0) {
-        await Future<void>.delayed(
-          Duration(
-            milliseconds: connection.provider == 'polygon' ? 12500 : 8000,
-          ),
+    if (connection.provider == 'polygon' && universe.length > 4) {
+      throw ApiException(
+        'Polygon / Massive Basic Quant Lab runs support up to four symbols at once. Use four or fewer symbols, or select Twelve Data for a larger universe.',
+      );
+    }
+    final backgroundTaskStarted = await _backgroundTaskService
+        .beginQuantLabRun();
+    try {
+      await onProgress?.call(
+        'Loading ${universe.length} daily histories directly from your provider…',
+      );
+      // The default four-symbol research universe stays within Polygon / Massive
+      // Basic's five-calls-per-minute allowance while independent daily-history
+      // requests complete together instead of idling between calls.
+      var completed = 0;
+      final histories = await Future.wait(
+        universe.map((ticker) async {
+          final bars = await _fetchDirectDailyBars(ticker, period, connection);
+          completed += 1;
+          await onProgress?.call(
+            'Loaded $completed of ${universe.length} daily histories…',
+          );
+          return {'ticker': ticker, 'bars': bars};
+        }),
+      );
+      await onProgress?.call(
+        'Building the research report with costs, regimes, and risk controls…',
+      );
+      final response = await http
+          .post(
+            _uri('/api/quant/run-upload'),
+            headers: await _headers(jsonBody: true),
+            body: jsonEncode({
+              'tickers': universe,
+              'period': period,
+              'provider': connection.provider,
+              'histories': histories,
+              'model': model,
+              'strategies': strategies,
+              'strategy_weights': strategyWeights,
+              'trend_lookback': lookback,
+              'momentum_lookback': lookback,
+              'cost_bps': costBps,
+              'borrow_bps_annual': borrowBps,
+              'long_short': longShort,
+              'target_annual_volatility': targetVolatility,
+              'max_gross_exposure': maxGrossExposure,
+              'max_single_name_weight': maxNameWeight,
+              'rebalance_frequency': rebalanceFrequency,
+              'walk_forward_folds': 3,
+              'regime_conditioned_weights': regimeConditionedWeights,
+              'liquidity_aware_costs': liquidityAwareCosts,
+            }),
+          )
+          .timeout(const Duration(seconds: 150));
+      return Map<String, dynamic>.from(_decode(response) as Map);
+    } on ApiException catch (error) {
+      if (error.statusCode == 404) {
+        throw ApiException(
+          'Quant Lab is unavailable on this server. Restart the updated Oryntra server and try again.',
+          statusCode: error.statusCode,
         );
       }
-      final bars = await _fetchDirectDailyBars(
-        universe[index],
-        period,
-        connection,
-      );
-      histories.add({'ticker': universe[index], 'bars': bars});
+      rethrow;
+    } finally {
+      if (backgroundTaskStarted) await _backgroundTaskService.endQuantLabRun();
     }
-    final response = await http
-        .post(
-          _uri('/api/quant/run-upload'),
-          headers: await _headers(jsonBody: true),
-          body: jsonEncode({
-            'tickers': universe,
-            'period': period,
-            'provider': connection.provider,
-            'histories': histories,
-            'model': model,
-            'strategies': strategies,
-            'strategy_weights': strategyWeights,
-            'trend_lookback': lookback,
-            'momentum_lookback': lookback,
-            'cost_bps': costBps,
-            'borrow_bps_annual': borrowBps,
-            'long_short': longShort,
-            'target_annual_volatility': targetVolatility,
-            'max_gross_exposure': maxGrossExposure,
-            'max_single_name_weight': maxNameWeight,
-            'rebalance_frequency': rebalanceFrequency,
-            'walk_forward_folds': 3,
-            'regime_conditioned_weights': regimeConditionedWeights,
-            'liquidity_aware_costs': liquidityAwareCosts,
-          }),
-        )
-        .timeout(const Duration(seconds: 150));
-    return Map<String, dynamic>.from(_decode(response) as Map);
   }
 
   Future<void> verifyProviderKey(String provider, String apiKey) async {

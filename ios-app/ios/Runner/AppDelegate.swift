@@ -7,6 +7,7 @@ import WidgetKit
 @objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate {
   private let appGroup = "group.silascowles.oryntraai"
   private var apnsDeviceToken: String?
+  private var quantLabBackgroundTask: UIBackgroundTaskIdentifier = .invalid
 
   override func application(
     _ application: UIApplication,
@@ -38,6 +39,36 @@ import WidgetKit
       self?.handleWidgetCall(call, result: result)
     }
 
+    let backgroundTask = FlutterMethodChannel(
+      name: "oryntra/background_task",
+      binaryMessenger: messenger
+    )
+    backgroundTask.setMethodCallHandler { [weak self] call, result in
+      self?.handleBackgroundTaskCall(call, result: result)
+    }
+
+  }
+
+  private func handleBackgroundTaskCall(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
+    switch call.method {
+    case "beginQuantLabRun":
+      endQuantLabBackgroundTask()
+      quantLabBackgroundTask = UIApplication.shared.beginBackgroundTask(withName: "Oryntra Quant Lab") {
+        self.endQuantLabBackgroundTask()
+      }
+      result(quantLabBackgroundTask != .invalid)
+    case "endQuantLabRun":
+      endQuantLabBackgroundTask()
+      result(nil)
+    default:
+      result(FlutterMethodNotImplemented)
+    }
+  }
+
+  private func endQuantLabBackgroundTask() {
+    guard quantLabBackgroundTask != .invalid else { return }
+    UIApplication.shared.endBackgroundTask(quantLabBackgroundTask)
+    quantLabBackgroundTask = .invalid
   }
 
   private func registerForRemoteNotificationsIfAuthorized() {

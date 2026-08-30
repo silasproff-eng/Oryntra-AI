@@ -184,6 +184,11 @@ if _private_research:
 
 if _private_research or _public_quant_lab:
     app.include_router(quant.router, prefix="/api/quant", tags=["Quant Lab"])
+else:
+    # The public app needs only the authenticated, browser-uploaded research
+    # route. Administrative corporate imports and cache-backed research stay
+    # behind the explicit Quant Lab/private-research switches above.
+    app.include_router(quant.public_router, prefix="/api/quant", tags=["Quant Lab"])
 
 app.mount(
     "/static",
@@ -245,6 +250,7 @@ async def app_version():
         "public_engine_label": PUBLIC_ENGINE_LABEL,
         "public_scanner_website": _public_scanner_website,
         "private_research_routes": _private_research,
+        "quant_lab_upload_enabled": True,
         "market_data_provider": "server_side_configured_provider",
         "public_raw_market_data": False,
         "chart_provider": "TradingView",

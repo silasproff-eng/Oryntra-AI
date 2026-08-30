@@ -1071,12 +1071,18 @@ async function runQuantResearch() {
   button.disabled = true; results.hidden = true; status.textContent = 'Loading histories, applying fixed rules, and modeling next-session execution…';
   try {
     const activeProvider = directProviderFor(requestedProvider);
-    const histories = [];
-    for (let index = 0; index < tickers.length; index += 1) {
-      status.textContent = `Loading ${tickers[index]} directly from ${activeProvider === 'polygon' ? 'Polygon / Massive' : 'Twelve Data'} (${index + 1}/${tickers.length})…`;
-      const market = await fetchDirectMarketBars(tickers[index], period, activeProvider);
-      histories.push({ticker: tickers[index], bars: market.bars});
+    status.textContent = `Feel free to take a break and switch apps, this scan may take a minute. Loading daily histories directly from ${activeProvider === 'polygon' ? 'Polygon / Massive' : 'Twelve Data'}…`;
+    if (activeProvider === 'polygon' && tickers.length > 4) {
+      throw new Error('Polygon / Massive Basic Quant Lab runs support up to four symbols at once. Use four or fewer symbols, or select Twelve Data for a larger universe.');
     }
+    const histories = [];
+    const markets = await Promise.all(
+      tickers.map(ticker => fetchDirectMarketBars(ticker, period, activeProvider)),
+    );
+    markets.forEach((market, index) => {
+      histories.push({ticker: tickers[index], bars: market.bars});
+    });
+    status.textContent = 'Building the research report with costs, regimes, and risk controls…';
     const report = await API.quant.runUploaded({...payload, provider: activeProvider, histories});
     renderQuantReport(report);
     status.textContent = `Completed ${report.universe.sessions} sessions across ${report.universe.symbols.length} usable symbols. Raw browser-supplied bars were processed in memory only.`;
@@ -1171,13 +1177,12 @@ function renderAnalysisAccess() {
   }
 
   if (ready) {
-    const remaining = Number.isFinite(Number(quota.remaining)) ? Number(quota.remaining) : '—';
-    const limit = Number.isFinite(Number(quota.limit)) ? Number(quota.limit) : '—';
+    const used = Number.isFinite(Number(quota.used)) ? Number(quota.used) : '—';
     if (scannerTitle) scannerTitle.textContent = 'Market intelligence ready';
-    if (scannerMessage) scannerMessage.textContent = `${remaining} of ${limit} ticker requests remain today. Raw OHLCV is never returned.`;
+    if (scannerMessage) scannerMessage.textContent = `API calls made today: ${used}. Raw OHLCV is never returned.`;
     if (scannerButton) scannerButton.textContent = 'VIEW USAGE';
     if (badge) badge.textContent = 'READY';
-    if (list) list.innerHTML = `<div class="analysis-empty-state"><strong>${escapeHtml(String(remaining))} / ${escapeHtml(String(limit))}</strong> requests remaining today (UTC).<br>Chart: TradingView · Analysis: server-side derived output · Raw bars: not returned.</div>`;
+    if (list) list.innerHTML = `<div class="analysis-empty-state"><strong>API calls made today: ${escapeHtml(String(used))}</strong><br>Chart: TradingView · Analysis: server-side derived output · Raw bars: not returned.</div>`;
     if (error) error.textContent = '';
     return;
   }

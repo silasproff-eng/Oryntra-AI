@@ -24,6 +24,7 @@ class QuantLabScreenState extends State<QuantLabScreen> {
   bool _regimeWeights = true;
   bool _liquidityCosts = true;
   bool _running = false;
+  String _progress = '';
   String? _error;
   Map<String, dynamic>? _report;
   final Set<String> _strategies = {
@@ -62,6 +63,8 @@ class QuantLabScreenState extends State<QuantLabScreen> {
       _running = true;
       _error = null;
       _report = null;
+      _progress =
+          'Feel free to take a break and switch apps, this scan may take a minute.';
     });
     try {
       final report = await widget.api.runQuantResearch(
@@ -80,12 +83,20 @@ class QuantLabScreenState extends State<QuantLabScreen> {
         longShort: _longShort,
         regimeConditionedWeights: _regimeWeights,
         liquidityAwareCosts: _liquidityCosts,
+        onProgress: (message) async {
+          if (mounted) setState(() => _progress = message);
+        },
       );
       if (mounted) setState(() => _report = report);
     } catch (error) {
       if (mounted) setState(() => _error = error.toString());
     } finally {
-      if (mounted) setState(() => _running = false);
+      if (mounted) {
+        setState(() {
+          _running = false;
+          _progress = '';
+        });
+      }
     }
   }
 
@@ -106,7 +117,7 @@ class QuantLabScreenState extends State<QuantLabScreen> {
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20),
           child: Text(
-            'Compare rule-based model sleeves with chronological holdout, regime, cost, liquidity, and portfolio-risk diagnostics. It does not execute orders.',
+            'Generate a report with sleeve returns, a portfolio equity path, drawdown, simulated costs, current hypothetical weights, regime history, and a chronological holdout. It does not execute orders.',
             style: TextStyle(color: colors.muted, height: 1.45),
           ),
         ),
@@ -283,7 +294,7 @@ class QuantLabScreenState extends State<QuantLabScreen> {
         Padding(
           padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
           child: Text(
-            'Mobile runs request daily bars directly from your saved provider key. Polygon / Massive runs are paced at its 5-calls/minute Basic limit.',
+            'Mobile runs request daily bars directly from your saved provider key. The default four-symbol universe fits Polygon / Massive Basic’s five-calls-per-minute allowance.',
             style: TextStyle(fontSize: 11, color: colors.muted),
           ),
         ),
@@ -293,6 +304,36 @@ class QuantLabScreenState extends State<QuantLabScreen> {
             child: Text(
               _error!,
               style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
+          ),
+        if (_running)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
+            child: Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: colors.blueBright.withValues(alpha: .09),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: colors.blueBright.withValues(alpha: .28),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const LinearProgressIndicator(),
+                  const SizedBox(height: 11),
+                  const Text(
+                    'Feel free to take a break and switch apps, this scan may take a minute.',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 5),
+                  Text(
+                    _progress,
+                    style: TextStyle(fontSize: 11, color: colors.muted),
+                  ),
+                ],
+              ),
             ),
           ),
         Padding(

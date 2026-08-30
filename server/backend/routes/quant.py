@@ -14,6 +14,11 @@ from .analysis import browser_bars_to_history
 from .auth import require_current_user
 
 router = APIRouter()
+# The browser-upload endpoint accepts authenticated, user-supplied daily bars
+# and never accepts a provider key. Keep this small surface available to the
+# signed-in website and mobile app even when private Quant Lab administration
+# routes remain disabled.
+public_router = APIRouter()
 
 
 class QuantResearchRequest(BaseModel):
@@ -172,6 +177,7 @@ async def run_research(request: QuantResearchRequest, http_request: Request):
     return report
 
 
+@public_router.post("/run-upload")
 @router.post("/run-upload")
 async def run_browser_research(request: BrowserQuantResearchRequest, http_request: Request):
     """Evaluate browser-fetched daily histories without accepting or retaining a provider key."""
