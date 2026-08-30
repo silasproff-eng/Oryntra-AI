@@ -176,16 +176,31 @@ import WidgetKit
         return
       }
       let tickerList = tickers.prefix(5).joined(separator: ", ")
-      let slots: [(hour: Int, minute: Int, title: String)] = [
-        (9, 35, "Opening market check"),
-        (12, 0, "Midday market check"),
-        (16, 0, "Closing market check"),
+      let slots: [(hour: Int, minute: Int, title: String, body: String)] = [
+        (
+          9,
+          0,
+          "Premarket move check",
+          "Check \(tickerList) for the premarket move before the opening bell and run a fresh scan."
+        ),
+        (
+          12,
+          0,
+          "Midday market check",
+          "Check \(tickerList) for the daily move so far and run a fresh scan."
+        ),
+        (
+          16,
+          0,
+          "Closing market check",
+          "Review \(tickerList)'s daily move so far and the session close."
+        ),
       ]
       let requests = marketWeekdays.flatMap { weekday in
         slots.map { slot in
           let content = UNMutableNotificationContent()
           content.title = slot.title
-          content.body = "Check \(tickerList) for today's percentage move and a fresh scan."
+          content.body = slot.body
           content.sound = .default
           content.userInfo = ["oryntra_market_alert": true]
           let components = easternMarketComponents(

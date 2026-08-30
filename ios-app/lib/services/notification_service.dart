@@ -168,6 +168,13 @@ class NotificationService {
     await _syncMarketAlertReminders(normalized);
   }
 
+  /// Recreates pending local alerts after an app update or relaunch so their
+  /// wording and timing always match the current app version.
+  Future<void> refreshSchedules() async {
+    if (kIsWeb || !await isEnabled()) return;
+    await _restoreSchedules();
+  }
+
   Future<void> _restoreSchedules() async {
     final prefs = await SharedPreferences.getInstance();
     if (prefs.getBool(_dailyKey) ?? false) {

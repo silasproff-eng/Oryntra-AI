@@ -47,6 +47,7 @@ class AccountScreenState extends State<AccountScreen>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _loadNotificationSettings();
+    widget.notifications.refreshSchedules();
     _loadAnalysisStatus();
     _loadStoredLabResults();
   }
@@ -565,7 +566,7 @@ class AccountScreenState extends State<AccountScreen>
               ),
               const SizedBox(height: 7),
               const Text(
-                'Choose stocks after scanning. Reminders run at 9:35 AM, noon, and 4:00 PM ET on weekdays.',
+                'Choose stocks after scanning. A 9:00 AM ET premarket check and noon/4:00 PM ET daily-move checks run on weekdays.',
                 style: TextStyle(fontSize: 12, color: OryntraPalette.muted),
               ),
               const SizedBox(height: 12),
