@@ -5,11 +5,11 @@ class AppConfig {
 
   static const apiBaseUrl = String.fromEnvironment(
     'ORYNTRA_API_URL',
-    defaultValue: 'https://api.oryntraai.com',
+    defaultValue: 'https://oryntraai.com',
   );
 
-  /// Account records and sessions are served by the main Oryntra site. Market
-  /// intelligence remains on the dedicated API host.
+  /// Oryntra's main domain serves both authenticated account routes and the
+  /// derived market-intelligence API.
   static const authBaseUrl = String.fromEnvironment(
     'ORYNTRA_AUTH_URL',
     defaultValue: 'https://oryntraai.com',

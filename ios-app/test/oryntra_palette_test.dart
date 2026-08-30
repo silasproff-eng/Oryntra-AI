@@ -15,7 +15,7 @@ void main() {
 
   test('account traffic defaults to the main Oryntra domain', () {
     expect(AppConfig.authBaseUrl, 'https://oryntraai.com');
-    expect(AppConfig.apiBaseUrl, 'https://api.oryntraai.com');
+    expect(AppConfig.apiBaseUrl, 'https://oryntraai.com');
   });
 
   testWidgets('section labels retain institutional hierarchy', (tester) async {
