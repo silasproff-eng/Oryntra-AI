@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:oryntra_ai/app_config.dart';
 import 'package:oryntra_ai/screens/auth_gate_screen.dart';
+import 'package:oryntra_ai/screens/quant_lab_screen.dart';
 import 'package:oryntra_ai/services/api_service.dart';
 import 'package:oryntra_ai/widgets/common.dart';
 import 'package:oryntra_ai/widgets/glass.dart';
@@ -52,6 +53,21 @@ void main() {
     expect(find.text('ORYNTRA AI'), findsOneWidget);
     expect(find.text('Opening your research workspace'), findsOneWidget);
     await tester.pump(const Duration(milliseconds: 500));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Quant Lab uses stable portfolio control chips', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(body: QuantLabScreen(api: ApiService())),
+      ),
+    );
+
+    await tester.drag(find.byType(ListView), const Offset(0, -700));
+    await tester.pump();
+    expect(find.text('Target annual volatility'), findsOneWidget);
+    expect(find.text('Conservative · 8%'), findsOneWidget);
+    expect(find.byType(Slider), findsNothing);
     expect(tester.takeException(), isNull);
   });
 }

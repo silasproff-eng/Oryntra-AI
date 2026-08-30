@@ -4,6 +4,7 @@ import '../app_config.dart';
 import '../services/api_service.dart';
 import '../services/consent_service.dart';
 import '../services/notification_service.dart';
+import '../services/quant_lab_store.dart';
 import '../widgets/common.dart';
 import '../widgets/glass.dart';
 
@@ -37,6 +38,9 @@ class AccountScreenState extends State<AccountScreen>
   Map<String, dynamic>? _analysisStatus;
   bool _analysisLoading = false;
   String? _analysisError;
+  final _quantLabStore = QuantLabStore();
+  List<Map<String, dynamic>> _storedLabResults = const [];
+  bool _storedLabsLoading = true;
 
   @override
   void initState() {
@@ -44,6 +48,7 @@ class AccountScreenState extends State<AccountScreen>
     WidgetsBinding.instance.addObserver(this);
     _loadNotificationSettings();
     _loadAnalysisStatus();
+    _loadStoredLabResults();
   }
 
   @override
@@ -56,6 +61,7 @@ class AccountScreenState extends State<AccountScreen>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed && widget.user != null) {
       _loadAnalysisStatus();
+      _loadStoredLabResults();
     }
   }
 
@@ -66,6 +72,7 @@ class AccountScreenState extends State<AccountScreen>
       _syncMarketAlertsFromServer();
       _syncPushRegistration();
       _loadAnalysisStatus();
+      _loadStoredLabResults();
     } else if (oldWidget.user != null && widget.user == null) {
       setState(() {
         _analysisStatus = null;
@@ -106,6 +113,95 @@ class AccountScreenState extends State<AccountScreen>
     } finally {
       if (mounted) setState(() => _analysisLoading = false);
     }
+  }
+
+  Future<void> _loadStoredLabResults() async {
+    final results = await _quantLabStore.readAll();
+    if (mounted) {
+      setState(() {
+        _storedLabResults = results;
+        _storedLabsLoading = false;
+      });
+    }
+  }
+
+  Future<void> _deleteStoredLabResult(Map<String, dynamic> item) async {
+    final id = item['id']?.toString() ?? '';
+    if (id.isEmpty) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete stored result?'),
+        content: const Text(
+          'This removes this Quant Lab report from this device only.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    final results = await _quantLabStore.delete(id);
+    if (mounted) setState(() => _storedLabResults = results);
+  }
+
+  String _storedLabWhen(Map<String, dynamic> item) {
+    final savedAt = DateTime.tryParse(item['saved_at']?.toString() ?? '');
+    if (savedAt == null) return 'Saved on this device';
+    final local = savedAt.toLocal();
+    return 'Saved ${local.year}-${local.month.toString().padLeft(2, '0')}-${local.day.toString().padLeft(2, '0')} · ${local.hour.toString().padLeft(2, '0')}:${local.minute.toString().padLeft(2, '0')}';
+  }
+
+  Widget _buildStoredLabResults() {
+    return AppCard(
+      padding: EdgeInsets.zero,
+      child: _storedLabsLoading
+          ? const Padding(
+              padding: EdgeInsets.all(18),
+              child: Center(child: CircularProgressIndicator()),
+            )
+          : _storedLabResults.isEmpty
+          ? const Padding(
+              padding: EdgeInsets.all(18),
+              child: Text(
+                'No saved Quant Lab reports on this device yet. Completed reports are saved here automatically.',
+                style: TextStyle(color: OryntraPalette.muted),
+              ),
+            )
+          : Column(
+              children: _storedLabResults.map((item) {
+                final tickers = item['tickers'] is List
+                    ? (item['tickers'] as List).join(', ')
+                    : 'Research universe';
+                final fingerprint = item['fingerprint']?.toString() ?? '';
+                return ListTile(
+                  leading: const Icon(Icons.auto_graph_outlined),
+                  title: Text(
+                    tickers.isEmpty ? 'Research universe' : tickers,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  subtitle: Text(
+                    '${_storedLabWhen(item)}${fingerprint.isEmpty ? '' : ' · ${fingerprint.substring(0, fingerprint.length.clamp(0, 8))}'}',
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  trailing: IconButton(
+                    tooltip: 'Delete stored report',
+                    icon: const Icon(Icons.delete_outline_rounded),
+                    onPressed: () => _deleteStoredLabResult(item),
+                  ),
+                );
+              }).toList(),
+            ),
+    );
   }
 
   Future<void> refreshProviderStatus() => _loadAnalysisStatus();
@@ -411,6 +507,8 @@ class AccountScreenState extends State<AccountScreen>
               onTap: widget.onManageProviderConnection,
             ),
           ),
+          const InstitutionalSectionLabel(label: 'Stored lab results'),
+          _buildStoredLabResults(),
         ],
         const InstitutionalSectionLabel(label: 'Preferences'),
         AppCard(

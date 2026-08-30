@@ -975,6 +975,22 @@ function initQuantLab() {
     });
     updateQuantAllocationUI();
   });
+  const portfolioPresets = {
+    conservative: {quantTargetVol: 8, quantMaxGross: .8, quantMaxName: 15, quantRebalance: 'monthly', quantCost: 25},
+    balanced: {quantTargetVol: 12, quantMaxGross: 1, quantMaxName: 25, quantRebalance: 'weekly', quantCost: 12},
+    active: {quantTargetVol: 18, quantMaxGross: 1, quantMaxName: 35, quantRebalance: 'weekly', quantCost: 5},
+  };
+  document.querySelectorAll('[data-quant-preset]').forEach(button => {
+    button.addEventListener('click', () => {
+      const preset = portfolioPresets[button.dataset.quantPreset];
+      if (!preset) return;
+      Object.entries(preset).forEach(([id, value]) => {
+        const field = document.getElementById(id);
+        if (field) field.value = String(value);
+      });
+      document.querySelectorAll('[data-quant-preset]').forEach(item => item.classList.toggle('is-active', item === button));
+    });
+  });
   updateQuantAllocationUI();
 }
 

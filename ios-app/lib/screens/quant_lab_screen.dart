@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
+import '../services/quant_lab_store.dart';
 import '../widgets/common.dart';
 import '../widgets/glass.dart';
 
@@ -27,6 +28,7 @@ class QuantLabScreenState extends State<QuantLabScreen> {
   String _progress = '';
   String? _error;
   Map<String, dynamic>? _report;
+  final _savedResults = QuantLabStore();
   final Set<String> _strategies = {
     'time_series_trend',
     'cross_sectional_momentum',
@@ -87,7 +89,27 @@ class QuantLabScreenState extends State<QuantLabScreen> {
           if (mounted) setState(() => _progress = message);
         },
       );
-      if (mounted) setState(() => _report = report);
+      if (mounted) {
+        setState(() => _report = report);
+      }
+      try {
+        await _savedResults.save(report: report, tickers: symbols);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Quant Lab result saved on this device.'),
+            ),
+          );
+        }
+      } catch (_) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Report finished, but could not be saved locally.'),
+            ),
+          );
+        }
+      }
     } catch (error) {
       if (mounted) setState(() => _error = error.toString());
     } finally {
@@ -220,29 +242,48 @@ class QuantLabScreenState extends State<QuantLabScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _slider(
-                'Target annual volatility',
-                _targetVolatility,
-                6,
-                25,
-                '%',
-                (value) => setState(() => _targetVolatility = value),
+              const Text(
+                'Choose constraints that match the portfolio you want to test—not a return forecast.',
+                style: TextStyle(fontSize: 12),
               ),
-              _slider(
-                'Max name weight',
-                _maxNameWeight,
-                10,
-                50,
-                '%',
-                (value) => setState(() => _maxNameWeight = value),
+              const SizedBox(height: 14),
+              _portfolioChoice(
+                label: 'Target annual volatility',
+                description:
+                    'A lower target asks the model to reduce exposure sooner.',
+                selected: _targetVolatility,
+                options: const [
+                  _PortfolioOption('Conservative', 8, '%'),
+                  _PortfolioOption('Balanced', 12, '%'),
+                  _PortfolioOption('Active', 18, '%'),
+                ],
+                onChanged: (value) => setState(() => _targetVolatility = value),
               ),
-              _slider(
-                'Trading cost',
-                _costBps,
-                0,
-                75,
-                ' bps',
-                (value) => setState(() => _costBps = value),
+              const SizedBox(height: 16),
+              _portfolioChoice(
+                label: 'Maximum name weight',
+                description:
+                    'Hard cap for one symbol after portfolio controls.',
+                selected: _maxNameWeight,
+                options: const [
+                  _PortfolioOption('Diversified', 15, '%'),
+                  _PortfolioOption('Core', 25, '%'),
+                  _PortfolioOption('Concentrated', 35, '%'),
+                ],
+                onChanged: (value) => setState(() => _maxNameWeight = value),
+              ),
+              const SizedBox(height: 16),
+              _portfolioChoice(
+                label: 'Trading-cost assumption',
+                description:
+                    'Deducted from simulated turnover; it is not a provider fee.',
+                selected: _costBps,
+                options: const [
+                  _PortfolioOption('Liquid', 5, ' bps'),
+                  _PortfolioOption('Base case', 12, ' bps'),
+                  _PortfolioOption('Conservative', 25, ' bps'),
+                ],
+                onChanged: (value) => setState(() => _costBps = value),
               ),
               const SizedBox(height: 8),
               DropdownButtonFormField<String>(
@@ -374,36 +415,44 @@ class QuantLabScreenState extends State<QuantLabScreen> {
         controlAffinity: ListTileControlAffinity.leading,
       );
 
-  Widget _slider(
-    String label,
-    double value,
-    double min,
-    double max,
-    String suffix,
-    ValueChanged<double> onChanged,
-  ) => Column(
+  Widget _portfolioChoice({
+    required String label,
+    required String description,
+    required double selected,
+    required List<_PortfolioOption> options,
+    required ValueChanged<double> onChanged,
+  }) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      Row(
-        children: [
-          Expanded(
-            child: Text(
-              label,
-              style: const TextStyle(fontWeight: FontWeight.w700),
-            ),
-          ),
-          Text('${value.round()}$suffix'),
-        ],
-      ),
-      Slider(
-        value: value,
-        min: min,
-        max: max,
-        divisions: (max - min).round(),
-        onChanged: _running ? null : onChanged,
+      Text(label, style: const TextStyle(fontWeight: FontWeight.w800)),
+      const SizedBox(height: 3),
+      Text(description, style: const TextStyle(fontSize: 11)),
+      const SizedBox(height: 8),
+      Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: options
+            .map(
+              (option) => ChoiceChip(
+                label: Text(
+                  '${option.label} · ${option.value.round()}${option.suffix}',
+                ),
+                selected: selected == option.value,
+                onSelected: _running ? null : (_) => onChanged(option.value),
+              ),
+            )
+            .toList(),
       ),
     ],
   );
+}
+
+class _PortfolioOption {
+  const _PortfolioOption(this.label, this.value, this.suffix);
+
+  final String label;
+  final double value;
+  final String suffix;
 }
 
 class _QuantReport extends StatelessWidget {
@@ -452,10 +501,9 @@ class _QuantReport extends StatelessWidget {
                 (report['dataset_fingerprint']?.toString() ?? '—').substring(
                   0,
                   (report['dataset_fingerprint']?.toString().length ?? 0).clamp(
-                        0,
-                        28,
-                      )
-                      as int,
+                    0,
+                    28,
+                  ),
                 ),
                 style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
               ),
