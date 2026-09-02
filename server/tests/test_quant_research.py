@@ -3,7 +3,7 @@ import unittest
 import numpy as np
 import pandas as pd
 
-from backend.quant_research import QuantConfig, evaluate_strategies
+from backend.quant_research import QuantConfig, _correlation_stress_report, evaluate_strategies
 
 
 class QuantResearchTests(unittest.TestCase):
@@ -22,8 +22,23 @@ class QuantResearchTests(unittest.TestCase):
         self.assertEqual(heatmap["symbols"], ["SPY", "QQQ", "IWM", "GLD"])
         self.assertEqual(len(heatmap["values"]), 4)
         self.assertEqual(len(heatmap["values"][0]), 4)
+        stress = report["visual_diagnostics"]["correlation_stress"]
+        self.assertEqual(stress["status"], "available")
+        self.assertEqual([item["id"] for item in stress["scenarios"]], ["moderate_convergence", "severe_convergence"])
         self.assertTrue(report["visual_diagnostics"]["monthly_returns"]["years"])
         self.assertGreater(len(report["visual_diagnostics"]["performance"]["equity_curve"]), 1)
+
+    def test_correlation_convergence_increases_long_only_portfolio_risk(self):
+        index = pd.bdate_range("2024-01-02", periods=126)
+        left = np.tile([.012, -.008, .010, -.006], 32)[:len(index)]
+        right = np.tile([-.010, .007, -.009, .006], 32)[:len(index)]
+        returns = pd.DataFrame({"AAA": left, "BBB": right}, index=index)
+        held = pd.DataFrame({"AAA": .5, "BBB": .5}, index=index)
+        report = _correlation_stress_report(held, returns)
+        self.assertEqual(report["status"], "available")
+        moderate, severe = report["scenarios"]
+        self.assertGreater(moderate["stressed_annualized_volatility_pct"], moderate["baseline_annualized_volatility_pct"])
+        self.assertGreater(severe["stressed_annualized_volatility_pct"], moderate["stressed_annualized_volatility_pct"])
 
 
 if __name__ == "__main__":

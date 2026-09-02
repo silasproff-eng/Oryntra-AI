@@ -45,6 +45,7 @@ Supported corporate metrics are revenue growth, operating and free-cash-flow mar
 - `Liquidity limit breaches`: days where the assumed trade would exceed the selected share of historical daily dollar volume. A high count means the simulated returns deserve less confidence.
 - `Factor attribution`: a descriptive market-beta, residual, long/short, and sleeve-return decomposition—not proof of causality.
 - `Strategy health`: compares the latest 63 sessions against earlier simulated history. `deteriorating` is a prompt to investigate and retest, not an automatic stop or trade instruction.
+- `Correlation-convergence stress`: holds the latest simulated weights and trailing per-symbol volatility fixed, then moves all pairwise correlations partway toward `+1` over a 21-session horizon. It reports the resulting risk change for moderate and severe hypothetical scenarios. It is a diversification-breakdown diagnostic, not a price shock, loss forecast, or allocation instruction. The design follows the stress-testing practice of using documented hypothetical scenarios alongside historical evidence, rather than treating one trailing correlation matrix as stable. See [Basel market-risk stress testing guidance](https://www.bis.org/committees/bcbs/basel-framework/standard/mar/30/inforce/2022-01-01/published/2019-12-15) and the [Bank of England's 2025 CCP stress-test methodology](https://www.bankofengland.co.uk/stress-testing/2025/2025-ccp-stress-test-results-report).
 
 ## V1.0 Quant training
 

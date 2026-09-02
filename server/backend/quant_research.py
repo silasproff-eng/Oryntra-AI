@@ -202,6 +202,73 @@ def _correlation_heatmap(returns: pd.DataFrame) -> dict[str, Any]:
     }
 
 
+def _correlation_stress_report(held: pd.DataFrame, returns: pd.DataFrame) -> dict[str, Any]:
+    """Estimate hypothetical diversification failure with unchanged marginal volatility."""
+    window_sessions, horizon_sessions = 126, 21
+    latest = held.reindex(columns=returns.columns).fillna(0.0).iloc[-1]
+    active = latest[latest.abs() > .0001].index.tolist()
+    sample = returns.reindex(columns=active).tail(window_sessions).dropna(how="any")
+    if len(active) < 2 or len(sample) < 20:
+        return {
+            "status": "insufficient_data",
+            "window_sessions": int(len(sample)),
+            "horizon_sessions": horizon_sessions,
+            "note": "At least two held positions and 20 overlapping daily-return observations are required for the correlation stress report.",
+            "scenarios": [],
+        }
+    weights = latest.reindex(active).to_numpy(dtype=float)
+    covariance = sample.cov().to_numpy(dtype=float)
+    marginal_volatility = np.sqrt(np.maximum(np.diag(covariance), 0.0))
+    if not np.isfinite(covariance).all() or not np.isfinite(marginal_volatility).all() or np.any(marginal_volatility <= 0):
+        return {
+            "status": "insufficient_data",
+            "window_sessions": int(len(sample)),
+            "horizon_sessions": horizon_sessions,
+            "note": "The held positions do not have a complete, non-zero trailing covariance estimate.",
+            "scenarios": [],
+        }
+    correlation = covariance / np.outer(marginal_volatility, marginal_volatility)
+    correlation = np.clip((correlation + correlation.T) / 2.0, -1.0, 1.0)
+    np.fill_diagonal(correlation, 1.0)
+    off_diagonal = np.triu_indices_from(correlation, 1)
+    baseline_variance = max(0.0, float(weights @ covariance @ weights))
+    baseline_correlation = float(np.mean(correlation[off_diagonal])) if off_diagonal[0].size else None
+    scenarios = []
+    for scenario_id, label, convergence in (
+        ("moderate_convergence", "Moderate correlation convergence", 0.50),
+        ("severe_convergence", "Severe correlation convergence", 0.85),
+    ):
+        stressed_correlation = (1.0 - convergence) * correlation + convergence * np.ones_like(correlation)
+        np.fill_diagonal(stressed_correlation, 1.0)
+        stressed_covariance = stressed_correlation * np.outer(marginal_volatility, marginal_volatility)
+        stressed_variance = max(0.0, float(weights @ stressed_covariance @ weights))
+        baseline_horizon_volatility = np.sqrt(baseline_variance * horizon_sessions) * 100.0
+        stressed_horizon_volatility = np.sqrt(stressed_variance * horizon_sessions) * 100.0
+        baseline_annualized = np.sqrt(baseline_variance * 252.0) * 100.0
+        stressed_annualized = np.sqrt(stressed_variance * 252.0) * 100.0
+        scenarios.append({
+            "id": scenario_id,
+            "label": label,
+            "convergence_to_positive_one": convergence,
+            "baseline_average_pair_correlation": round(baseline_correlation, 3) if baseline_correlation is not None else None,
+            "stressed_average_pair_correlation": round(float(np.mean(stressed_correlation[off_diagonal])), 3) if off_diagonal[0].size else None,
+            "baseline_21_session_volatility_pct": round(baseline_horizon_volatility, 2),
+            "stressed_21_session_volatility_pct": round(stressed_horizon_volatility, 2),
+            "baseline_annualized_volatility_pct": round(baseline_annualized, 2),
+            "stressed_annualized_volatility_pct": round(stressed_annualized, 2),
+            "risk_multiplier": round(stressed_annualized / baseline_annualized, 3) if baseline_annualized > 0 else None,
+        })
+    return {
+        "status": "available",
+        "window_sessions": int(len(sample)),
+        "horizon_sessions": horizon_sessions,
+        "positions": [str(symbol) for symbol in active],
+        "method": "Hypothetical correlation convergence with unchanged latest weights and trailing individual volatility.",
+        "note": "Each scenario moves every pairwise correlation partway toward +1. It estimates a diversification-breakdown risk change only; it is not a price shock, loss forecast, or allocation instruction.",
+        "scenarios": scenarios,
+    }
+
+
 def _monthly_return_heatmap(net: pd.Series) -> dict[str, Any]:
     """Aggregate net simulated returns by calendar month without changing the model."""
     clean = net.replace([np.inf, -np.inf], np.nan).dropna()
@@ -278,4 +345,4 @@ def evaluate_strategies(histories: dict[str, pd.DataFrame], config: QuantConfig,
     _, execution_report = liquidity_execution_costs(target, prices, volumes, base_cost_bps=config.cost_bps, portfolio_value=config.portfolio_value_assumption, impact_coefficient_bps=config.impact_coefficient_bps, max_adv_participation_pct=config.max_adv_participation_pct)
     corporate_coverage = float(corporate_scores.reindex(index=prices.index, columns=prices.columns).ne(0).mean().mean() * 100) if corporate_scores is not None and not corporate_scores.empty else 0.0
     macro_coverage = float(macro_features.reindex(index=prices.index).notna().mean().mean() * 100) if macro_features is not None and not macro_features.empty else 0.0
-    return {"methodology": {"execution_timing": "signal at session close, held for the next session", "portfolio_construction": "weights are capped, rebalanced on the selected schedule, and may only scale down to the requested volatility target", "cash_rate": "0% for displayed Sharpe", "warnings": ["Research simulation only. It does not place orders or identify a best trade.", "Signals use the close of day t and returns begin on day t+1; costs are deducted from every weight change.", "Corporate facts and macro observations are only eligible after their recorded public availability timestamp; zero coverage is treated as no structured signal.", "This package does not include point-in-time delisted-security history, so results are not production-grade evidence."], "model_profile": MODEL_PROFILES.get(config.model, MODEL_PROFILES["v8_regime_diversified"])}, "universe": {"symbols": list(prices.columns), "start": str(prices.index.min().date()), "end": str(prices.index.max().date()), "sessions": int(len(prices))}, "results": results, "validation": _validation(net, config.walk_forward_folds), "regime_breakdown": _regime_breakdown(net, benchmark), "regime_probabilities": [{"date": str(day.date()), **{key: round(float(value), 4) for key, value in row.items()}} for day, row in regime_probabilities.iloc[::max(1, len(regime_probabilities) // 120)].iterrows()][-120:], "portfolio_risk": _risk_report(held, returns), "execution": execution_report, "factor_attribution": factor_and_relative_value_attribution(held, returns, benchmark, component_returns), "strategy_health": strategy_health(component_returns), "corporate_data": {"signal_coverage_pct": round(corporate_coverage, 2), "status": "available" if corporate_coverage > 0 else "not_yet_loaded"}, "macro_data": {"signal_coverage_pct": round(macro_coverage, 2), "status": "available" if macro_coverage > 0 else "not_yet_loaded", "features": ["policy_rate", "yield_2y", "yield_10y", "credit_spread_bps", "inflation_yoy"]}, "data_quality": _quality(prices), "visual_diagnostics": {"correlation": _correlation_heatmap(returns), "monthly_returns": _monthly_return_heatmap(net), "performance": _performance_diagnostics(net)}}
+    return {"methodology": {"execution_timing": "signal at session close, held for the next session", "portfolio_construction": "weights are capped, rebalanced on the selected schedule, and may only scale down to the requested volatility target", "cash_rate": "0% for displayed Sharpe", "warnings": ["Research simulation only. It does not place orders or identify a best trade.", "Signals use the close of day t and returns begin on day t+1; costs are deducted from every weight change.", "Corporate facts and macro observations are only eligible after their recorded public availability timestamp; zero coverage is treated as no structured signal.", "Correlation-convergence scenarios estimate diversification-breakdown risk only; they do not forecast losses or change simulated allocations.", "This package does not include point-in-time delisted-security history, so results are not production-grade evidence."], "model_profile": MODEL_PROFILES.get(config.model, MODEL_PROFILES["v8_regime_diversified"])}, "universe": {"symbols": list(prices.columns), "start": str(prices.index.min().date()), "end": str(prices.index.max().date()), "sessions": int(len(prices))}, "results": results, "validation": _validation(net, config.walk_forward_folds), "regime_breakdown": _regime_breakdown(net, benchmark), "regime_probabilities": [{"date": str(day.date()), **{key: round(float(value), 4) for key, value in row.items()}} for day, row in regime_probabilities.iloc[::max(1, len(regime_probabilities) // 120)].iterrows()][-120:], "portfolio_risk": _risk_report(held, returns), "execution": execution_report, "factor_attribution": factor_and_relative_value_attribution(held, returns, benchmark, component_returns), "strategy_health": strategy_health(component_returns), "corporate_data": {"signal_coverage_pct": round(corporate_coverage, 2), "status": "available" if corporate_coverage > 0 else "not_yet_loaded"}, "macro_data": {"signal_coverage_pct": round(macro_coverage, 2), "status": "available" if macro_coverage > 0 else "not_yet_loaded", "features": ["policy_rate", "yield_2y", "yield_10y", "credit_spread_bps", "inflation_yoy"]}, "data_quality": _quality(prices), "visual_diagnostics": {"correlation": _correlation_heatmap(returns), "correlation_stress": _correlation_stress_report(held, returns), "monthly_returns": _monthly_return_heatmap(net), "performance": _performance_diagnostics(net)}}
