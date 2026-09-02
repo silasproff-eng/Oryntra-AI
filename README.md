@@ -22,6 +22,12 @@ The repository brings together a FastAPI service, a browser workspace, a local m
 
 The operating model is informed by public institutional research conventions: start from an observable question, separate a signal from its implementation, quantify cost and concentration, test over time, and state what the evidence cannot establish. That is a documentation and engineering standard, not a claim that this project reproduces any firm’s proprietary research or trading systems.
 
+## Current release and product direction
+
+The Flutter iOS client at version `1.0.0+18` has been uploaded to App Store Connect and is currently **Waiting for Review**. That submission is a review state, not evidence of Apple approval or a public App Store release. The submitted product remains the existing educational scanner, watchlist, paper-trading, notification, and widget experience; this repository change does not alter its behavior.
+
+The next research increment is documented in [the iOS release and intelligence roadmap](docs/IOS_RELEASE_AND_INTELLIGENCE_ROADMAP.md). It extends the platform carefully from single-symbol OHLCV analysis toward derived market-breadth heatmaps and a richer point-in-time macro panel. The plan reuses the existing provenance and `available_at` model, keeps raw vendor data behind the server boundary, and treats every added field as research evidence rather than a trading instruction.
+
 ## What the platform is designed to do
 
 | Area | Oryntra provides | Oryntra does not provide |

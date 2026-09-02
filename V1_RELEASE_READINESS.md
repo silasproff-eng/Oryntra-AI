@@ -1,6 +1,8 @@
 # Oryntra V1.0 Release Candidate — local review
 
-Status: **local release candidate; not committed, pushed, or submitted to GitHub.**
+Status: **server/research release candidate history; see the current iOS submission and market-intelligence direction in [`docs/IOS_RELEASE_AND_INTELLIGENCE_ROADMAP.md`](docs/IOS_RELEASE_AND_INTELLIGENCE_ROADMAP.md).**
+
+The iOS client build `1.0.0+18` is currently Waiting for Review in App Store Connect. This historical V1 server checklist does not claim that the iOS build is approved or publicly released.
 
 ## Included
 
