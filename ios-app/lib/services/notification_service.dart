@@ -86,7 +86,7 @@ class NotificationService {
         try {
           await _channel.invokeMethod<void>('cancelAll');
         } on MissingPluginException {
-          
+          // Web and unsupported hosts have no native notification channel.
         }
       }
       await prefs.setBool(_dailyKey, false);
@@ -117,7 +117,7 @@ class NotificationService {
       try {
         await _channel.invokeMethod<void>('cancelDaily');
       } on MissingPluginException {
-        
+        // Web and unsupported hosts have no native notification channel.
       }
     }
     await prefs.setBool(_dailyKey, enabled);
@@ -184,7 +184,7 @@ class NotificationService {
           'minute': 30,
         });
       } on MissingPluginException {
-        
+        // Web and unsupported hosts have no native notification channel.
       }
     }
     await _syncMarketAlertReminders(await marketAlertTickers());
@@ -199,7 +199,7 @@ class NotificationService {
         'tickers': enabled ? tickers : const <String>[],
       });
     } on MissingPluginException {
-      
+      // Web and unsupported hosts have no native notification channel.
     }
   }
 
@@ -216,7 +216,7 @@ class NotificationService {
         'quality': quality,
       });
     } on MissingPluginException {
-      
+      // Web and unsupported hosts have no native notification channel.
     }
   }
 }

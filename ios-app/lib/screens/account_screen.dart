@@ -299,7 +299,9 @@ class AccountScreenState extends State<AccountScreen>
     if (widget.user != null) {
       try {
         await widget.api.removeStockAlertSubscription(ticker);
-      } on ApiException {}
+      } on ApiException {
+        // Local removal still succeeds if remote alert cleanup is unavailable.
+      }
     }
     await _loadNotificationSettings();
   }
@@ -319,7 +321,9 @@ class AccountScreenState extends State<AccountScreen>
         token: registration['token']!,
         environment: registration['environment']!,
       );
-    } on ApiException {}
+    } on ApiException {
+      // Registration is best-effort and retried when the account view resumes.
+    }
   }
 
   Future<void> _syncMarketAlertsFromServer() async {
@@ -335,7 +339,9 @@ class AccountScreenState extends State<AccountScreen>
         await widget.api.addStockAlertSubscription(ticker);
       }
       await widget.notifications.replaceMarketAlerts(merged);
-    } on ApiException {}
+    } on ApiException {
+      // Preserve local alert settings when server synchronization is unavailable.
+    }
     await _loadNotificationSettings();
   }
 

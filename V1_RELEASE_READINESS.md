@@ -1,37 +1,52 @@
-# Oryntra V1.0 Release Candidate — local review
+# Oryntra V1.0 Release Readiness
 
-Status: **server/research release candidate history; see the current iOS submission and market-intelligence direction in [`docs/IOS_RELEASE_AND_INTELLIGENCE_ROADMAP.md`](docs/IOS_RELEASE_AND_INTELLIGENCE_ROADMAP.md).**
+Last documentation review: 2026-09-03
 
-The iOS client build `1.0.0+18` is currently Waiting for Review in App Store Connect. This historical V1 server checklist does not claim that the iOS build is approved or publicly released.
+## Status
 
-## Included
+- Repository product version: `1.0.0`.
+- Flutter package/build: `1.0.0+18`.
+- App Store Connect state: **Waiting for Review**, reported by the product owner on 2026-09-02. This repository cannot live-verify Apple’s current state.
+- Public scanner model label: **V1.0 Official Momentum** (`official` internally; older source text also calls the policy V7).
+- V8, VAI 1.0, and VAI 2.2 remain research candidates, not public-scanner replacements.
+- Quant Lab is a separate V1.0 historical portfolio-research system.
 
-- Public corporate-data repository with source provenance, disclosure timestamps, point-in-time eligibility, and a local import API.
-- Rates/yield-curve, credit-spread, inflation, and policy-rate inputs, used only after their recorded availability time.
-- Corporate-quality sleeve, probabilistic regime engine, and regime-conditioned sleeve weights.
-- Portfolio caps, volatility scale-down, liquidity-aware next-session cost proxy, factor/relative-value attribution, and strategy-health/alpha-decay diagnostics.
-- V1.0 Quant chronological train/validation/test separation, outcome-horizon purge gaps, train-only categories, and removal of ticker/legacy-scanner-confidence features.
-- Scanner corporate context as structured display evidence only; no LLM-driven numeric prediction.
-- Visible product branding and public analysis labels standardized as **Oryntra V1.0**; historical internal engine identifiers remain only as compatibility IDs.
-- Browser-direct Polygon / Massive and Twelve Data key connection: keys remain in browser storage on the user's device, go directly to the chosen provider, and are never received, stored, or logged by Oryntra.
-- Public-site configuration boundary: account sign-in is required for analysis and Quant Lab; browser-direct endpoints accept validated daily bars, process them in memory, and return derived research only.
-- Terms and Privacy Policy document the browser-direct key path, in-memory raw-bar handling, provider-plan limits, separate provider terms, and the no-redistribution/public-rights boundary.
-- Rule Mirror-structured Oryntra account flow with the V1.0 slogan, legal consent, and a required browser-only provider connection before scanner or Quant Lab requests.
-- Ad placements are blank by default; web advertising requires the explicit `WEB_ADS_ENABLED=true` and `ADSENSE_VERIFY_ENABLED=true` deployment switches, plus configured slot IDs.
+## Submitted mobile feature set
 
-## Verified locally
+The current Flutter source contains account onboarding, browser-direct provider connection, Scanner, Watchlist, Paper, Quant Lab, Account, TradingView chart presentation, notification preferences, tracked-symbol alerts, local stored Quant Lab reports, optional consent-gated ads, background time for Quant Lab, and the latest-scan iOS widget.
 
-- 43 backend tests, including browser-direct policy gating, key-storage retirement, validated browser-bar uploads, and explicit Polygon/Twelve Data selection.
-- Python compilation, JavaScript syntax validation, diff validation, and a real local `/health` response showing V1.0.
-- Account/key API regression checks rerun after the onboarding UI update.
+The source does not prove every capability is active in the reviewed binary or production environment. Provider requests require a compatible account/plan and browser/mobile network access. Notifications require user permission plus configured native/server push infrastructure. Ads require consent and explicit unit configuration. Quant Lab requires the matching backend route and analysis policy.
 
-## Required before a V1 tag or GitHub action
+## Verification required for a release claim
 
-1. Leave platform keys empty, set `ORYNTRA_BROWSER_DIRECT_ANALYSIS_ENABLED=true`, register a test account, and confirm the browser sends the provider request directly while Oryntra receives no API key.
-2. In a browser, run a browser-direct Quant Lab report, import a small timestamped corporate/macro sample, and verify that coverage, regimes, liquidity diagnostics, attribution, and health sections render.
-3. Run one V1.0 Quant training job with real dated outcomes and inspect validation vs untouched test results.
-4. Review public-source provenance and the exact data-provider/exchange license restrictions before enabling public derived analysis or Quant Lab.
+| Layer | Required evidence | What it proves |
+| --- | --- | --- |
+| Backend static | Python compile, full tests, JavaScript syntax, documentation regeneration | Source contracts and parsability |
+| Backend runtime | Start intended mode and receive a valid `/health` response | Actual local process and route composition |
+| Browser | Signed-in provider setup, scan, watchlist, paper trade, backtest, Quant Lab, settings, narrow/desktop states | User-visible web behavior |
+| Flutter static | `flutter analyze`, Flutter tests, plist/privacy lint | Dart/native configuration consistency |
+| iOS build | Unsigned release build, then signed Xcode archive | Compilation and signing/archive readiness |
+| Device | Provider setup, scan, notification permission/delivery, background Quant Lab, TradingView, widget refresh, account deletion | Real iOS integration behavior |
+| Production | Health, auth, provider/upload paths, durable database preservation, legal/support URLs | Deployed environment behavior |
+| App Store | App Store Connect status and Apple review result | Submission/approval/publication state |
 
-## Intentionally excluded
+Passing a lower row is not implied by passing a higher row. In particular, backend tests do not prove a device build, and a successful archive does not prove App Store approval.
 
-No brokerage link, real-money order creation, automated execution, smart-order routing, or investment recommendations. The execution layer is a daily historical cost model used for research and paper simulation only.
+## Release boundaries
+
+- No brokerage connection, real-money orders, autonomous execution, or individualized investment advice.
+- Browser/mobile direct provider keys remain on the user’s device; Oryntra receives normalized bars for the requested calculation, not the key.
+- Public scan payloads exclude raw OHLCV history.
+- Private research, server-provider, cache, Pattern Lab, VAI training, and Pro routes must remain behind explicit operating-mode controls.
+- Market-data display, storage, and redistribution rights must be evaluated against the actual provider plan.
+- Database, market cache, and trained-model artifacts are persistent operational state and must not be overwritten by a source deployment.
+
+## Documentation gate
+
+Before a new build or model label is released:
+
+1. Update `docs/FEATURES_MODELS_AND_ARCHITECTURE.md` for behavioral changes.
+2. Update `server/QUANT_LAB.md` for research-mechanics changes.
+3. Regenerate `docs/Oryntra_AI_Master_Technical_Documentation.txt`.
+4. Record the exact static, runtime, browser, device, deployment, and App Store checks actually performed.
+5. Do not convert a research candidate, local model promotion, or favorable historical result into a public-performance claim.

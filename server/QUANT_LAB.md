@@ -1,27 +1,85 @@
 # Oryntra V1.0 Quant Lab
 
-Quant Lab is a local research and paper-simulation workspace. It has no broker client, does not create orders, and does not decide a real trade for a user.
+Quant Lab is a daily-bar historical research and paper-simulation workspace. It has no broker client, does not create orders, and does not choose a real trade for a user.
 
-## The V1 stack
+## System flow
 
-`market history + public corporate disclosures + public macro observations → deterministic sleeves → probabilistic regime weights → portfolio limits → next-session simulated execution → attribution and health reports`
+`daily market history + eligible point-in-time corporate/macro facts → deterministic sleeves → optional regime-conditioned weights → portfolio limits → next-session simulation → costs and diagnostics`
 
-The `Oryntra V1.0 corporate quant system` profile combines four price-based sleeves with a corporate-quality sleeve. Corporate facts and macro records are local, auditable inputs: each needs a public HTTPS source URL, an approved source class, and an `available_at` timestamp. The engine does not use a fact before that timestamp.
+Quant Lab is independent of the scanner models. V1.0 Official Momentum, V8, VAI 1.0, and VAI 2.2 are scanner/setup research paths; Quant Lab constructs multi-asset sleeve portfolios.
 
-## Start it locally
+## Model profiles
 
-```bash
-cd server
-PYTHONPATH=. .venv/bin/python3 run.py
-```
+| UI profile | Internal identifier | Starting allocations |
+| --- | --- | --- |
+| Oryntra V1.0 corporate quant system | `v1_corporate_quant_system` | 25% trend, 20% relative strength, 10% mean reversion, 10% defensive low volatility, 35% corporate quality |
+| V1.0 diversified price baseline | `v8_regime_diversified` | 35% trend, 30% relative strength, 15% mean reversion, 20% defensive low volatility |
+| V1.0 balanced price baseline | `v8_balanced` | 45% trend, 40% relative strength, 15% mean reversion |
+| V1.0 trend-first price baseline | `v8_trend_first` | 65% trend, 25% relative strength, 10% mean reversion |
+| V1.0 relative-strength price baseline | `v8_relative_strength` | 25% trend, 65% relative strength, 10% mean reversion |
+| V1.0 equal-weight baseline | `equal_weight_baseline` | 34% trend, 33% relative strength, 33% mean reversion |
 
-Set `ORYNTRA_PRIVATE_RESEARCH_ROUTES=true` in the local `.env`, then open the browser workspace. Use Quant Lab to select a universe, choose **Oryntra V1.0 corporate quant system**, set conservative costs and limits, and generate a report. For a signed-in public Quant Lab, keep private research routes off and set `ORYNTRA_PUBLIC_QUANT_LAB_ENABLED=true` only after reviewing the applicable data rights.
+The server keeps the older `v8_*` identifiers for compatibility. They do not mean these profiles use the scanner’s V8 evidence model. Selected positive sleeve allocations are normalized to 100%.
 
-## Import public corporate and macro facts
+## Sleeves
 
-Use the authenticated `POST /quant/corporate/import` endpoint. It accepts `documents`, `facts`, and `macro_observations` arrays. It rejects non-public sources, unsupported metrics, non-HTTPS URLs, and missing availability timestamps.
+### Time-series trend
 
-Example fact:
+Measures each symbol’s trailing return and takes its sign. Long/short mode permits positive and negative weights; long-only mode removes negative signals. Each date is normalized to a gross weight of one before portfolio combination.
+
+### Cross-sectional momentum
+
+Ranks the universe by trailing return. It selects the top 30% and, in long/short mode, the bottom 30%. Fewer than four available symbols produces no momentum position.
+
+### Mean-reversion comparator
+
+Measures the configured short-horizon move, default five sessions, relative to a rolling 63-session standard deviation. It opposes moves whose standardized value reaches ±1.5. This simple comparator can fight genuine trends and should be read with turnover and cost results.
+
+### Defensive low volatility
+
+Ranks trailing 63-session realized volatility. It favors the lowest 35% and can offset them with the highest 35% in long/short mode. It requires at least four available symbols.
+
+### Corporate quality and change
+
+Ranks eligible point-in-time public corporate scores. It forms relative top/bottom baskets only when at least four symbols have nonzero coverage. Zero or sparse coverage is not treated as neutral proof of quality.
+
+Supported corporate metrics are revenue growth, operating margin, free-cash-flow margin, earnings surprise, guidance revision, estimate revision, insider net buying, share-count growth, and net debt to EBITDA.
+
+## Timing and controls
+
+1. A sleeve calculates its target with information available at the close of session `t`.
+2. Single-name weights are clipped to the configured absolute limit.
+3. Gross exposure is scaled down to the configured maximum.
+4. Targets are held daily, every fifth session for weekly mode, or from the first observation of each calendar month for monthly mode.
+5. A 21-session realized annual volatility estimate determines a one-way scaler. The scaler is lagged and clipped between zero and one, so it can reduce but not amplify the target.
+6. Holdings are shifted again for the return calculation, so the target formed at `t` earns returns beginning on the following session.
+7. Changes in target weight incur the selected execution-cost model; negative held weights incur annualized borrow cost.
+
+Default controls are 12% target annual volatility, 1.0 maximum gross exposure, 35% maximum single name, weekly rebalancing, 12 bps base trading cost, 50 annual bps short borrow, three walk-forward folds, $1 million assumed portfolio value, 18 bps impact coefficient, and 2% maximum ADV participation.
+
+## Regime-conditioned allocations
+
+The optional regime model uses prior benchmark trend, realized volatility, drawdown, yield-curve slope, credit spread, and inflation context to produce probabilities for persistent trend, stressed, reversal-risk, and normal states. Those probabilities multiply the configured sleeve weights and the result is renormalized.
+
+This changes the sleeve mixture; it does not train a return predictor, forecast a regime with certainty, or place an order. When macro coverage is absent, the price-history components still operate and the report exposes the missing structured coverage.
+
+## Liquidity-aware execution costs
+
+When enabled, the engine:
+
+- converts each target-weight change into notional using the assumed portfolio value;
+- estimates 20-session median daily dollar volume from price × volume;
+- calculates assumed one-day ADV participation;
+- applies base turnover cost plus `impact coefficient × sqrt(participation)`; and
+- reports maximum participation, missing-liquidity observations, and days above the selected limit.
+
+This is a capacity-sensitive cost proxy, not a complete execution or fire-sale model. It does not spread an order across days, reject an infeasible target, simulate a limit-order book, stress ADV/spreads, model financing/redemptions, or feed market impact back into later prices.
+
+## Point-in-time corporate and macro data
+
+Use the authenticated `POST /api/quant/corporate/import` endpoint in a mode that mounts the full Quant router. It accepts `documents`, `facts`, and `macro_observations`. Imports reject unsupported metrics, disallowed source classes, non-HTTPS sources, and missing availability timestamps.
+
+Example corporate fact:
 
 ```json
 {
@@ -36,23 +94,65 @@ Example fact:
 }
 ```
 
-Supported corporate metrics are revenue growth, operating and free-cash-flow margins, earnings surprise, guidance and estimate revisions, insider net buying, share-count growth, and net debt to EBITDA. Supported macro metrics are policy rate, 2-year and 10-year yields, credit spread, and inflation. Company investor-relations PDFs can be recorded as `company_ir_pdf`; central-bank releases and official macro datasets have their own source classes. Do not present an inferred fact as if it were disclosed.
+Supported macro metrics are `policy_rate`, `yield_2y`, `yield_10y`, `credit_spread_bps`, and `inflation_yoy`. Each observation is eligible only after `available_at`. The current repository does not provide a broad macro dashboard or complete real-time macro ingestion service.
 
-## Reading the report
+## Report interpretation
 
-- `Structured-data coverage`: how much of the selected historical universe actually has eligible corporate or macro facts. Zero means the corresponding sleeve or macro effect was not used.
-- `Regime probabilities`: the transparent blend of persistent-trend, stressed, reversal-risk, and normal states. These adjust sleeve weights; they are not forecasts.
-- `Liquidity limit breaches`: days where the assumed trade would exceed the selected share of historical daily dollar volume. A high count means the simulated returns deserve less confidence.
-- `Factor attribution`: a descriptive market-beta, residual, long/short, and sleeve-return decomposition—not proof of causality.
-- `Strategy health`: compares the latest 63 sessions against earlier simulated history. `deteriorating` is a prompt to investigate and retest, not an automatic stop or trade instruction.
-- `Correlation-convergence stress`: holds the latest simulated weights and trailing per-symbol volatility fixed, then moves all pairwise correlations partway toward `+1` over a 21-session horizon. It reports the resulting risk change for moderate and severe hypothetical scenarios. It is a diversification-breakdown diagnostic, not a price shock, loss forecast, or allocation instruction. The design follows the stress-testing practice of using documented hypothetical scenarios alongside historical evidence, rather than treating one trailing correlation matrix as stable. See [Basel market-risk stress testing guidance](https://www.bis.org/committees/bcbs/basel-framework/standard/mar/30/inforce/2022-01-01/published/2019-12-15) and the [Bank of England's 2025 CCP stress-test methodology](https://www.bankofengland.co.uk/stress-testing/2025/2025-ccp-stress-test-results-report).
+### Performance and path
 
-## V1.0 Quant training
+- Total/annualized return and annualized volatility describe the simulated net series.
+- Sharpe uses a zero cash rate; Calmar divides annualized return by absolute maximum drawdown.
+- Maximum drawdown, longest drawdown, worst day, historical 95% VaR, and expected shortfall expose path/tail behavior.
+- Annualized turnover and average gross exposure help identify implementation intensity.
+- Equity, drawdown, and rolling 63-session volatility charts are derived from the same net portfolio series.
 
-The V1.0 Quant training layer uses only deterministic structured inputs. It excludes ticker identity, the scanner score/confidence, and AI explanation text. It fits features on chronological training dates, selects thresholds on later validation dates, leaves a horizon-sized purge gap between partitions, and promotes only if the untouched test score improves on the currently promoted model.
+### Validation
 
-Treat all V1.0 Quant training outputs as experimental research evidence. A successful test score is not proof of future accuracy or profitability.
+The engine reserves at least 63 sessions or the final 20% of history as a chronological holdout when at least 126 sessions exist. Earlier development history is divided into sequential walk-forward report slices. The fixed sleeve rules are not fitted by this function, so the split is a robustness comparison rather than model training.
 
-## Scanner boundary
+### Regime and exposure
 
-Run the scanner normally from the **Scanner** tab: enter a ticker, choose its displayed analysis horizon, and review the deterministic setup, risk plan, and any available corporate context. The public scanner may show a current corporate-context panel where locally imported evidence exists. Its deterministic numeric score does not change from an LLM response, and the explanation layer remains descriptive rather than a numeric predictor.
+- Regime breakdown groups net returns by broad market trend and volatility states.
+- Latest gross/net exposure, largest name, effective number of positions, and displayed weights describe the final simulated holdings.
+- The 126-session average absolute correlation is a compact concentration/diversification diagnostic.
+
+### Correlation matrix and stress
+
+The correlation matrix contains pairwise daily-return correlations over at most 126 recent sessions. The correlation-convergence report freezes the latest active weights and trailing marginal volatilities, then moves all pairwise correlations partway toward +1 over a 21-session horizon:
+
+- moderate convergence: 50% of the distance toward +1;
+- severe convergence: 85% of the distance toward +1.
+
+It reports baseline and stressed 21-session/annualized volatility plus a risk multiplier. This is a hypothetical diversification-failure sensitivity test. It is not a price shock, loss forecast, causal crisis model, or allocation instruction.
+
+### Structured data and attribution
+
+- Corporate/macro coverage says how much of the selected history had eligible structured evidence.
+- Factor attribution reports recent market beta, residual, long, short, and component contributions; it is descriptive, not causal.
+- Strategy health compares the most recent 63 sessions with earlier sleeve history and labels deterioration as a prompt for investigation.
+- Data-quality rows report usable bars, first/last dates, missing-session percentage, and complete overlap.
+- The dataset fingerprint identifies the selected histories and configuration for reproducibility.
+
+## Client and route behavior
+
+Browser and mobile direct clients fetch daily bars directly from the selected provider and submit normalized bars to `POST /api/quant/run-upload`. The provider key does not enter the request, and uploaded histories are evaluated in memory. Mobile supports two to eight unique symbols, caps Polygon/Massive Basic runs at four, and saves completed reports on the device.
+
+Private/server-provider mode also exposes the catalog, corporate import/query, and server-repository `POST /api/quant/run` path. This path can use the local market cache and server-side provider configuration.
+
+## Local use
+
+```bash
+cd server
+PYTHONPATH=. .venv/bin/python3 run.py
+```
+
+Set `ORYNTRA_PRIVATE_RESEARCH_ROUTES=true` for the full local research surface. A public signed-in Quant Lab can instead be mounted with `ORYNTRA_PUBLIC_QUANT_LAB_ENABLED=true`, but only after reviewing provider rights, access policy, resource limits, and public product claims.
+
+## Known limitations
+
+- No point-in-time delisted-security universe, so survivorship concerns remain.
+- Daily bars are insufficient for precise fill, spread, borrow availability, and intraday market-impact reconstruction.
+- Macro/corporate records depend on correct source classification and availability timestamps.
+- Regime formulas, sleeve thresholds, and impact parameters are research assumptions, not established universal constants.
+- Correlation convergence does not include simultaneous marginal-volatility shocks or nonlinear cross-asset fire-sale feedback.
+- A favorable backtest or promoted experimental model does not demonstrate live profitability.

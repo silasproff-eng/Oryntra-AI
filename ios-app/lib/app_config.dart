@@ -47,6 +47,9 @@ class AppConfig {
     defaultValue: 'ca-app-pub-7922098561896578/8761060912',
   );
 
+  static const iosTestInterstitialAdUnitId =
+      'ca-app-pub-3940256099942544/4411468910';
+
   static const androidInterstitialAdUnitId = String.fromEnvironment(
     'ADMOB_ANDROID_INTERSTITIAL_ID',
     defaultValue: 'ca-app-pub-3940256099942544/1033173712',
@@ -63,7 +66,7 @@ class AppConfig {
   static String get interstitialAdUnitId {
     if (kIsWeb) return '';
     if (defaultTargetPlatform == TargetPlatform.iOS) {
-      return iosInterstitialAdUnitId;
+      return useTestAds ? iosTestInterstitialAdUnitId : iosInterstitialAdUnitId;
     }
     return androidInterstitialAdUnitId;
   }

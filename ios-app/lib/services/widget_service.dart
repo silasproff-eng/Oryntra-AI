@@ -20,7 +20,7 @@ class WidgetService {
         'updatedAt': DateTime.now().toIso8601String(),
       });
     } on MissingPluginException {
-      
+      // Web and unsupported hosts have no native WidgetKit channel.
     }
   }
 }

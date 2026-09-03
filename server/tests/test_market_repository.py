@@ -112,13 +112,16 @@ class MarketRepositoryTests(unittest.TestCase):
         self.assertEqual(first.metadata.source, "ticker_api_fallback_cached")
         self.assertTrue(second.metadata.from_cache)
         self.assertFalse(second.metadata.fallback_used)
-        with database.get_connection() as conn:
+        conn = database.get_connection()
+        try:
             count = conn.execute(
                 "SELECT COUNT(*) FROM ohlcv_bars WHERE ticker='ZZZZ' AND timeframe='1d'"
             ).fetchone()[0]
             provider_name = conn.execute(
                 "SELECT provider FROM ohlcv_bars WHERE ticker='ZZZZ' LIMIT 1"
             ).fetchone()[0]
+        finally:
+            conn.close()
         self.assertEqual(count, len(results))
         self.assertEqual(provider_name, "polygon_ticker_fallback")
 

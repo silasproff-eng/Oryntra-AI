@@ -29,8 +29,9 @@ class ProviderKeyStore {
   Future<void> saveConnection(String provider, String apiKey) async {
     final cleanProvider = provider == 'polygon' ? 'polygon' : 'twelvedata';
     final cleanKey = apiKey.trim();
-    if (cleanKey.isEmpty)
+    if (cleanKey.isEmpty) {
       throw ArgumentError('Enter a valid provider API key.');
+    }
     await _storage.write(key: _providerKey, value: cleanProvider);
     await _storage.write(
       key: cleanProvider == 'polygon' ? _polygonKey : _twelveDataKey,

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import math
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -434,12 +434,12 @@ def train_vai2_from_lab_rows(rows: list[dict[str, Any]], horizon_days: int = 10,
     top_positive = sorted(weights.items(), key=lambda kv: kv[1], reverse=True)[:18]
     top_negative = sorted(weights.items(), key=lambda kv: kv[1])[:18]
 
-    run_id = datetime.utcnow().strftime("%Y%m%d_%H%M%S") + ("_" + str(run_label).strip().replace(" ", "_")[:30] if run_label else "")
+    run_id = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S") + ("_" + str(run_label).strip().replace(" ", "_")[:30] if run_label else "")
     run_dir = RUNS_DIR / run_id
     run_dir.mkdir(parents=True, exist_ok=True)
     model = {
         "version": "VAI 2.2 Chronological PIT Experimental",
-        "created_at": datetime.utcnow().isoformat(),
+        "created_at": datetime.now(timezone.utc).isoformat(),
         "run_id": run_id,
         "horizon_days": int(horizon_days or 10),
         "feature_names": feature_names,

@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Generate a plain-text Oryntra technical reference from the checked-out source.
+"""Generate a plain-text Oryntra technical reference from tracked source.
 
-The output is intentionally source-derived: it inventories public modules,
-functions, classes, routes, environment-variable names, browser hooks, and
-tests without reading private `.env` values or local market-data files.
+The output is intentionally source-derived: it inventories every Git-tracked
+file, parses readable source and configuration, and catalogues binary assets
+without reading private `.env` values, local market-data files, or untracked
+build products.
 """
 
 from __future__ import annotations
@@ -22,27 +23,34 @@ from typing import Iterable
 ROOT = Path(__file__).resolve().parents[2]
 SERVER = ROOT / "server"
 OUTPUT = ROOT / "docs" / "Oryntra_AI_Master_Technical_Documentation.txt"
-EXCLUDED_DIRS = {".git", ".venv", "venv", "__pycache__", "node_modules", "data"}
-SUFFIXES = {
-    ".py", ".js", ".css", ".html", ".md", ".json", ".sh", ".command", ".txt",
-    ".dart", ".swift", ".plist", ".storyboard", ".yaml", ".yml", ".rb", ".h", ".m",
-    ".xcconfig", ".xcscheme", ".xcworkspacedata", ".pbxproj", ".entitlements", ".podspec",
-}
 
 
 def source_files() -> list[Path]:
-    files = []
-    for path in ROOT.rglob("*"):
-        if not path.is_file() or path.suffix.lower() not in SUFFIXES:
-            continue
-        if path == OUTPUT:
-            continue
-        if any(part in EXCLUDED_DIRS for part in path.parts):
-            continue
-        if path.name.startswith(".") and path.name != ".env.example":
-            continue
-        files.append(path)
-    return sorted(files, key=lambda item: item.relative_to(ROOT).as_posix())
+    """Return the exact version-controlled repository surface.
+
+    Git is the authority here. This prevents local Flutter output, credentials,
+    databases, caches, virtual environments, and editor files from leaking into
+    the manual while still documenting extensionless files and binary assets.
+    """
+    try:
+        raw = subprocess.check_output(["git", "ls-files", "-z"], cwd=ROOT)
+    except (OSError, subprocess.CalledProcessError) as error:
+        raise RuntimeError("A Git checkout is required to generate the complete file reference.") from error
+    files = [ROOT / item.decode("utf-8") for item in raw.split(b"\0") if item]
+    return sorted((path for path in files if path.is_file()), key=lambda item: rel(item))
+
+
+def source_text(path: Path) -> str | None:
+    """Read a tracked text file; return None for a binary asset."""
+    if path == OUTPUT:
+        return ""
+    payload = path.read_bytes()
+    if b"\0" in payload[:8192]:
+        return None
+    try:
+        return payload.decode("utf-8")
+    except UnicodeDecodeError:
+        return None
 
 
 def rel(path: Path) -> str:
@@ -70,8 +78,14 @@ def paragraph(text: str) -> str:
 
 def category_for(path: Path) -> str:
     value = rel(path)
+    if path == OUTPUT:
+        return "Generated documentation"
     if value == "README.md":
         return "Product and operating model"
+    if value.startswith("docs/"):
+        return "Product or technical documentation"
+    if value.startswith("brand-assets/"):
+        return "Brand asset"
     if value.startswith("server/backend/routes/"):
         return "HTTP API route"
     if value.startswith("server/backend/patterns/"):
@@ -96,6 +110,8 @@ def category_for(path: Path) -> str:
         return "Flutter mobile application"
     if value.startswith("ios-app/ios/"):
         return "Native iOS integration or build configuration"
+    if value.startswith("ios-app/assets/") or value.startswith("ios-app/web/icons/"):
+        return "Mobile or web application asset"
     if value.startswith("ios-app/"):
         return "Mobile application configuration or operator asset"
     return "Repository asset"
@@ -169,16 +185,16 @@ SYSTEM_CHAPTERS = [
         "4. ANALYTICAL ENGINE AND EXPLANATION BOUNDARY",
         [
             "The deterministic core begins with indicators. The indicator module calculates common measures such as moving averages, RSI, MACD, Bollinger Bands, ATR, ADX, volume measures, VWAP, Ichimoku values, pivots, and trend labels from the supplied history. Pattern modules then evaluate candle configurations, chart structures, fair-value gaps, and structure events. The pattern analyzer coordinates broader engine generations, while the setup detector scores candidate contexts such as breakout, pullback, continuation, reversal, overextended, and no-trade states.",
-            "These components are not independent proof generators. A pattern detector labels observations according to its rules; a setup scorer aggregates evidence according to its selected engine. The trade scorer produces an educational plan-shaped object with risk/target calculations and descriptive projections. The current public engine label is V7 Official Momentum. Other engines, including V8 and VAI-based candidates, remain separate implementation paths that must earn promotion through evidence rather than being silently substituted into the public surface.",
+            "These components are not independent proof generators. A pattern detector labels observations according to its rules; a setup scorer aggregates evidence according to its selected engine. The trade scorer produces an educational plan-shaped object with risk/target calculations and descriptive projections. The released product labels the public scanner model V1.0 Official Momentum; some internal functions and fallback messages retain the historical V7 name. V8 is a separate deterministic evidence-scoring candidate, VAI 1.0 is a legacy experimental logistic model, and VAI 2.2 is the newer chronological point-in-time experimental model. None of those candidate names means it has silently replaced the public scanner.",
             "AI explanation is intentionally downstream. The explanation route takes structured analysis and turns it into readable language through configured model providers or a rule-based fallback. It does not calculate RSI, decide numeric pattern confidence, or receive a free-form raw market-data feed as the primary source of truth. This is an important audit property: any language output can be compared against the structured facts it is supposed to explain.",
         ],
     ),
     (
         "5. QUANT LAB RESEARCH MODEL",
         [
-            "Quant Lab is the most explicit part of the repository about simulation mechanics. It supports time-series trend, cross-sectional momentum, short-horizon mean reversion, and a defensive low-volatility sleeve. Each sleeve converts prior daily price history into target weights. The selected sleeves are combined according to visible allocations, then passed through the same portfolio-control process. An ensemble is therefore not a hidden black box; it is a named combination of documented component rules.",
-            "Execution timing is deliberately conservative for a daily-bar tool: a signal is formed with the session close at time t, then the target is held for the following session. Weight changes incur the user-entered transaction-cost assumption, and negative weights carry a user-entered annual borrow-cost assumption. The controls cap individual names and gross exposure, rebalance on the requested cadence, and use volatility targeting only to reduce exposure. They do not manufacture leverage in order to make a backtest look smoother.",
-            "The report treats path and data quality as first-class outputs. It includes annualized return and volatility, drawdown, turnover, historical VaR and expected shortfall, concentration, current gross/net exposure, a chronological development-versus-holdout view, regime slices, correlation matrix, monthly net-return heatmap, equity curve, drawdown curve, rolling volatility, and source coverage. None of these eliminates model risk. They help identify whether an attractive total return was obtained through concentration, a favorable regime, sparse data, high turnover, or a brittle period of history.",
+            "Quant Lab is the most explicit part of the repository about simulation mechanics. It supports time-series trend, cross-sectional momentum, short-horizon mean reversion, defensive low volatility, and a point-in-time corporate-quality sleeve. Each sleeve converts information available by the simulated date into target weights. Six named profiles choose transparent starting allocations: the corporate system, diversified price, balanced price, trend-first, relative-strength, and equal-weight baselines. An ensemble is therefore a named combination of documented component rules rather than a hidden optimizer.",
+            "Execution timing is deliberately conservative for a daily-bar tool: a signal is formed with the session close at time t, then the target is held for the following session. Weight changes incur the user-entered base cost and, when enabled, a square-root market-impact estimate based on rolling daily dollar volume; negative weights carry the selected annual borrow cost. The controls cap individual names and gross exposure, rebalance on the requested cadence, and use trailing volatility targeting only to reduce exposure. Regime-conditioned sleeve weights can change the mixture but do not create brokerage orders.",
+            "The report treats path, capacity, and data quality as first-class outputs. It includes return, volatility, drawdown, turnover, historical VaR and expected shortfall, concentration, current gross/net exposure, chronological development-versus-holdout results, walk-forward slices, regime results, factor/relative-value attribution, strategy-health decay, liquidity participation, a trailing correlation matrix, explicit correlation-convergence scenarios, a monthly net-return heatmap, equity/drawdown/rolling-volatility paths, and source coverage. The correlation scenarios preserve current marginal volatility and move pairwise correlations toward positive one; they diagnose diversification failure but do not forecast a loss or change allocations.",
         ],
     ),
     (
@@ -192,8 +208,8 @@ SYSTEM_CHAPTERS = [
     (
         "7. CLIENT, MOBILE, AND OPERATIONS",
         [
-            "The browser client is a conventional static workspace served by FastAPI. index.html establishes semantic panels and controls; app.js owns state transitions, API calls, rendering, accessibility behavior, and error/loading states; refined.css supplies the current restrained blue research-desk presentation. The maintenance site is deliberately independent so a maintenance response does not depend on the primary application rendering successfully. Legal pages are static documents served through an explicit allowlist.",
-            "The ios-app directory is a Flutter client plus the iOS runner and widget integration. The mobile application should be read as a separate client surface, not as a duplicate of the Python service. Its API service, session storage, screens, consent/ad services, and widgets rely on the backend contract. Native Swift and Xcode configuration files bridge Flutter into iOS and host the widget extension. Mobile changes need their own simulator/device and App Store validation; a successful Python test does not validate iOS behaviour.",
+            "The browser client is a static workspace served by FastAPI. Its user-facing areas are Scanner, Watchlist, Paper trades, Backtest, Quant Lab, and Settings. The same bundle also contains signed-in onboarding, browser-only provider-key storage, AI explanations, theme persistence, optional advertising, and a hidden private Pattern Lab panel. index.html establishes the structure, app.js owns state and API interaction, and the two stylesheets supply the presentation. The maintenance site is deliberately independent, while legal pages are served through an explicit allowlist.",
+            "The ios-app directory is a Flutter client plus the iOS runner and widget integration. After sign-in and provider setup, its five navigation destinations are Scanner, Watchlist, Paper, Quant Lab, and Account. Mobile-only services add secure session and provider-key storage, consent-gated AdMob support, scan-result notifications, daily research reminders, tracked-symbol alerts, background time for Quant Lab requests, local saved Quant Lab reports, a TradingView chart, and an iOS home-screen widget updated from the latest scan. Native Swift and Xcode configuration bridge these services. A successful backend test does not validate device permissions, widget refresh, signing, or App Store behavior.",
             "Operational tools exist for cache inspection and warming, research execution, bias auditing, training, database-related safeguards, and local launch. These tools are intentionally explicit rather than magical. They should be run from the server directory with the correct environment, and destructive deployment actions must preserve credentials, data, generated models, training history, and the virtual environment. A service that listens on a port is not automatically healthy; check the real health response and the intended user flow.",
         ],
     ),
@@ -224,6 +240,9 @@ DEEP_FILE_NOTES = {
     "server/frontend/static/css/refined.css": "This stylesheet is the current blue research-desk presentation layer. It defines the visual hierarchy and responsive behavior for the shared workspace and Quant Desk. Its selectors must continue to match the actual HTML and JavaScript state classes; visual review at desktop and mobile widths is the appropriate validation.",
     "ios-app/lib/main.dart": "This is the Flutter client’s application shell. It composes navigation and high-level page state while coordinating backend access through the client services. It should be validated as a mobile application rather than assumed correct because the web client works.",
     "ios-app/lib/services/api_service.dart": "This service owns the Flutter-side HTTP contract. It defines how the mobile client reads, transforms, and handles Oryntra API responses. Contract changes on the Python side should be checked here before an iOS release.",
+    "server/backend/corporate_repository.py": "This point-in-time research repository validates and stores public corporate documents, company facts, and five supported macro series. It owns source-class allowlists, HTTPS provenance, availability timestamps, issuer snapshots, corporate factor panels, and macro panels so historical research cannot use a fact before its recorded public availability.",
+    "server/backend/provider_credentials.py": "This module is the encrypted server-side provider-credential store used only by eligible operating modes. It derives per-user encryption, redacts keys from status responses, and explicitly disables HTTP key storage in browser-direct mode, where credentials remain on the client device.",
+    "server/backend/quant_system.py": "This module supplies Quant Lab's cross-sleeve mechanics: probability-like regime states, regime-conditioned allocation multipliers, ADV-based square-root execution costs, factor/relative-value attribution, and recent strategy-health decay. These are research diagnostics and cost assumptions rather than live execution or causal risk models.",
 }
 
 
@@ -283,6 +302,14 @@ FILE_NOTES = {
     "server/tests/test_quant_research.py": "This suite checks core Quant Lab mechanics and report outputs. It should be expanded whenever a sleeve, timing rule, cost treatment, or risk diagnostic changes because aggregate performance alone is not a sufficient regression signal.",
     "server/tests/test_research_pipeline.py": "This suite covers the handoff among research preparation, candidate-model work, and the surrounding evaluation pipeline. It protects the evidence workflow from becoming disconnected after a refactor.",
     "server/tests/test_v8_engine.py": "This suite checks the V8 candidate-scoring path separately from the public V7 path. That separation matters because experimental comparisons must not silently change the labeled public engine.",
+    "server/tests/test_ads_configuration.py": "This suite proves web advertising is blank and disabled by default and requires explicit enablement before AdSense markup or slots are considered active.",
+    "server/tests/test_corporate_quant_system.py": "This suite proves corporate/macro facts obey their availability timestamps and verifies the corporate Quant profile returns structured regime, liquidity, attribution, and health outputs.",
+    "server/tests/test_paper_trade_routes.py": "This route-level regression check confirms an authenticated owner can reach the supported paper-trade deletion contract.",
+    "server/tests/test_provider_credentials.py": "This suite verifies per-user encrypted provider-key storage, key redaction, and the retirement of server-side HTTP key storage in browser-direct mode.",
+    "server/tests/test_public_backtest_route.py": "This suite proves the authenticated browser-upload backtest is mounted, receives normalized bars without provider keys, and does not convert the upload path into a raw-data persistence surface.",
+    "server/tests/test_quant_public_route.py": "This suite proves the authenticated Quant Lab upload route remains available when broader administrative Quant routes are not public.",
+    "server/tests/test_scanner_result_rendering.py": "This static browser regression check ensures optional scanner-result widgets are guarded so partial API responses do not crash the rendering path.",
+    "server/tests/test_vai2_leakage_controls.py": "This suite verifies VAI 2.2 train, validation, and untouched test dates are chronological, non-overlapping, and separated by the required purge gaps.",
     "server/tools/audit_v7_bias.py": "This command-line research tool audits V7 behavior for obvious bias or evaluation issues. It is a diagnostic aid, not a certification process, and its output must be interpreted with the exact universe, dates, and assumptions it used.",
     "server/tools/cache_guard.py": "This operational utility inspects cache size and supports guarded backup or restore behavior. It exists to reduce the risk of silently replacing a useful local market-data history during maintenance.",
     "server/tools/check_cache_status.py": "This small wrapper reports the current cache condition through the shared guard logic. It is intended for an operator who needs a quick evidence check before a data refresh or deployment.",
@@ -548,14 +575,17 @@ def mobile_file_story(path: Path) -> str:
     value = rel(path)
     if "/screens/" in value:
         focus = {
-            "account_screen": "identity, subscription, and account-state presentation",
+            "account_screen": "identity, subscription, analysis-access, provider settings, notification preferences, tracked-symbol alerts, stored Quant Lab reports, policy links, and account deletion",
+            "auth_gate_screen": "startup, sign-in/create-account, legal acceptance, and provider-connection gating before the main workspace",
             "paper_screen": "simulated-trade records and paper-performance presentation",
+            "quant_lab_screen": "multi-symbol Quant Lab configuration, progress, local report saving, and portfolio diagnostics",
             "scanner_screen": "symbol analysis, scanner results, and their loading/error states",
             "watchlist_screen": "saved-symbol management and its account-scoped empty states",
         }.get(path.stem, "a distinct mobile product workflow")
         return f"This Flutter screen presents {focus}. It should treat server responses as untrusted remote state, preserving loading, empty, error, and signed-out behavior rather than assuming that a successful desktop interaction proves the mobile flow is complete."
     if "/services/" in value:
         focus = {
+            "background_task_service": "the Flutter method-channel wrapper that requests and ends iOS background time for Quant Lab",
             "consent_service": "the platform-neutral consent interface",
             "consent_service_mobile": "mobile-platform consent behavior",
             "consent_service_web": "web-platform consent behavior",
@@ -563,6 +593,8 @@ def mobile_file_story(path: Path) -> str:
             "interstitial_ad_service_mobile": "mobile interstitial-ad lifecycle behavior",
             "interstitial_ad_service_web": "the no-native-ad web implementation",
             "notification_service": "local notification scheduling and user permission handling",
+            "provider_key_store": "encrypted device-local storage for the selected market-data provider and API key",
+            "quant_lab_store": "device-local persistence, reopening, and deletion of completed Quant Lab reports",
             "session_store": "secure or persistent mobile session storage",
             "widget_service": "communication between the Flutter client and the iOS widget extension",
         }.get(path.stem, f"the {name} mobile service boundary")
@@ -581,11 +613,72 @@ def mobile_file_story(path: Path) -> str:
         return f"This Flutter widget provides {focus}. Its success is visual and behavioral: it must preserve layout, accessibility, lifecycle safety, and the correct empty or unavailable state on the platforms where it is used."
     if path.name == "app_config.dart":
         return "This file centralizes Flutter application configuration, including the server endpoint selection used by the mobile client. Keeping that decision in one place prevents individual screens from inventing incompatible URLs or release assumptions."
+    specific = {
+        "analysis_options.yaml": "This is the Dart analyzer configuration inherited from Flutter's recommended lint set; it defines the static-quality rules applied by `flutter analyze`.",
+        "build_ipa.sh": "This release helper cleans the Flutter project, restores packages and CocoaPods, builds the iOS release, and creates the Xcode archive/export path for App Store delivery.",
+        "configure_admob.sh": "This helper validates and inserts the configured AdMob application identifier into the iOS Runner property list.",
+        "configure_widget_target.rb": "This Ruby/xcodeproj helper creates or repairs the OryntraWidget target, source membership, entitlements, app-group capability, and embedding relationship.",
+        "prepare_ios_project.sh": "This helper restores Flutter/CocoaPods dependencies and runs the widget-target configuration before the workspace is archived.",
+        "pubspec.yaml": "This Flutter manifest declares the app version, SDK constraints, dependencies, bundled icon, and platform packages used by the client.",
+        "pubspec.lock": "This lockfile pins the resolved Dart/Flutter dependency graph for reproducible analysis, tests, and release builds.",
+        "flutter_bootstrap.js": "This Flutter web bootstrap loads the compiled application in a browser preview build.",
+        "index.html": "This Flutter web host document supplies preview metadata, icons, startup markup, and the bootstrap script.",
+        "manifest.json": "This web-app manifest defines the Flutter preview's name, icons, display mode, colors, and install metadata.",
+        "oryntra_palette_test.dart": "This Flutter test locks the product palette and semantic light/dark color relationships against accidental visual drift.",
+        "quant_lab_store_test.dart": "This Flutter test verifies device-local Quant Lab report ordering, retention, reading, and deletion.",
+        "AppFrameworkInfo.plist": "This Flutter framework property list defines bundle and minimum-platform metadata used when embedding the engine in iOS.",
+        "Debug.xcconfig": "This debug configuration includes Flutter-generated settings and CocoaPods integration for Runner.",
+        "Release.xcconfig": "This release configuration includes Flutter-generated settings and CocoaPods integration for archives.",
+        "Flutter.podspec": "This local CocoaPods specification describes the Flutter engine framework dependency.",
+        "Info.plist": "This property list declares app or widget identity, capabilities, URL schemes, background modes, permission strings, and extension metadata for its target.",
+        "OryntraWidget.entitlements": "This entitlement grants the widget access to the shared Oryntra app group used for latest-scan values.",
+        "OryntraWidget.swift": "This WidgetKit source defines the latest-scan timeline, app-group read, card UI, refresh policy, and scanner deep link.",
+        "Podfile": "This CocoaPods manifest configures Runner and widget targets, Flutter pods, the iOS platform, and post-install settings.",
+        "Podfile.lock": "This lockfile records the exact native iOS pod graph used by the Flutter project.",
+        "project.pbxproj": "This is the Xcode project graph for Runner and OryntraWidget targets, files, phases, signing, app groups, versions, and build settings.",
+        "contents.xcworkspacedata": "This Xcode workspace declaration links the Runner project and, where applicable, the Pods project.",
+        "Runner.xcscheme": "This shared Xcode scheme defines Runner build, test, profile, analyze, archive, and launch actions.",
+        "AppDelegate.swift": "This native delegate registers plugins and APNs, implements notification/background/widget channels, schedules reminders, writes latest-scan values, and refreshes WidgetKit.",
+        "Contents.json": "This Apple asset-catalog manifest maps adjacent icon or launch-image files to required scales and roles.",
+        "LaunchScreen.storyboard": "This storyboard defines the native launch screen shown before Flutter renders.",
+        "Main.storyboard": "This storyboard provides the native Flutter host view-controller entry point.",
+        "GeneratedPluginRegistrant.h": "This generated header declares Flutter plugin registration for Runner.",
+        "GeneratedPluginRegistrant.m": "This generated implementation registers the iOS plugins used by the Flutter application.",
+        "PrivacyInfo.xcprivacy": "This Apple privacy manifest declares required-reason API and data-access categories for the bundle.",
+        "Runner-Bridging-Header.h": "This bridging header exposes Objective-C plugin registration to Swift Runner code.",
+        "Runner.entitlements": "This file grants Runner the shared app group, associated domains, and push environment used by the app.",
+    }
+    if path.name in specific:
+        return specific[path.name]
     return "This mobile-support file contributes to the Flutter or iOS client boundary. Read it with the screen, service, widget, or native target that consumes it, because a local source change can fail later at archive time or on a real device."
+
+
+def binary_story(path: Path) -> str:
+    value = rel(path)
+    size = path.stat().st_size
+    if value == "brand-assets/oryntra-ai-master-logo.png":
+        role = "the master repository and documentation logo"
+    elif "AppIcon.appiconset" in value:
+        role = "one required iOS application-icon rendition"
+    elif "LaunchImage.imageset" in value:
+        role = "one native iOS launch-image rendition"
+    elif value.startswith("ios-app/assets/"):
+        role = "the Flutter application's bundled Oryntra icon"
+    elif value.startswith("ios-app/web/"):
+        role = "a Flutter web icon or favicon"
+    elif value.startswith("server/maintenance_site/"):
+        role = "a maintenance-site brand or favicon asset"
+    elif value.startswith("server/frontend/"):
+        role = "a browser-site brand, profile, icon, or favicon asset"
+    else:
+        role = "a version-controlled binary asset"
+    return f"This {size:,}-byte binary file provides {role}. It has no executable source to inventory, but its exact path and dimensions are part of the relevant HTML, Flutter, iOS asset-catalog, or branding contract."
 
 
 def support_file_story(path: Path, text: str) -> str:
     value = rel(path)
+    if value == ".gitignore":
+        return "This ignore policy keeps credentials, databases, model artifacts, market caches, virtual environments, generated Flutter settings, build output, and machine-local state out of version control. It is part of the repository's privacy and deployment-safety boundary."
     if value.startswith("server/frontend/legal/") or value.startswith("server/maintenance_site/legal/"):
         page = path.stem.replace("-", " ")
         return f"This {page} document is a policy-facing page served by the product. Its statements must remain consistent with actual data, account, subscription, advertising, and research behavior; legal wording should not be changed merely as interface copy."
@@ -619,9 +712,21 @@ def public_surface_sentence(path: Path, text: str) -> str:
     return ""
 
 
-def narrative_file_entry(path: Path, text: str) -> str:
+def narrative_file_entry(path: Path, text: str | None) -> str:
     key = rel(path)
     category = category_for(path)
+    if path == OUTPUT:
+        return (
+            f"\n[{key}]\n"
+            f"Classification: {category}.\n\n"
+            + paragraph("This is the generated manual currently being produced. It is the exhaustive tracked-file catalogue and source-derived architectural reference; regenerate it with server/tools/generate_master_docs.py whenever the repository structure or documented product behavior changes.")
+        )
+    if text is None:
+        return (
+            f"\n[{key}]\n"
+            f"Classification: {category}. Source size: {path.stat().st_size:,} bytes.\n\n"
+            + paragraph(binary_story(path))
+        )
     lines = line_count(text)
     chunks = [f"\n[{key}]\n", f"Classification: {category}. Source size: {lines} lines.\n\n"]
     role = DEEP_FILE_NOTES.get(key) or FILE_NOTES.get(key) or support_file_story(path, text)
@@ -629,6 +734,8 @@ def narrative_file_entry(path: Path, text: str) -> str:
     surface = public_surface_sentence(path, text)
     if surface:
         chunks.append(paragraph(surface))
+    if path.suffix in {".py", ".js", ".dart", ".swift", ".html", ".css", ".json"}:
+        chunks.append(text_entry(path, text))
     return "".join(chunks)
 
 
@@ -637,7 +744,9 @@ def environment_inventory(files: Iterable[Path]) -> list[str]:
     for path in files:
         if path.suffix not in {".py", ".sh", ".command", ".md", ".txt"}:
             continue
-        text = path.read_text(encoding="utf-8", errors="replace")
+        text = source_text(path)
+        if text is None:
+            continue
         names.update(re.findall(r"\b(?:ORYNTRA|POLYGON|TWELVEDATA|ADSENSE|WEB_ADS|PORT|PUBLIC_[A-Z_]+)_[A-Z0-9_]+\b", text))
         names.update(re.findall(r"os\.getenv\([\"']([A-Z0-9_]+)", text))
     return sorted(name for name in names if "KEY" not in name or name in {"POLYGON_API_KEY", "TWELVEDATA_API_KEY"})
@@ -654,8 +763,8 @@ def main() -> None:
     output.append("Git source revision at generation: " + git_value("rev-parse", "HEAD") + "\n")
     output.append("Git branch: " + git_value("branch", "--show-current") + "\n")
     output.append("\n")
-    output.append(paragraph("This manual is written for a reader who wants to understand how the checked-out Oryntra AI system behaves, how its pieces relate, and where a change can create risk. It is not a source-code mirror. It deliberately excludes raw code, private environment files, local databases, cached market data, virtual environments, build products, and credentials. A documented source file proves only what this checkout contains; it does not by itself prove a live server, provider account, or database is current and healthy."))
-    output.append(paragraph("The document separates present-source facts from historical context. Oryntra's connected Notion workspace contains valuable earlier NAS deployment and Pattern Lab material, but those records refer to older snapshots. The current GitHub source reconciliation page should be read before treating a past path, version, test count, or deployment claim as current."))
+    output.append(paragraph("This manual is written for a reader who wants to understand how the checked-out Oryntra AI system behaves, how its pieces relate, and where a change can create risk. It is not a source-code mirror. It documents every Git-tracked file, parses readable source and configuration, and catalogues binary assets while excluding private environment files, local databases, cached market data, virtual environments, untracked build products, and credentials. A documented file proves only what this checkout contains; it does not by itself prove a live server, provider account, database, or App Store release is current and healthy."))
+    output.append(paragraph("The document distinguishes released product labels from historical internal names and experimental candidates. It also distinguishes code capability from operating-mode availability: a route or screen in the repository may be private, feature-flagged, preview-only, or dependent on provider rights and device permissions. Those distinctions are part of the feature, not footnotes."))
     output.append("\nHIGH-LEVEL FLOW\n\n")
     output.append("  Data providers / local cache\n")
     output.append("              |\n")
@@ -679,8 +788,9 @@ def main() -> None:
     output.append(paragraph("The catalogue that follows is intentionally file-by-file, but it is not a reproduction of the code. Each entry identifies the file's real role in the system, explains the boundaries it owns, and notes the operational or product implication that matters when it changes. The descriptions are densest for modules that determine data provenance, analytical logic, access boundaries, durable state, or client contracts; small configuration and platform files are described by the particular build or runtime contract they carry."))
     output.append("INCLUDED FILES\n\n")
     for path in files:
-        text = path.read_text(encoding="utf-8", errors="replace")
-        output.append(f"  - {rel(path)} ({line_count(text)} lines; {category_for(path)})\n")
+        text = source_text(path)
+        size = f"{line_count(text)} lines" if text is not None and path != OUTPUT else ("generated output" if path == OUTPUT else f"{path.stat().st_size:,} bytes")
+        output.append(f"  - {rel(path)} ({size}; {category_for(path)})\n")
     output.append(section("9. ENVIRONMENT VARIABLE REFERENCE"))
     output.append(paragraph("The following names were found in safe source/configuration files. Values are intentionally omitted. Keep populated environment files and service credentials out of source control and out of public documentation."))
     for name in environment_inventory(files):
@@ -688,7 +798,7 @@ def main() -> None:
     output.append("\n")
     output.append(section("10. FILE-BY-FILE NARRATIVE REFERENCE"))
     for path in files:
-        text = path.read_text(encoding="utf-8", errors="replace")
+        text = source_text(path)
         output.append(narrative_file_entry(path, text))
     output.append(section("11. TEST, RELEASE, AND REVIEW DISCIPLINE"))
     output.append(paragraph("Run tests from `server/` so imports resolve from the application root: `PYTHONPATH=. .venv/bin/python3 -m unittest discover -s tests -v`. For a focused Quant Lab check, run `PYTHONPATH=. .venv/bin/python3 -m unittest tests.test_quant_research`. Validate the browser client with `node --check frontend/static/js/app.js`. A release candidate should also be started locally and checked through the actual `/health` endpoint and intended access modes."))

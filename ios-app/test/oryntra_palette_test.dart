@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:oryntra_ai/app_config.dart';
@@ -17,6 +18,26 @@ void main() {
   test('account traffic defaults to the main Oryntra domain', () {
     expect(AppConfig.authBaseUrl, 'https://oryntraai.com');
     expect(AppConfig.apiBaseUrl, 'https://oryntraai.com');
+  });
+
+  test('iOS ad mode keeps banner and interstitial inventory aligned', () {
+    debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+    try {
+      expect(
+        AppConfig.bannerAdUnitId,
+        AppConfig.useTestAds
+            ? AppConfig.iosTestBannerAdUnitId
+            : AppConfig.iosBannerAdUnitId,
+      );
+      expect(
+        AppConfig.interstitialAdUnitId,
+        AppConfig.useTestAds
+            ? AppConfig.iosTestInterstitialAdUnitId
+            : AppConfig.iosInterstitialAdUnitId,
+      );
+    } finally {
+      debugDefaultTargetPlatformOverride = null;
+    }
   });
 
   testWidgets('section labels retain institutional hierarchy', (tester) async {
@@ -71,11 +92,15 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('saved Quant Lab report can be reopened on device', (tester) async {
+  testWidgets('saved Quant Lab report can be reopened on device', (
+    tester,
+  ) async {
     final key = GlobalKey<QuantLabScreenState>();
     await tester.pumpWidget(
       MaterialApp(
-        home: Scaffold(body: QuantLabScreen(key: key, api: ApiService())),
+        home: Scaffold(
+          body: QuantLabScreen(key: key, api: ApiService()),
+        ),
       ),
     );
 

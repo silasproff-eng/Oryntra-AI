@@ -62,7 +62,8 @@ class GroupedDailyDatabaseTests(unittest.TestCase):
         self.assertEqual(first["rows_stored"], 2)
         self.assertEqual(second["rows_stored"], 2)
 
-        with database.get_connection() as conn:
+        conn = database.get_connection()
+        try:
             count = conn.execute("SELECT COUNT(*) FROM ohlcv_bars").fetchone()[0]
             aapl = conn.execute(
                 "SELECT close, vwap, transactions FROM ohlcv_bars WHERE ticker='AAPL'"
@@ -70,6 +71,8 @@ class GroupedDailyDatabaseTests(unittest.TestCase):
             run = conn.execute(
                 "SELECT status, request_id, rows_stored FROM market_ingest_runs WHERE trading_date='2026-07-29'"
             ).fetchone()
+        finally:
+            conn.close()
         self.assertEqual(count, 2)
         self.assertEqual(float(aapl["close"]), 103.0)
         self.assertEqual(float(aapl["vwap"]), 100.5)
@@ -85,13 +88,15 @@ class GroupedDailyDatabaseTests(unittest.TestCase):
             database.store_grouped_daily_bars(
                 "2026-07-30", self._bars()[:1], minimum_rows=2
             )
-        with database.get_connection() as conn:
+        conn = database.get_connection()
+        try:
             dates = conn.execute(
                 "SELECT COUNT(DISTINCT substr(timestamp,1,10)) FROM ohlcv_bars"
             ).fetchone()[0]
+        finally:
+            conn.close()
         self.assertEqual(dates, 1)
 
 
 if __name__ == "__main__":
     unittest.main()
-

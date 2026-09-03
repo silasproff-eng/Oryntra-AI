@@ -173,7 +173,7 @@ class QuantLabScreenState extends State<QuantLabScreen> {
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
-                value: _period,
+                initialValue: _period,
                 decoration: const InputDecoration(labelText: 'Sample window'),
                 items: const [
                   DropdownMenuItem(value: '1y', child: Text('1 year')),
@@ -187,7 +187,7 @@ class QuantLabScreenState extends State<QuantLabScreen> {
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
-                value: _model,
+                initialValue: _model,
                 decoration: const InputDecoration(labelText: 'Research model'),
                 items: const [
                   DropdownMenuItem(
@@ -296,7 +296,7 @@ class QuantLabScreenState extends State<QuantLabScreen> {
               ),
               const SizedBox(height: 8),
               DropdownButtonFormField<String>(
-                value: _rebalance,
+                initialValue: _rebalance,
                 decoration: const InputDecoration(labelText: 'Rebalance'),
                 items: const [
                   DropdownMenuItem(value: 'daily', child: Text('Daily')),

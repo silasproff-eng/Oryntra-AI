@@ -173,7 +173,8 @@ def _validation(net: pd.Series, folds: int) -> dict[str, Any]:
     clean = net.replace([np.inf, -np.inf], np.nan).dropna()
     if len(clean) < 126: return {"status": "insufficient_history", "message": "At least 126 completed sessions are needed for the chronological holdout report."}
     holdout_sessions = max(63, len(clean) // 5); development, holdout = clean.iloc[:-holdout_sessions], clean.iloc[-holdout_sessions:]
-    windows = np.array_split(development, max(1, min(folds, len(development) // 42)))
+    split_count = max(1, min(folds, len(development) // 42))
+    windows = [development.iloc[indexes] for indexes in np.array_split(np.arange(len(development)), split_count)]
     return {"status": "chronological_holdout", "note": "Rules are fixed rather than fitted here; this split is a chronological robustness check, not model training.", "development": _summary(development, pd.Series(0., index=development.index), pd.DataFrame(index=development.index)), "holdout": _summary(holdout, pd.Series(0., index=holdout.index), pd.DataFrame(index=holdout.index)), "walk_forward": [{"fold": number, "start": str(window.index.min().date()), "end": str(window.index.max().date()), "sessions": int(len(window)), "total_return_pct": round(((1 + window).prod() - 1) * 100, 2)} for number, window in enumerate(windows, 1) if len(window) >= 21]}
 
 
