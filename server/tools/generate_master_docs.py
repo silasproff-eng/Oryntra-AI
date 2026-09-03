@@ -760,7 +760,7 @@ def main() -> None:
     output.append("ORYNTRA AI — MASTER TECHNICAL MANUAL\n")
     output.append("NARRATIVE ARCHITECTURE, OPERATIONS, AND FILE REFERENCE\n")
     output.append("Generated: " + now + "\n")
-    output.append("Git source revision at generation: " + git_value("rev-parse", "HEAD") + "\n")
+    output.append("Git base revision at generation: " + git_value("rev-parse", "HEAD") + "\n")
     output.append("Git branch: " + git_value("branch", "--show-current") + "\n")
     output.append("\n")
     output.append(paragraph("This manual is written for a reader who wants to understand how the checked-out Oryntra AI system behaves, how its pieces relate, and where a change can create risk. It is not a source-code mirror. It documents every Git-tracked file, parses readable source and configuration, and catalogues binary assets while excluding private environment files, local databases, cached market data, virtual environments, untracked build products, and credentials. A documented file proves only what this checkout contains; it does not by itself prove a live server, provider account, database, or App Store release is current and healthy."))

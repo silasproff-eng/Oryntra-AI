@@ -1,7 +1,7 @@
 ORYNTRA AI — MASTER TECHNICAL MANUAL
 NARRATIVE ARCHITECTURE, OPERATIONS, AND FILE REFERENCE
-Generated: 2026-09-03 23:04 UTC
-Git source revision at generation: 5b61bd1478b9e4053c22fd05452b88af0ba86359
+Generated: 2026-09-03 23:06 UTC
+Git base revision at generation: a5b005ba6e427a915b32668f85b4e8a0bfb69305
 Git branch: main
 
 This manual is written for a reader who wants to understand how the checked-out Oryntra AI
