@@ -63,6 +63,8 @@ The optional regime model uses prior benchmark trend, realized volatility, drawd
 
 This changes the sleeve mixture; it does not train a return predictor, forecast a regime with certainty, or place an order. When macro coverage is absent, the price-history components still operate and the report exposes the missing structured coverage.
 
+When more than one sleeve is selected, their target weights are combined symbol by symbol before the shared concentration, gross-exposure, volatility, timing, and cost controls are applied. That is transparent signal netting—not a style optimizer—and it can still create an overfit historical blend.
+
 ## Liquidity-aware execution costs
 
 When enabled, the engine:
@@ -74,6 +76,8 @@ When enabled, the engine:
 - reports maximum participation, missing-liquidity observations, and days above the selected limit.
 
 This is a capacity-sensitive cost proxy, not a complete execution or fire-sale model. It does not spread an order across days, reject an infeasible target, simulate a limit-order book, stress ADV/spreads, model financing/redemptions, or feed market impact back into later prices.
+
+The report also re-runs that same formula at 1×, 2×, and 5× the selected portfolio-value assumption. It shows estimated aggregate proxy cost, maximum estimated participation, and participation-limit breaches at each size. This is a capacity sensitivity table, not an institutional liquidation model: it still does not know order-book depth, spreads, multi-day trading, other participants, or feedback from a sale into prices.
 
 ## Point-in-time corporate and macro data
 
@@ -110,6 +114,8 @@ Supported macro metrics are `policy_rate`, `yield_2y`, `yield_10y`, `credit_spre
 
 The engine reserves at least 63 sessions or the final 20% of history as a chronological holdout when at least 126 sessions exist. Earlier development history is divided into sequential walk-forward report slices. The fixed sleeve rules are not fitted by this function, so the split is a robustness comparison rather than model training.
 
+Every report also includes an equal-weight buy-and-hold reference over the exact selected symbols. It is intentionally simple and has no rebalancing, borrow, or liquidity cost, so it is a comparison reference rather than an apples-to-apples executable portfolio. A higher strategy result alone is not a pass: compare its holdout path, drawdown, turnover, cost assumptions, coverage, and diagnostics with the reference.
+
 ### Regime and exposure
 
 - Regime breakdown groups net returns by broad market trend and volatility states.
@@ -138,6 +144,24 @@ It reports baseline and stressed 21-session/annualized volatility plus a risk mu
 Every completed report returns and displays an assumption ledger. It records the exact timing convention, rebalancing schedule, one-way volatility target, gross and single-name limits, short-borrow assumption, base cost, liquidity-proxy inputs, corporate/macro point-in-time coverage, and correlation-stress construction used for that run. It also lists material omissions: order-book/venue depth, bid-ask series, fill or best-execution simulation, delisted-security point-in-time coverage, taxes, financing beyond stated borrow, and unfilled-order opportunity cost.
 
 The ledger is an audit aid. It does not convert daily OHLCV into a liquidity classification or execution claim, and it does not change a portfolio’s simulated holdings.
+
+## Reproducible strategy experiments
+
+Quant Lab now records completed API/browser reports as `quant_strategy` experiments with their configuration, dataset fingerprint, history range, symbols, primary result, reference result, and chronological validation summary. The record is metadata only; browser-uploaded raw bars are still evaluated in memory and are not persisted by that route.
+
+For deliberately testing a new research hypothesis without changing application code, use the declarative CSV-and-manifest runner. It accepts fixed daily `date,ticker,close,volume` rows and a JSON manifest; it does **not** execute arbitrary strategy code. This preserves a readable research contract and makes it possible to compare like with like.
+
+```bash
+cd server
+PYTHONPATH=. .venv/bin/python3 tools/run_quant_experiment_cli.py \
+  --bars-csv /absolute/path/daily_bars.csv \
+  --manifest examples/quant_strategy_manifest.example.json \
+  --output /absolute/path/quant_report.json
+```
+
+Start from `examples/quant_strategy_manifest.example.json`. Give every run a plain-language hypothesis, choose only the supported sleeve identifiers, and explicitly retain its lookbacks, allocations, limits, schedule, costs, liquidity-proxy inputs, and validation settings. The runner creates an output report and a local experiment record; it never sends an order, retains provider credentials, or promotes a result automatically.
+
+An experiment is worth discussing only after the hypothesis and rules were fixed before looking at its holdout, and the holdout is compared against the disclosed reference with realistic limitations in mind. The runner is not a tool for scanning parameter combinations until one looks good.
 
 ## Client and route behavior
 

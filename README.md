@@ -92,6 +92,8 @@ This sequence is intentionally conservative. It does not search a large paramete
 
 I built Quant Lab as Oryntra V1.0’s separate systematic-research workspace. It evaluates a selected universe of daily closing-price histories using rules fixed before each run. The V1.0 corporate quant system adds a local, source-auditable point-in-time repository for public corporate disclosures and macro observations. It runs independently of the scanner and does not place trades. I designed it to help a user understand how a defined portfolio rule would have behaved historically after the requested controls and cost assumptions—not to identify a “best” strategy.
 
+For repeatable hypothesis testing, a small declarative experiment runner takes daily `date,ticker,close,volume` CSV data and a versioned JSON manifest. It records the hypothesis, fixed sleeve rules, parameters, fingerprint, chronological holdout, and equal-weight buy-and-hold reference alongside the result. It accepts configurations, not arbitrary code: that is intentional, because an experiment should remain inspectable rather than becoming a parameter-search black box. The full workflow and example manifest are in [server/QUANT_LAB.md](server/QUANT_LAB.md).
+
 ### Strategy comparators
 
 | Sleeve | Question it examines | Primary failure mode |

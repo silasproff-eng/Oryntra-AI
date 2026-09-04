@@ -206,6 +206,9 @@ Each run returns configuration, universe dates/symbols, source metadata, a datas
 - corporate/macro coverage status;
 - factor/relative-value attribution and sleeve health;
 - an assumption ledger that records timing, portfolio limits, cost/liquidity inputs, structured-evidence coverage, stress construction, and material omissions for the exact run;
+- daily-ADV capacity sensitivity at the selected, 2×, and 5× portfolio-value assumptions, with explicit limits that it is not an order-book or fire-sale simulation;
+- an equal-weight buy-and-hold reference over the selected symbols, explicitly labeled as a no-cost comparison rather than an executable benchmark;
+- an experiment identifier for completed runs, recording configuration, dataset fingerprint, history range, universe, primary/reference summaries, and validation metadata without persisting browser-uploaded raw bars;
 - 126-session pairwise return-correlation matrix;
 - moderate and severe correlation-convergence scenarios over 21 sessions, preserving marginal volatility and shifting correlations 50% or 85% toward +1;
 - net monthly-return matrix; and
@@ -233,7 +236,7 @@ Legacy provider-credential HTTP endpoints remain in the route module for control
 
 Private server mode’s market repository normalizes tickers and periods, checks the SQLite OHLCV cache, evaluates exchange-session freshness, selects Polygon or Twelve Data when needed, normalizes response columns/timestamps, validates numerical integrity, atomically persists usable bars, and returns source/freshness/fallback metadata. Cache-only mode never calls a provider.
 
-The cache worker and tools support status, warm start, date-aware backfill, idempotent grouped storage, ingest-run records, known-symbol coverage, safe backup/restore checks, and maintenance workflows. A dataset fingerprint binds a Quant Lab report to its selected histories and configuration.
+The cache worker and tools support status, warm start, date-aware backfill, idempotent grouped storage, ingest-run records, known-symbol coverage, safe backup/restore checks, and maintenance workflows. A dataset fingerprint binds a Quant Lab report to its selected histories and configuration. `server/tools/run_quant_experiment_cli.py` adds a local, declarative CSV/JSON-manifest workflow for reproducible Quant Lab experiments; it records metadata and derived results only, never executes arbitrary strategy code or broker actions.
 
 Browser/mobile direct mode is intentionally different: provider keys remain on the device, normalized completed bars are uploaded for the requested calculation, and public upload routes do not persist those raw bars. Public payload filtering removes internal market-history arrays from scanner responses.
 

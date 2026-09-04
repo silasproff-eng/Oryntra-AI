@@ -1,7 +1,7 @@
 ORYNTRA AI — MASTER TECHNICAL MANUAL
 NARRATIVE ARCHITECTURE, OPERATIONS, AND FILE REFERENCE
-Generated: 2026-09-04 13:21 UTC
-Git base revision at generation: aa5a9aea0b46640d5f75fb0218a175d4d94734f2
+Generated: 2026-09-04 23:30 UTC
+Git base revision at generation: ebaf5a9eda13e3d2714c7ab9bb4443367ac4d0b9
 Git branch: main
 
 This manual is written for a reader who wants to understand how the checked-out Oryntra AI
@@ -221,9 +221,9 @@ automatically healthy; check the real health response and the intended user flow
 ========================================================================================
 8. REPOSITORY COVERAGE AND READING MAP
 ========================================================================================
-Included files: 226
+Included files: 229
   - Automated regression test: 19
-  - Backend service or research engine: 30
+  - Backend service or research engine: 31
   - Brand asset: 1
   - Browser application structure: 1
   - Browser presentation or client behaviour: 18
@@ -236,11 +236,11 @@ Included files: 226
   - Mobile application configuration or operator asset: 13
   - Mobile or web application asset: 3
   - Native iOS integration or build configuration: 43
-  - Operator or research utility: 12
+  - Operator or research utility: 13
   - Product and operating model: 1
   - Product or technical documentation: 3
   - Repository asset: 3
-  - Server configuration or operator asset: 11
+  - Server configuration or operator asset: 12
 
 The catalogue that follows is intentionally file-by-file, but it is not a reproduction of the
 code. Each entry identifies the file's real role in the system, explains the boundaries it
@@ -253,12 +253,12 @@ INCLUDED FILES
 
   - .gitignore (65 lines; Repository asset)
   - LICENSE (99 lines; Repository asset)
-  - README.md (273 lines; Product and operating model)
+  - README.md (275 lines; Product and operating model)
   - V1_RELEASE_READINESS.md (53 lines; Repository asset)
   - brand-assets/oryntra-ai-master-logo.png (167,124 bytes; Brand asset)
-  - docs/FEATURES_MODELS_AND_ARCHITECTURE.md (337 lines; Product or technical documentation)
+  - docs/FEATURES_MODELS_AND_ARCHITECTURE.md (340 lines; Product or technical documentation)
   - docs/IOS_RELEASE_AND_INTELLIGENCE_ROADMAP.md (28 lines; Product or technical documentation)
-  - docs/ORYNTRA_RESEARCH_GOOD_FINDS.txt (74 lines; Product or technical documentation)
+  - docs/ORYNTRA_RESEARCH_GOOD_FINDS.txt (114 lines; Product or technical documentation)
   - docs/Oryntra_AI_Master_Technical_Documentation.txt (generated output; Generated documentation)
   - ios-app/analysis_options.yaml (11 lines; Mobile application configuration or operator asset)
   - ios-app/assets/oryntra-icon.png (167,124 bytes; Mobile or web application asset)
@@ -351,7 +351,7 @@ INCLUDED FILES
   - server/.env.example (59 lines; Server configuration or operator asset)
   - server/BACKFILL_MARKET_DATA_MAC.command (12 lines; Server configuration or operator asset)
   - server/CHECK_MARKET_CACHE_MAC.command (11 lines; Server configuration or operator asset)
-  - server/QUANT_LAB.md (165 lines; Server configuration or operator asset)
+  - server/QUANT_LAB.md (189 lines; Server configuration or operator asset)
   - server/START_MAINTENANCE_MODE.command (5 lines; Server configuration or operator asset)
   - server/START_MAINTENANCE_MODE.sh (5 lines; Server configuration or operator asset)
   - server/START_ORYNTRA_MAC.command (28 lines; Server configuration or operator asset)
@@ -382,8 +382,9 @@ INCLUDED FILES
   - server/backend/polygon_client.py (185 lines; Backend service or research engine)
   - server/backend/provider_credentials.py (163 lines; Backend service or research engine)
   - server/backend/public_payload.py (138 lines; Backend service or research engine)
-  - server/backend/quant_research.py (386 lines; Backend service or research engine)
-  - server/backend/quant_system.py (135 lines; Backend service or research engine)
+  - server/backend/quant_experiments.py (107 lines; Backend service or research engine)
+  - server/backend/quant_research.py (394 lines; Backend service or research engine)
+  - server/backend/quant_system.py (168 lines; Backend service or research engine)
   - server/backend/research_experiments.py (338 lines; Backend service or research engine)
   - server/backend/research_training.py (175 lines; Backend service or research engine)
   - server/backend/research_universe.py (111 lines; Backend service or research engine)
@@ -398,7 +399,7 @@ INCLUDED FILES
   - server/backend/routes/patterns.py (31 lines; HTTP API route)
   - server/backend/routes/pro.py (1144 lines; HTTP API route)
   - server/backend/routes/pro_live.py (471 lines; HTTP API route)
-  - server/backend/routes/quant.py (230 lines; HTTP API route)
+  - server/backend/routes/quant.py (263 lines; HTTP API route)
   - server/backend/routes/watchlist.py (50 lines; HTTP API route)
   - server/backend/setup_detector.py (1313 lines; Backend service or research engine)
   - server/backend/trade_scorer.py (515 lines; Backend service or research engine)
@@ -406,6 +407,7 @@ INCLUDED FILES
   - server/backend/v8_engine.py (468 lines; Backend service or research engine)
   - server/backend/vai2_model.py (641 lines; Backend service or research engine)
   - server/backend/vai_model.py (373 lines; Backend service or research engine)
+  - server/examples/quant_strategy_manifest.example.json (27 lines; Server configuration or operator asset)
   - server/frontend/index.html (180 lines; Browser application structure)
   - server/frontend/legal/contact.html (11 lines; Legal and policy surface)
   - server/frontend/legal/methodology.html (16 lines; Legal and policy surface)
@@ -449,7 +451,7 @@ INCLUDED FILES
   - server/tests/conftest.py (10 lines; Automated regression test)
   - server/tests/test_ads_configuration.py (26 lines; Automated regression test)
   - server/tests/test_analysis_access_policy.py (62 lines; Automated regression test)
-  - server/tests/test_corporate_quant_system.py (62 lines; Automated regression test)
+  - server/tests/test_corporate_quant_system.py (84 lines; Automated regression test)
   - server/tests/test_dev_tools_jobs.py (118 lines; Automated regression test)
   - server/tests/test_intelligence_route.py (113 lines; Automated regression test)
   - server/tests/test_market_cache.py (103 lines; Automated regression test)
@@ -473,6 +475,7 @@ INCLUDED FILES
   - server/tools/market_cache_cli.py (92 lines; Operator or research utility)
   - server/tools/run_backtest_cli.py (119 lines; Operator or research utility)
   - server/tools/run_pattern_lab_cli.py (101 lines; Operator or research utility)
+  - server/tools/run_quant_experiment_cli.py (54 lines; Operator or research utility)
   - server/tools/seed_app_review_account.py (56 lines; Operator or research utility)
   - server/tools/train_vai2_cli.py (120 lines; Operator or research utility)
   - server/tools/vai_full_train_pipeline.py (41 lines; Operator or research utility)
@@ -591,7 +594,7 @@ of ordinary product editing.
 
 
 [README.md]
-Classification: Product and operating model. Source size: 273 lines.
+Classification: Product and operating model. Source size: 275 lines.
 
 The repository README is the public orientation document. It explains Oryntra's research
 scope, the major product surfaces, local setup, and the intended limits of the system. It
@@ -617,7 +620,7 @@ HTML, Flutter, iOS asset-catalog, or branding contract.
 
 
 [docs/FEATURES_MODELS_AND_ARCHITECTURE.md]
-Classification: Product or technical documentation. Source size: 337 lines.
+Classification: Product or technical documentation. Source size: 340 lines.
 
 Its substantive sections are Oryntra AI: Features, Models, and Architecture, 1. Product
 boundary, 2. Product surfaces and availability, 3. Model naming: what each model actually is,
@@ -641,7 +644,7 @@ changes, not merely to make it sound more complete.
 
 
 [docs/ORYNTRA_RESEARCH_GOOD_FINDS.txt]
-Classification: Product or technical documentation. Source size: 74 lines.
+Classification: Product or technical documentation. Source size: 114 lines.
 
 This supporting file belongs to the product or technical documentation layer. Its role is
 bounded by the adjacent source and configuration files; a change should be evaluated in the
@@ -1861,7 +1864,7 @@ environment before executing them on any persistent installation.
 
 
 [server/QUANT_LAB.md]
-Classification: Server configuration or operator asset. Source size: 165 lines.
+Classification: Server configuration or operator asset. Source size: 189 lines.
 
 Its substantive sections are Oryntra V1.0 Quant Lab, System flow, Model profiles, Sleeves,
 Time-series trend, Cross-sectional momentum, Mean-reversion comparator, Defensive low
@@ -2634,8 +2637,28 @@ Public code inventory:
   - function assert_no_raw_market_data.walk(value, path) (line 127)
 
 
+[server/backend/quant_experiments.py]
+Classification: Backend service or research engine. Source size: 107 lines.
+
+This supporting file belongs to the backend service or research engine layer. Its role is
+bounded by the adjacent source and configuration files; a change should be evaluated in the
+workflow that actually consumes it rather than judged from the file in isolation.
+
+Module statement: Reproducible, research-only Quant Lab experiment helpers. This module
+deliberately accepts a small, declarative strategy manifest instead of arbitrary user code. A
+saved result can therefore say exactly which fixed rules, data, limits, and assumptions
+produced it.
+
+Imports: .quant_research, .research_experiments, __future__, pandas, typing
+
+Public code inventory:
+  - function quant_config_from_manifest(manifest) (line 27) — Validate a declarative experiment manifest and return its fixed config.
+  - function histories_from_rows(rows) (line 48) — Convert normalized CSV rows into the daily close/volume histories Quant Lab needs.
+  - function run_manifest_experiment(histories, manifest, corporate_scores, macro_features) (line 73) — Evaluate and durably record one fixed strategy hypothesis.
+
+
 [server/backend/quant_research.py]
-Classification: Backend service or research engine. Source size: 386 lines.
+Classification: Backend service or research engine. Source size: 394 lines.
 
 This module is the Quant Lab calculation engine. It builds each transparent signal sleeve,
 applies weight and volatility controls, simulates next-session returns after modeled costs,
@@ -2646,33 +2669,33 @@ execution claims without new data, modeling, and policy work.
 Imports: .quant_system, __future__, dataclasses, numpy, pandas, typing
 
 Public code inventory:
-  - class QuantConfig (line 37)
-  - function QuantConfig.strategy_allocations_pct(self) (line 58)
-  - function QuantConfig.as_dict(self) (line 68)
-  - function _normalise_gross(signal) (line 72)
-  - function _trend(prices, config) (line 76)
-  - function _momentum(prices, config) (line 81)
-  - function _reversion(prices, config) (line 89)
-  - function _low_volatility(prices, config) (line 96)
-  - function _corporate_quality(corporate_scores, prices, config) (line 104)
-  - function _controls(target, returns, config) (line 115)
-  - function _summary(net, turnover, weights) (line 133)
-  - function _simulate(target, returns, config, prices, volumes) (line 147)
-  - function _regime_breakdown(net, benchmark) (line 159)
-  - function _validation(net, folds) (line 172)
-  - function _risk_report(held, returns) (line 181)
-  - function _quality(prices) (line 187)
-  - function _assumption_ledger(config, corporate_coverage_pct, macro_coverage_pct) (line 191) — Return the fixed model inputs and material omissions behind one research run.
-  - function _correlation_heatmap(returns) (line 227) — Return a bounded, display-ready trailing correlation matrix.
-  - function _correlation_stress_report(held, returns) (line 242) — Estimate hypothetical diversification failure with unchanged marginal volatility.
-  - function _monthly_return_heatmap(net) (line 309) — Aggregate net simulated returns by calendar month without changing the model.
-  - function _performance_diagnostics(net) (line 326) — Supply downsampled equity, drawdown, and rolling-risk series for the research UI.
-  - function _performance_diagnostics.points(series) (line 335)
-  - function evaluate_strategies(histories, config, corporate_scores, macro_features) (line 345)
+  - class QuantConfig (line 38)
+  - function QuantConfig.strategy_allocations_pct(self) (line 59)
+  - function QuantConfig.as_dict(self) (line 69)
+  - function _normalise_gross(signal) (line 73)
+  - function _trend(prices, config) (line 77)
+  - function _momentum(prices, config) (line 82)
+  - function _reversion(prices, config) (line 90)
+  - function _low_volatility(prices, config) (line 97)
+  - function _corporate_quality(corporate_scores, prices, config) (line 105)
+  - function _controls(target, returns, config) (line 116)
+  - function _summary(net, turnover, weights) (line 134)
+  - function _simulate(target, returns, config, prices, volumes) (line 148)
+  - function _regime_breakdown(net, benchmark) (line 160)
+  - function _validation(net, folds) (line 173)
+  - function _risk_report(held, returns) (line 182)
+  - function _quality(prices) (line 188)
+  - function _assumption_ledger(config, corporate_coverage_pct, macro_coverage_pct) (line 192) — Return the fixed model inputs and material omissions behind one research run.
+  - function _correlation_heatmap(returns) (line 228) — Return a bounded, display-ready trailing correlation matrix.
+  - function _correlation_stress_report(held, returns) (line 243) — Estimate hypothetical diversification failure with unchanged marginal volatility.
+  - function _monthly_return_heatmap(net) (line 310) — Aggregate net simulated returns by calendar month without changing the model.
+  - function _performance_diagnostics(net) (line 327) — Supply downsampled equity, drawdown, and rolling-risk series for the research UI.
+  - function _performance_diagnostics.points(series) (line 336)
+  - function evaluate_strategies(histories, config, corporate_scores, macro_features) (line 346)
 
 
 [server/backend/quant_system.py]
-Classification: Backend service or research engine. Source size: 135 lines.
+Classification: Backend service or research engine. Source size: 168 lines.
 
 This module supplies Quant Lab's cross-sleeve mechanics: probability-like regime states,
 regime-conditioned allocation multipliers, ADV-based square-root execution costs,
@@ -2689,8 +2712,9 @@ Public code inventory:
   - function regime_conditioned_weights(base_allocations_pct, regimes) (line 36) — Reweight sleeves without leverage; all rows sum to 1 after normalization.
   - function regime_conditioned_weights.adjust(name, trend, stress, reversal) (line 45)
   - function liquidity_execution_costs(target, prices, volumes, base_cost_bps, portfolio_value, impact_coefficient_bps, max_adv_participation_pct) (line 57) — Model simple, conservative liquidity costs from historical price and volume only.
-  - function factor_and_relative_value_attribution(held, returns, benchmark_returns, component_returns) (line 92)
-  - function strategy_health(component_returns, window) (line 122)
+  - function liquidity_capacity_scenarios(target, prices, volumes, base_cost_bps, portfolio_value, impact_coefficient_bps, max_adv_participation_pct) (line 92) — Re-run the same daily-ADV proxy at larger hypothetical portfolio sizes.
+  - function factor_and_relative_value_attribution(held, returns, benchmark_returns, component_returns) (line 125)
+  - function strategy_health(component_returns, window) (line 155)
 
 
 [server/backend/research_experiments.py]
@@ -3202,7 +3226,7 @@ Public code inventory:
 
 
 [server/backend/routes/quant.py]
-Classification: HTTP API route. Source size: 230 lines.
+Classification: HTTP API route. Source size: 263 lines.
 
 This route module forms the private Quant Lab API contract. Pydantic validation constrains
 ticker count, period, provider, model, costs, leverage-related limits, and rebalancing choice
@@ -3213,33 +3237,35 @@ not have to infer what ran.
 Its declared HTTP boundary includes GET /catalog, POST /corporate/import, GET
 /corporate/{ticker}, POST /run, POST /run-upload, POST /run-upload.
 
-Imports: ..corporate_repository, ..market_repository, ..quant_research, .analysis, .auth,
-__future__, asyncio, datetime, fastapi, pandas, pydantic
+Imports: ..corporate_repository, ..market_repository, ..quant_research,
+..research_experiments, .analysis, .auth, __future__, asyncio, datetime, fastapi, pandas,
+pydantic
 
 HTTP route decorators:
-  - line 114: router.get('/catalog') -> catalog
-  - line 119: router.post('/corporate/import') -> import_corporate_data
-  - line 129: router.get('/corporate/{ticker}') -> corporate_snapshot
-  - line 138: router.post('/run') -> run_research
-  - line 182: public_router.post('/run-upload') -> run_browser_research
-  - line 182: router.post('/run-upload') -> run_browser_research
+  - line 143: router.get('/catalog') -> catalog
+  - line 148: router.post('/corporate/import') -> import_corporate_data
+  - line 158: router.get('/corporate/{ticker}') -> corporate_snapshot
+  - line 167: router.post('/run') -> run_research
+  - line 213: public_router.post('/run-upload') -> run_browser_research
+  - line 213: router.post('/run-upload') -> run_browser_research
 
 Public code inventory:
-  - class QuantResearchRequest (line 24)
-  - function QuantResearchRequest.validate_period(cls, value) (line 51) [decorators: field_validator('period'), classmethod]
-  - function QuantResearchRequest.validate_provider(cls, value) (line 58) [decorators: field_validator('data_provider'), classmethod]
-  - function QuantResearchRequest.validate_model(cls, value) (line 65) [decorators: field_validator('model'), classmethod]
-  - function QuantResearchRequest.validate_rebalance(cls, value) (line 72) [decorators: field_validator('rebalance_frequency'), classmethod]
-  - function QuantResearchRequest.validate_weights(cls, value) (line 79) [decorators: field_validator('strategy_weights'), classmethod]
-  - class CorporateImportRequest (line 90)
-  - class BrowserQuantHistory (line 96)
-  - class BrowserQuantResearchRequest (line 101)
-  - function BrowserQuantResearchRequest.validate_browser_provider(cls, value) (line 107) [decorators: field_validator('provider'), classmethod]
-  - async function catalog() (line 114) [decorators: router.get('/catalog')]
-  - async function import_corporate_data(request, http_request) (line 119) [decorators: router.post('/corporate/import')]
-  - async function corporate_snapshot(ticker, http_request) (line 129) [decorators: router.get('/corporate/{ticker}')]
-  - async function run_research(request, http_request) (line 138) [decorators: router.post('/run')]
-  - async function run_browser_research(request, http_request) (line 182) [decorators: public_router.post('/run-upload'), router.post('/run-upload')] — Evaluate browser-fetched daily histories without accepting or retaining a provider key.
+  - function _attach_experiment_record(report, config, dataset_fingerprint, source) (line 25) — Persist the immutable inputs and headline diagnostics for a completed research run.
+  - class QuantResearchRequest (line 53)
+  - function QuantResearchRequest.validate_period(cls, value) (line 80) [decorators: field_validator('period'), classmethod]
+  - function QuantResearchRequest.validate_provider(cls, value) (line 87) [decorators: field_validator('data_provider'), classmethod]
+  - function QuantResearchRequest.validate_model(cls, value) (line 94) [decorators: field_validator('model'), classmethod]
+  - function QuantResearchRequest.validate_rebalance(cls, value) (line 101) [decorators: field_validator('rebalance_frequency'), classmethod]
+  - function QuantResearchRequest.validate_weights(cls, value) (line 108) [decorators: field_validator('strategy_weights'), classmethod]
+  - class CorporateImportRequest (line 119)
+  - class BrowserQuantHistory (line 125)
+  - class BrowserQuantResearchRequest (line 130)
+  - function BrowserQuantResearchRequest.validate_browser_provider(cls, value) (line 136) [decorators: field_validator('provider'), classmethod]
+  - async function catalog() (line 143) [decorators: router.get('/catalog')]
+  - async function import_corporate_data(request, http_request) (line 148) [decorators: router.post('/corporate/import')]
+  - async function corporate_snapshot(ticker, http_request) (line 158) [decorators: router.get('/corporate/{ticker}')]
+  - async function run_research(request, http_request) (line 167) [decorators: router.post('/run')]
+  - async function run_browser_research(request, http_request) (line 213) [decorators: public_router.post('/run-upload'), router.post('/run-upload')] — Evaluate browser-fetched daily histories without accepting or retaining a provider key.
 
 
 [server/backend/routes/watchlist.py]
@@ -3454,6 +3480,23 @@ Public code inventory:
   - function load_vai_model() (line 311)
   - function get_vai_model_status() (line 320)
   - function predict_vai_setup(ind, setup, patterns) (line 339)
+
+
+[server/examples/quant_strategy_manifest.example.json]
+Classification: Server configuration or operator asset. Source size: 27 lines.
+
+Its top-level configuration keys are label, hypothesis, strategies, model, strategy_weights,
+trend_lookback, momentum_lookback, long_short, rebalance_frequency, target_annual_volatility,
+max_gross_exposure, max_single_name_weight, cost_bps, borrow_bps_annual,
+liquidity_aware_costs, portfolio_value_assumption, impact_coefficient_bps,
+max_adv_participation_pct, and additional private helpers. These values are declarative inputs
+for the associated client, asset catalog, or shared configuration surface.
+
+Top-level object keys: label, hypothesis, strategies, model, strategy_weights, trend_lookback,
+momentum_lookback, long_short, rebalance_frequency, target_annual_volatility,
+max_gross_exposure, max_single_name_weight, cost_bps, borrow_bps_annual,
+liquidity_aware_costs, portfolio_value_assumption, impact_coefficient_bps,
+max_adv_participation_pct, walk_forward_folds, regime_conditioned_weights.
 
 
 [server/frontend/index.html]
@@ -4317,18 +4360,20 @@ Public code inventory:
 
 
 [server/tests/test_corporate_quant_system.py]
-Classification: Automated regression test. Source size: 62 lines.
+Classification: Automated regression test. Source size: 84 lines.
 
 This suite proves corporate/macro facts obey their availability timestamps and verifies the
 corporate Quant profile returns structured regime, liquidity, attribution, and health outputs.
 
-Imports: backend, backend.corporate_repository, backend.quant_research, backend.quant_system,
-numpy, os, pandas, tempfile, unittest, unittest.mock
+Imports: backend, backend.corporate_repository, backend.quant_experiments,
+backend.quant_research, backend.quant_system, numpy, os, pandas, tempfile, unittest,
+unittest.mock
 
 Public code inventory:
-  - class CorporateQuantSystemTests (line 15)
-  - function CorporateQuantSystemTests.test_point_in_time_corporate_and_macro_records_do_not_arrive_early(self) (line 16)
-  - function CorporateQuantSystemTests.test_regime_cost_and_full_system_outputs_are_structured(self) (line 35)
+  - class CorporateQuantSystemTests (line 16)
+  - function CorporateQuantSystemTests.test_point_in_time_corporate_and_macro_records_do_not_arrive_early(self) (line 17)
+  - function CorporateQuantSystemTests.test_regime_cost_and_full_system_outputs_are_structured(self) (line 36)
+  - function CorporateQuantSystemTests.test_manifest_experiment_is_declarative_reproducible_and_recorded(self) (line 62)
 
 
 [server/tests/test_dev_tools_jobs.py]
@@ -4751,6 +4796,23 @@ Public code inventory:
   - function parse_tickers(text, max_tickers) (line 45)
   - async function main_async(args) (line 53)
   - function main() (line 83)
+
+
+[server/tools/run_quant_experiment_cli.py]
+Classification: Operator or research utility. Source size: 54 lines.
+
+This supporting file belongs to the operator or research utility layer. Its role is bounded by
+the adjacent source and configuration files; a change should be evaluated in the workflow that
+actually consumes it rather than judged from the file in isolation.
+
+Module statement: Run one reproducible, declarative Quant Lab strategy experiment from daily
+CSV data.
+
+Imports: __future__, argparse, backend.database, backend.quant_experiments, json, pandas,
+pathlib, sys
+
+Public code inventory:
+  - function main() (line 19)
 
 
 [server/tools/seed_app_review_account.py]

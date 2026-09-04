@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field, field_validator
 from ..corporate_repository import get_corporate_repository
 from ..market_repository import get_market_repository, normalize_ticker
 from ..quant_research import MODEL_PROFILES, STRATEGIES, QuantConfig, evaluate_strategies
+from ..research_experiments import record_experiment
 from .analysis import browser_bars_to_history
 from .auth import require_current_user
 
@@ -19,6 +20,34 @@ router = APIRouter()
 # signed-in website and mobile app even when private Quant Lab administration
 # routes remain disabled.
 public_router = APIRouter()
+
+
+def _attach_experiment_record(
+    report: dict,
+    config: QuantConfig,
+    dataset_fingerprint: str,
+    *,
+    source: str,
+) -> None:
+    """Persist the immutable inputs and headline diagnostics for a completed research run."""
+    primary = next((row for row in report.get("results", []) if row.get("id") == "strategy_ensemble"), (report.get("results") or [{}])[0])
+    try:
+        identifier = record_experiment(
+            experiment_type="quant_strategy",
+            status="done",
+            config={"code_version": "quant-api-v1", "source": source, "quant_config": config.as_dict()},
+            dataset_fingerprint=dataset_fingerprint,
+            dataset_start=report.get("universe", {}).get("start"),
+            dataset_end=report.get("universe", {}).get("end"),
+            symbols=report.get("universe", {}).get("symbols", []),
+            sample_count=report.get("universe", {}).get("sessions"),
+            metrics={"primary_result": primary, "benchmark": report.get("benchmark", {}), "validation": report.get("validation", {})},
+        )
+        report["experiment_id"] = identifier
+        report["experiment_recording"] = "recorded"
+    except Exception as exc:
+        # The report remains useful when a local experiment database is unavailable.
+        report["experiment_recording"] = f"not_recorded: {exc}"
 
 
 class QuantResearchRequest(BaseModel):
@@ -173,7 +202,9 @@ async def run_research(request: QuantResearchRequest, http_request: Request):
         report["macro_context"] = await asyncio.to_thread(corporate_repository.macro_snapshot, index.max() if len(index) else None)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    report.update({"ok": True, "run_at": datetime.now(timezone.utc).isoformat(), "configuration": config.as_dict(), "data_source": request.data_source, "data_provider": provider, "source_metadata": metadata, "errors": errors, "dataset_fingerprint": repository.dataset_fingerprint(histories, configuration=config.as_dict())})
+    dataset_fingerprint = repository.dataset_fingerprint(histories, configuration=config.as_dict())
+    report.update({"ok": True, "run_at": datetime.now(timezone.utc).isoformat(), "configuration": config.as_dict(), "data_source": request.data_source, "data_provider": provider, "source_metadata": metadata, "errors": errors, "dataset_fingerprint": dataset_fingerprint})
+    _attach_experiment_record(report, config, dataset_fingerprint, source="server_repository")
     return report
 
 
@@ -225,5 +256,7 @@ async def run_browser_research(request: BrowserQuantResearchRequest, http_reques
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     repository = get_market_repository()
-    report.update({"ok": True, "run_at": datetime.now(timezone.utc).isoformat(), "configuration": config.as_dict(), "data_source": "browser_direct", "data_provider": f"browser_{request.provider}", "source_metadata": metadata, "errors": errors, "dataset_fingerprint": repository.dataset_fingerprint(histories, configuration=config.as_dict()), "raw_market_data_persisted": False})
+    dataset_fingerprint = repository.dataset_fingerprint(histories, configuration=config.as_dict())
+    report.update({"ok": True, "run_at": datetime.now(timezone.utc).isoformat(), "configuration": config.as_dict(), "data_source": "browser_direct", "data_provider": f"browser_{request.provider}", "source_metadata": metadata, "errors": errors, "dataset_fingerprint": dataset_fingerprint, "raw_market_data_persisted": False})
+    _attach_experiment_record(report, config, dataset_fingerprint, source="browser_direct")
     return report

@@ -89,6 +89,39 @@ def liquidity_execution_costs(
     }
 
 
+def liquidity_capacity_scenarios(
+    target: pd.DataFrame,
+    prices: pd.DataFrame,
+    volumes: pd.DataFrame,
+    *,
+    base_cost_bps: float,
+    portfolio_value: float,
+    impact_coefficient_bps: float,
+    max_adv_participation_pct: float,
+) -> dict[str, Any]:
+    """Re-run the same daily-ADV proxy at larger hypothetical portfolio sizes."""
+    scenarios = []
+    for multiplier in (1.0, 2.0, 5.0):
+        costs, details = liquidity_execution_costs(
+            target, prices, volumes,
+            base_cost_bps=base_cost_bps,
+            portfolio_value=portfolio_value * multiplier,
+            impact_coefficient_bps=impact_coefficient_bps,
+            max_adv_participation_pct=max_adv_participation_pct,
+        )
+        scenarios.append({
+            "portfolio_value_assumption": float(portfolio_value * multiplier),
+            "portfolio_value_multiple": multiplier,
+            "estimated_total_cost_pct": round(float(costs.sum()) * 100, 3),
+            "maximum_estimated_adv_participation_pct": details["maximum_estimated_adv_participation_pct"],
+            "participation_limit_breaches": details["participation_limit_breaches"],
+        })
+    return {
+        "scenarios": scenarios,
+        "note": "Sensitivity of the same daily ADV-participation proxy to assumed portfolio size. It does not model a multi-day liquidation, order-book depth, fire-sale feedback, or a live execution decision.",
+    }
+
+
 def factor_and_relative_value_attribution(
     held: pd.DataFrame,
     returns: pd.DataFrame,

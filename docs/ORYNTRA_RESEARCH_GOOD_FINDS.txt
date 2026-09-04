@@ -71,3 +71,43 @@ The SEC guidance emphasizes that liquidity assessment depends on market depth an
 **Classification:** Market-structure context; not direct implementation evidence.
 
 Jane Street’s ETF-liquidity material is a reminder that displayed liquidity, underlying-market liquidity, execution venue, and transaction size are different objects. For Oryntra, that reinforces a strict vocabulary rule: a daily-volume calculation is an ADV participation proxy, not a depth measure, a quote-quality measure, or evidence of executable liquidity. This belongs in report labels and documentation rather than in a new market-making or execution feature.
+
+## 2026-09-04, America/New_York — Bridgewater Associates
+
+**Source:** *The All Weather Story* (January 2012)
+**Direct URL:** https://www.bridgewater.com/resources/all-weather-story.pdf
+**Classification:** Candidate for discussion and research-only scenario design.
+
+Bridgewater’s account separates portfolio building blocks into beta, alpha, and the risk-free position, then frames balance around growth and inflation surprises rather than asset labels alone. The Oryntra-relevant lesson is to keep a future scenario framework distinct from return prediction: each scenario needs an explicit driver definition, mapping from instruments to that driver, risk contribution, and a record of what remains unmodeled. Current Quant Lab already treats correlation convergence as sensitivity only; this source supports improving scenario documentation before adding any macro allocation feature.
+
+## 2026-09-04, America/New_York — AQR Capital Management
+
+**Source:** *Strategic Portfolio Construction: How to Put It All Together* (2Q 2015)
+**Direct URL:** https://www.aqr.com/-/media/AQR/Documents/Insights/Alternative-Thinking/Alternative-Thinking-Strategic-Portfolio-Construction.pdf
+**Classification:** Candidate for discussion and research-governance design.
+
+AQR’s paper is useful precisely because it does not sell a universal optimizer: it shows that unconstrained mean-variance optimization can favor extreme leverage, illiquidity, or shorting when inputs are uncertain, while the acceptable constraints themselves are investor-specific choices. Oryntra should keep constraints visible and attributable to the research configuration instead of presenting an optimized allocation as objective. The existing gross, name, volatility, borrow, and participation assumptions should remain first-class report inputs; an ML or non-convex optimizer would require an explicit constraint and objective record before any experiment.
+
+## 2026-09-04, America/New_York — Citadel Securities
+
+**Source:** *Market Internals* (2026)
+**Direct URL:** https://www.citadelsecurities.com/news-and-insights/global-market-intelligence/market-internals/
+**Classification:** Candidate for discussion and future data-schema design.
+
+Citadel Securities’ market-structure note distinguishes top-of-book depth, ETF share of volume, positioning, and volatility rather than calling any one of them “liquidity.” The Oryntra lesson is a data-contract requirement: a future market-internals feature would need timestamped, licensed depth and flow series with venue/coverage metadata, plus separate labels for ADV, quoted depth, and flow concentration. Daily OHLCV cannot provide those measures, so the current product should keep its ADV participation output labeled as a proxy.
+
+## 2026-09-04, America/New_York — BlackRock Investment Institute
+
+**Source:** *Diversification Rewritten* (2026)
+**Direct URL:** https://www.blackrock.com/institutions/en-global/institutional-insights/diversification-rewritten
+**Classification:** Candidate for discussion and risk-report design.
+
+BlackRock’s framing is that owning many assets is not enough; diversification must be evaluated through how exposures behave, when they behave that way, and whether they can be adjusted as market structure changes. The current Oryntra-compatible lesson is to distinguish name count, concentration, correlation, and factor exposure in the report rather than collapse them into a single diversification score. This supports improving diagnostics and scenario provenance only; it does not validate a future hedge-fund allocation, live reallocation, or claims about execution liquidity.
+
+## 2026-09-04, America/New_York — Vanguard
+
+**Source:** *Vanguard’s Portfolio Construction Framework* (2014)
+**Direct URL:** https://corporate.vanguard.com/content/dam/corp/research/pdf/vanguards_portfolio_construction_framework.pdf
+**Classification:** Portfolio-governance reference; not a recommended allocation.
+
+Vanguard’s framework treats objectives, risk capacity, diversification, implementation cost, and behavioural discipline as connected portfolio-construction choices rather than outputs of a single optimizer. Its useful implication for Oryntra is that a research result should preserve the stated objective, risk measure, constraints, benchmark, rebalance rule, and cost assumptions together, so a later reader can tell which decision generated the outcome. That supports the current assumption-ledger direction, but it does not establish the appropriateness of any allocation or justify an automated portfolio-construction feature.

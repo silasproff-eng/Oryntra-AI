@@ -1,0 +1,26 @@
+{
+  "label": "Trend and relative-strength hypothesis",
+  "hypothesis": "Across this declared universe and period, a fixed trend/relative-strength blend may have a more resilient holdout path than the equal-weight buy-and-hold reference after stated costs.",
+  "strategies": ["time_series_trend", "cross_sectional_momentum", "defensive_low_volatility"],
+  "model": "v8_regime_diversified",
+  "strategy_weights": {
+    "time_series_trend": 45,
+    "cross_sectional_momentum": 35,
+    "defensive_low_volatility": 20
+  },
+  "trend_lookback": 126,
+  "momentum_lookback": 126,
+  "long_short": true,
+  "rebalance_frequency": "weekly",
+  "target_annual_volatility": 12,
+  "max_gross_exposure": 1,
+  "max_single_name_weight": 0.35,
+  "cost_bps": 12,
+  "borrow_bps_annual": 50,
+  "liquidity_aware_costs": true,
+  "portfolio_value_assumption": 1000000,
+  "impact_coefficient_bps": 18,
+  "max_adv_participation_pct": 2,
+  "walk_forward_folds": 3,
+  "regime_conditioned_weights": true
+}

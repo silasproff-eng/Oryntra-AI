@@ -9,6 +9,7 @@ import pandas as pd
 from backend import database
 from backend.corporate_repository import CorporateRepository
 from backend.quant_research import QuantConfig, evaluate_strategies
+from backend.quant_experiments import histories_from_rows, run_manifest_experiment
 from backend.quant_system import liquidity_execution_costs, probabilistic_regimes, regime_conditioned_weights
 
 
@@ -52,9 +53,30 @@ class CorporateQuantSystemTests(unittest.TestCase):
         self.assertEqual(report["assumption_ledger"]["timing"][0]["value"], "Session close t; holdings begin in session t+1")
         self.assertEqual(report["assumption_ledger"]["execution"][1]["value"], "Base cost plus square-root ADV-participation proxy")
         self.assertEqual(len(report["assumption_ledger"]["omissions"]), 4)
+        self.assertEqual([row["portfolio_value_multiple"] for row in report["execution"]["capacity_sensitivity"]["scenarios"]], [1.0, 2.0, 5.0])
         self.assertIn("factor_attribution", report)
+        self.assertEqual(report["benchmark"]["label"], "Equal-weight buy-and-hold reference")
         self.assertIn("strategy_health", report)
         self.assertEqual(report["macro_data"]["status"], "available")
+
+    def test_manifest_experiment_is_declarative_reproducible_and_recorded(self):
+        index = pd.bdate_range("2023-01-02", periods=320)
+        rows = []
+        for seed, ticker in enumerate(("AAA", "BBB", "CCC", "DDD"), 1):
+            closes = 100 * np.exp(np.cumsum(np.random.default_rng(seed).normal(.0003, .01, len(index))))
+            rows.extend({"date": day.isoformat(), "ticker": ticker, "close": close, "volume": 1_500_000} for day, close in zip(index, closes))
+        manifest = {
+            "label": "Fixed test",
+            "hypothesis": "A fixed rule must be compared with its declared reference.",
+            "strategies": ["time_series_trend", "cross_sectional_momentum"],
+            "model": "v8_balanced",
+            "strategy_weights": {"time_series_trend": 60, "cross_sectional_momentum": 40},
+        }
+        with tempfile.TemporaryDirectory() as directory, patch.object(database, "DB_PATH", os.path.join(directory, "research.db")):
+            report = run_manifest_experiment(histories_from_rows(pd.DataFrame(rows)), manifest)
+        self.assertTrue(report["experiment_id"])
+        self.assertEqual(report["manifest"]["label"], "Fixed test")
+        self.assertEqual(report["benchmark"]["label"], "Equal-weight buy-and-hold reference")
 
 
 if __name__ == "__main__":
