@@ -205,6 +205,7 @@ Each run returns configuration, universe dates/symbols, source metadata, a datas
 - execution cost, maximum ADV participation, participation-limit breach count, and missing-liquidity observations;
 - corporate/macro coverage status;
 - factor/relative-value attribution and sleeve health;
+- an assumption ledger that records timing, portfolio limits, cost/liquidity inputs, structured-evidence coverage, stress construction, and material omissions for the exact run;
 - 126-session pairwise return-correlation matrix;
 - moderate and severe correlation-convergence scenarios over 21 sessions, preserving marginal volatility and shifting correlations 50% or 85% toward +1;
 - net monthly-return matrix; and

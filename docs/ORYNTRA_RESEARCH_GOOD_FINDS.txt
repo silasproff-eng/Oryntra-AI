@@ -1,0 +1,73 @@
+# Oryntra institutional research — good finds
+
+## 2026-09-03, America/New_York — Vanguard Research
+
+**Source:** *Not all factors are created equal: Factors’ role in asset allocation* (November 2023)
+**Direct URL:** https://corporate.vanguard.com/content/dam/corp/research/pdf/not_all_factors_are_created_equal_factors_role_in_asset_allocation.pdf
+**Classification:** Candidate for discussion, then research-only experimentation.
+
+Vanguard compares cap-weighted, signal-weighted, and hybrid factor portfolios rather than treating a factor label as sufficient to describe a sleeve. Its concrete point is that signal weighting can deliver deeper target-factor exposure with less capital, but at the cost of higher tracking error and a meaningfully different risk profile; its example treats the factor-construction rule itself as a portfolio-level design decision. Oryntra should therefore expose each Quant Lab sleeve's weighting convention and ex-ante concentration/active-risk diagnostics before any attempt to add value, momentum, or quality sleeves. This supports a future research comparison between cap, equal, and score-weighted constructions using identical eligibility, timing, turnover, and liquidity assumptions; it does not support an unvalidated change to current allocations.
+
+## 2026-09-03, America/New_York — Two Sigma
+
+**Source:** *Introducing the Two Sigma Factor Lens* (June 2018)
+**Direct URL:** https://www.twosigma.com/wp-content/uploads/Introducing-the-Two-Sigma-Factor-Lens.10.18.pdf
+**Classification:** Candidate for discussion, then research-only experimentation.
+
+Two Sigma frames a usable risk lens as holistic, parsimonious, orthogonal, and actionable—not merely a long list of correlated asset-class labels. It residualizes credit and commodities against more liquid equity/rates factors with rolling, exponentially weighted regressions, explicitly noting that correlations rise in downturns and that factor construction requires stability checks. Oryntra's existing correlation-convergence output is a useful sensitivity display, but any later macro/factor layer should first report factor definitions, coverage, rolling loadings, residualization window, explained variation, and loading stability; a factor should not be treated as diversifying solely because its name differs from another sleeve. This is not an authorization to ship a macro product or to claim institutional-grade factor attribution.
+
+## 2026-09-03, America/New_York — Citadel Securities
+
+**Source:** *Response to IOSCO: Corporate Bond Markets – Drivers of Liquidity During COVID-19 Induced Market Stresses* (July 2022)
+**Direct URL:** https://www.citadelsecurities.com/wp-content/uploads/sites/2/2022/12/Citadel-Corporate-Bond-Markets-Drivers-of-Liquidity-Response.pdf
+**Classification:** Candidate for discussion and data-provenance design; not implementation evidence by itself.
+
+In this policy response, Citadel Securities argues that reliable, comprehensive, timely post-trade price and volume data supports price formation, transaction-cost analysis, and liquidity-provider accountability, especially in stressed markets. The Oryntra-relevant lesson is not the policy recommendation itself: every liquidity or execution diagnostic needs an explicit data-coverage/provenance panel—venue scope, reporting delay, frequency, missingness, currency, and whether volume is consolidated or proxy data—before users see a capacity or cost number. Daily OHLCV can support only a clearly labeled proxy; it cannot substantiate a market-depth, best-execution, or bond-liquidity claim.
+
+## 2026-09-03, America/New_York — Bridgewater Associates
+
+**Source:** *A New Era of Higher Inflation Risks* (September 2025)
+**Direct URL:** https://www.bridgewater.com/research-and-insights/a-new-era-of-higher-inflation-risks
+**Classification:** Candidate for discussion, then research-only experimentation.
+
+Bridgewater frames portfolio risk as exposure to macro environments—growth, inflation, and liquidity—and stresses that the stock/bond correlation can change sharply with the inflation regime. The actionable Oryntra lesson is to treat correlation shocks as explicitly conditional stress tests: retain a regime label, the input series, sampling window, and real-versus-nominal return choice alongside each result, rather than treating a long-run correlation as a stable diversification fact. The paper’s macro views are not a trading signal and do not justify an Oryntra macro dashboard; they motivate a more auditable design for future scenario research.
+
+## 2026-09-04, America/New_York — AQR Capital Management
+
+**Source:** *Transactions Costs: Practical Application* (September 2018)
+**Direct URL:** https://www.aqr.com/-/media/AQR/Documents/Insights/White-Papers/AQR-Transactions-Costs---Practical-Application.pdf?sc_lang=en
+**Classification:** Candidate for discussion, then research-only measurement design.
+
+AQR separates explicit costs (commissions, taxes, fees) from implicit costs (spread, slippage, price impact) and warns that a single cost number is not comparable without its benchmark and methodology. It also distinguishes realized impact from opportunity cost of unfilled orders and ties execution aggressiveness to alpha decay rather than treating lower measured cost as automatically better. Oryntra’s daily-bar model cannot measure those quantities directly, but future reports can honestly show a cost-assumption ledger—base fees, impact proxy, participation cap, benchmark, unfilled-order treatment, and omitted costs—rather than calling the output transaction-cost analysis or execution quality.
+
+## 2026-09-04, America/New_York — BlackRock Investment Institute
+
+**Source:** *Our take on total portfolio approach* (2026)
+**Direct URL:** https://www.blackrock.com/corporate/insights/blackrock-investment-institute/our-take-on-total-portfolio-approach
+**Classification:** Candidate for discussion and research-governance design; not an allocation rule.
+
+BlackRock’s framework says portfolio risk should be assessed through underlying economic and factor drivers, not only asset-class labels, and that each marginal decision needs to be comparable within one whole-portfolio risk-and-return framework. The useful Oryntra lesson is narrower: report each sleeve’s actual contribution, concentration, cost assumptions, and shared-risk diagnostics together before adding more sleeves. This supports an auditable research report and an assumption ledger; it does not validate an optimizer, a macro dashboard, or a claimed “total portfolio” system.
+
+## 2026-09-04, America/New_York — Two Sigma
+
+**Source:** *A Machine Learning Approach to Constructing an Inflation-Themed Equity Portfolio* (January 2022)
+**Direct URL:** https://www.twosigma.com/articles/a-machine-learning-approach-to-constructing-an-inflation-themed-equity-portfolio/
+**Classification:** Research-method reference only.
+
+Two Sigma’s worked example uses a walk-forward design and specifies the inflation definition, data inputs, model choice, liquid universe, and intended portfolio exposure before assessing the result. The useful constraint for Oryntra is that an ML portfolio sleeve would need an immutable experiment record: target definition, availability timing, universe/eligibility, feature set, train-validation-test dates, thresholds, constraints, and benchmark. Oryntra does not currently have the data coverage or experiment infrastructure for that sleeve, so this is a standard to meet before—not a reason to add an ML optimizer now.
+
+## 2026-09-04, America/New_York — U.S. Securities and Exchange Commission
+
+**Source:** *Investment Company Liquidity Risk Management Programs: Frequently Asked Questions* (updated 2018)
+**Direct URL:** https://www.sec.gov/rules-regulations/staff-guidance/division-investment-management-frequently-asked-questions/investment-company-liquidity-risk-management-programs-frequently-asked-questions
+**Classification:** Data-model and disclosure reference; not a claim that Oryntra is subject to fund regulation.
+
+The SEC guidance emphasizes that liquidity assessment depends on market depth and the size a fund reasonably anticipates trading; the same instrument can have different liquidity treatment under different, documented assumptions. Oryntra’s current daily ADV model should therefore display its assumed portfolio value, participation limit, and omitted depth/spread inputs next to its result. It cannot turn daily OHLCV into a liquidity classification, a fire-sale model, or a best-execution conclusion.
+
+## 2026-09-04, America/New_York — Jane Street
+
+**Source:** *European ETF Liquidity Landscape* (2026)
+**Direct URL:** https://www.janestreet.com/eu-etf-liquidity/
+**Classification:** Market-structure context; not direct implementation evidence.
+
+Jane Street’s ETF-liquidity material is a reminder that displayed liquidity, underlying-market liquidity, execution venue, and transaction size are different objects. For Oryntra, that reinforces a strict vocabulary rule: a daily-volume calculation is an ADV participation proxy, not a depth measure, a quote-quality measure, or evidence of executable liquidity. This belongs in report labels and documentation rather than in a new market-making or execution feature.

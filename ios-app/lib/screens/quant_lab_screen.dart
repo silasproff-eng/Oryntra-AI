@@ -493,6 +493,9 @@ class _QuantReport extends StatelessWidget {
     final health = report['strategy_health'] is List
         ? List<dynamic>.from(report['strategy_health'])
         : const [];
+    final ledger = report['assumption_ledger'] is Map
+        ? Map<String, dynamic>.from(report['assumption_ledger'])
+        : <String, dynamic>{};
     return Column(
       children: [
         const InstitutionalSectionLabel(label: 'Research report'),
@@ -590,6 +593,56 @@ class _QuantReport extends StatelessWidget {
                     ),
                   )
                   .toList(),
+            ),
+          ),
+        ],
+        if (ledger.isNotEmpty) ...[
+          const InstitutionalSectionLabel(label: 'Assumption ledger'),
+          AppCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'What this report assumes',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: 8),
+                ...['timing', 'portfolio', 'execution', 'evidence'].expand(
+                  (group) {
+                    final rows = ledger[group] is List
+                        ? List<dynamic>.from(ledger[group])
+                        : const <dynamic>[];
+                    return rows.whereType<Map>().map(
+                      (item) => ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        dense: true,
+                        title: Text(item['label']?.toString() ?? 'Assumption'),
+                        subtitle: Text(item['value']?.toString() ?? '—'),
+                      ),
+                    );
+                  },
+                ),
+                if (ledger['omissions'] is List) ...[
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Material omissions',
+                    style: TextStyle(fontWeight: FontWeight.w900),
+                  ),
+                  ...List<dynamic>.from(ledger['omissions']).map(
+                    (item) => Padding(
+                      padding: const EdgeInsets.only(top: 5),
+                      child: Text('• ${item.toString()}'),
+                    ),
+                  ),
+                ],
+                if (ledger['note'] != null) ...[
+                  const SizedBox(height: 10),
+                  Text(
+                    ledger['note'].toString(),
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ],
+              ],
             ),
           ),
         ],

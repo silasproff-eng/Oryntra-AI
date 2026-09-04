@@ -188,6 +188,42 @@ def _quality(prices: pd.DataFrame) -> dict[str, Any]:
     return {"symbols": [{"symbol": str(symbol), "bars": int(prices[symbol].notna().sum()), "first_bar": str(prices[symbol].dropna().index.min().date()) if prices[symbol].notna().any() else None, "last_bar": str(prices[symbol].dropna().index.max().date()) if prices[symbol].notna().any() else None, "missing_session_pct": round(float(prices[symbol].isna().mean()) * 100, 2)} for symbol in prices.columns], "complete_overlap_sessions": int(prices.dropna(how="any").shape[0])}
 
 
+def _assumption_ledger(config: QuantConfig, corporate_coverage_pct: float, macro_coverage_pct: float) -> dict[str, Any]:
+    """Return the fixed model inputs and material omissions behind one research run."""
+    return {
+        "timing": [
+            {"label": "Signal timing", "value": "Session close t; holdings begin in session t+1"},
+            {"label": "Rebalance schedule", "value": config.rebalance_frequency},
+            {"label": "Volatility scaling", "value": f"May reduce exposure toward {config.target_annual_volatility:g}% annualized; never adds leverage"},
+        ],
+        "portfolio": [
+            {"label": "Gross exposure cap", "value": f"{config.max_gross_exposure:g}×"},
+            {"label": "Single-name cap", "value": f"{config.max_single_name_weight * 100:g}%"},
+            {"label": "Short exposure", "value": "Enabled" if config.long_short else "Disabled"},
+            {"label": "Annual short-borrow assumption", "value": f"{config.borrow_bps_annual:g} bps"},
+        ],
+        "execution": [
+            {"label": "Base trading-cost assumption", "value": f"{config.cost_bps:g} bps per unit of turnover"},
+            {"label": "Liquidity model", "value": "Base cost plus square-root ADV-participation proxy" if config.liquidity_aware_costs else "Base trading-cost assumption only"},
+            {"label": "Portfolio-value assumption", "value": f"${config.portfolio_value_assumption:,.0f}" if config.liquidity_aware_costs else "Not used"},
+            {"label": "Impact / participation inputs", "value": f"{config.impact_coefficient_bps:g} bps / {config.max_adv_participation_pct:g}% ADV" if config.liquidity_aware_costs else "Not used"},
+        ],
+        "evidence": [
+            {"label": "Price history", "value": "Daily OHLCV-shaped input; coverage is reported per symbol"},
+            {"label": "Corporate PIT coverage", "value": f"{corporate_coverage_pct:.1f}%"},
+            {"label": "Macro PIT coverage", "value": f"{macro_coverage_pct:.1f}%"},
+            {"label": "Correlation stress", "value": "Trailing covariance sensitivity with unchanged latest weights and marginal volatility"},
+        ],
+        "omissions": [
+            "No order-book history, bid/ask spread series, venue depth, fill simulation, or best-execution measurement.",
+            "No point-in-time delisted-security history is included in this package.",
+            "No taxes, financing beyond the stated short-borrow assumption, or unfilled-order opportunity cost is modeled.",
+            "Historical diagnostics do not establish future profitability or an allocation instruction.",
+        ],
+        "note": "This ledger records the assumptions for this report. It is a research-audit aid, not an execution specification.",
+    }
+
+
 def _correlation_heatmap(returns: pd.DataFrame) -> dict[str, Any]:
     """Return a bounded, display-ready trailing correlation matrix."""
     sample = returns.tail(126).dropna(axis=1, how="all")
@@ -346,4 +382,4 @@ def evaluate_strategies(histories: dict[str, pd.DataFrame], config: QuantConfig,
     _, execution_report = liquidity_execution_costs(target, prices, volumes, base_cost_bps=config.cost_bps, portfolio_value=config.portfolio_value_assumption, impact_coefficient_bps=config.impact_coefficient_bps, max_adv_participation_pct=config.max_adv_participation_pct)
     corporate_coverage = float(corporate_scores.reindex(index=prices.index, columns=prices.columns).ne(0).mean().mean() * 100) if corporate_scores is not None and not corporate_scores.empty else 0.0
     macro_coverage = float(macro_features.reindex(index=prices.index).notna().mean().mean() * 100) if macro_features is not None and not macro_features.empty else 0.0
-    return {"methodology": {"execution_timing": "signal at session close, held for the next session", "portfolio_construction": "weights are capped, rebalanced on the selected schedule, and may only scale down to the requested volatility target", "cash_rate": "0% for displayed Sharpe", "warnings": ["Research simulation only. It does not place orders or identify a best trade.", "Signals use the close of day t and returns begin on day t+1; costs are deducted from every weight change.", "Corporate facts and macro observations are only eligible after their recorded public availability timestamp; zero coverage is treated as no structured signal.", "Correlation-convergence scenarios estimate diversification-breakdown risk only; they do not forecast losses or change simulated allocations.", "This package does not include point-in-time delisted-security history, so results are not production-grade evidence."], "model_profile": MODEL_PROFILES.get(config.model, MODEL_PROFILES["v8_regime_diversified"])}, "universe": {"symbols": list(prices.columns), "start": str(prices.index.min().date()), "end": str(prices.index.max().date()), "sessions": int(len(prices))}, "results": results, "validation": _validation(net, config.walk_forward_folds), "regime_breakdown": _regime_breakdown(net, benchmark), "regime_probabilities": [{"date": str(day.date()), **{key: round(float(value), 4) for key, value in row.items()}} for day, row in regime_probabilities.iloc[::max(1, len(regime_probabilities) // 120)].iterrows()][-120:], "portfolio_risk": _risk_report(held, returns), "execution": execution_report, "factor_attribution": factor_and_relative_value_attribution(held, returns, benchmark, component_returns), "strategy_health": strategy_health(component_returns), "corporate_data": {"signal_coverage_pct": round(corporate_coverage, 2), "status": "available" if corporate_coverage > 0 else "not_yet_loaded"}, "macro_data": {"signal_coverage_pct": round(macro_coverage, 2), "status": "available" if macro_coverage > 0 else "not_yet_loaded", "features": ["policy_rate", "yield_2y", "yield_10y", "credit_spread_bps", "inflation_yoy"]}, "data_quality": _quality(prices), "visual_diagnostics": {"correlation": _correlation_heatmap(returns), "correlation_stress": _correlation_stress_report(held, returns), "monthly_returns": _monthly_return_heatmap(net), "performance": _performance_diagnostics(net)}}
+    return {"methodology": {"execution_timing": "signal at session close, held for the next session", "portfolio_construction": "weights are capped, rebalanced on the selected schedule, and may only scale down to the requested volatility target", "cash_rate": "0% for displayed Sharpe", "warnings": ["Research simulation only. It does not place orders or identify a best trade.", "Signals use the close of day t and returns begin on day t+1; costs are deducted from every weight change.", "Corporate facts and macro observations are only eligible after their recorded public availability timestamp; zero coverage is treated as no structured signal.", "Correlation-convergence scenarios estimate diversification-breakdown risk only; they do not forecast losses or change simulated allocations.", "This package does not include point-in-time delisted-security history, so results are not production-grade evidence."], "model_profile": MODEL_PROFILES.get(config.model, MODEL_PROFILES["v8_regime_diversified"])}, "universe": {"symbols": list(prices.columns), "start": str(prices.index.min().date()), "end": str(prices.index.max().date()), "sessions": int(len(prices))}, "results": results, "validation": _validation(net, config.walk_forward_folds), "regime_breakdown": _regime_breakdown(net, benchmark), "regime_probabilities": [{"date": str(day.date()), **{key: round(float(value), 4) for key, value in row.items()}} for day, row in regime_probabilities.iloc[::max(1, len(regime_probabilities) // 120)].iterrows()][-120:], "portfolio_risk": _risk_report(held, returns), "execution": execution_report, "factor_attribution": factor_and_relative_value_attribution(held, returns, benchmark, component_returns), "strategy_health": strategy_health(component_returns), "corporate_data": {"signal_coverage_pct": round(corporate_coverage, 2), "status": "available" if corporate_coverage > 0 else "not_yet_loaded"}, "macro_data": {"signal_coverage_pct": round(macro_coverage, 2), "status": "available" if macro_coverage > 0 else "not_yet_loaded", "features": ["policy_rate", "yield_2y", "yield_10y", "credit_spread_bps", "inflation_yoy"]}, "assumption_ledger": _assumption_ledger(config, corporate_coverage, macro_coverage), "data_quality": _quality(prices), "visual_diagnostics": {"correlation": _correlation_heatmap(returns), "correlation_stress": _correlation_stress_report(held, returns), "monthly_returns": _monthly_return_heatmap(net), "performance": _performance_diagnostics(net)}}

@@ -133,6 +133,12 @@ It reports baseline and stressed 21-session/annualized volatility plus a risk mu
 - Data-quality rows report usable bars, first/last dates, missing-session percentage, and complete overlap.
 - The dataset fingerprint identifies the selected histories and configuration for reproducibility.
 
+### Assumption ledger
+
+Every completed report returns and displays an assumption ledger. It records the exact timing convention, rebalancing schedule, one-way volatility target, gross and single-name limits, short-borrow assumption, base cost, liquidity-proxy inputs, corporate/macro point-in-time coverage, and correlation-stress construction used for that run. It also lists material omissions: order-book/venue depth, bid-ask series, fill or best-execution simulation, delisted-security point-in-time coverage, taxes, financing beyond stated borrow, and unfilled-order opportunity cost.
+
+The ledger is an audit aid. It does not convert daily OHLCV into a liquidity classification or execution claim, and it does not change a portfolio’s simulated holdings.
+
 ## Client and route behavior
 
 Browser and mobile direct clients fetch daily bars directly from the selected provider and submit normalized bars to `POST /api/quant/run-upload`. The provider key does not enter the request, and uploaded histories are evaluated in memory. Mobile supports two to eight unique symbols, caps Polygon/Massive Basic runs at four, and saves completed reports on the device.
