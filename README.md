@@ -20,8 +20,7 @@ Oryntra has three cooperating product surfaces:
 2. A static browser workspace with Scanner, Watchlist, Paper trades, Backtest, Quant Lab, and Settings.
 3. A Flutter client with Scanner, Watchlist, Paper, Quant Lab, and Account, plus iOS notifications, background-task support, ads/consent plumbing, secure local credential storage, and a home-screen widget.
 
-The current source describes version `1.0.0`. The iOS project declares Flutter build `1.0.0+18`. The product owner reported that build as **Waiting for Review** in App Store Connect on 2026-09-02; that status is not live-verified by this repository and does not mean the app is approved or publicly available.
-
+The current source describes version `1.0.0`. The iOS project declares Flutter build `1.0.0+18`. 
 ## Documentation map
 
 - [Features, models, and architecture](docs/FEATURES_MODELS_AND_ARCHITECTURE.md) is the main human-readable guide to every product capability and model family.
